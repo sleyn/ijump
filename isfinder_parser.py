@@ -7,30 +7,21 @@ html_name = ""
 
 # read command line arguments
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:g:")
+    opts, args = getopt.getopt(sys.argv[1:], "i:")
 except getopt.GetoptError:
-    print("isfinder_parse.py -i <ISfinder BLAST HTML page> -g <genome_size_in_nt>")
+    print("isfinder_parse.py -i <ISfinder BLAST HTML page>")
     sys.exit(2)
 
 for opt, arg in opts:
     if opt == '-i':
         isfinder_name = arg
-    elif opt == '-g':
-        gsize = int(arg)
 
 # check if all argumants were provided
-check_args = 0
 
 if not isfinder_name:
     print("ISfinder BLAST HTML file is not specified")
-    check_args = 1
-
-if not gsize:
-    print("Genome size is not specified")
-    check_args = 1
-
-if check_args == 1:
     sys.exit(1)
+
 
 # read ISfinder output html file
 isfinder_file = open(isfinder_name, 'r')
@@ -38,26 +29,35 @@ isfinder_content = isfinder_file.read()
 isfinder_file.close()
 
 # collect information from the table
-isels_ge = pd.DataFrame(columns=['name', 'family', 'group', 'origin'])      # general information about IS
-isels = pd.DataFrame(columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop', 'check'])       #specific inforamtion about every hit
+
+isfinder_content = re.sub('</article>.+', '', isfinder_content, re.DOTALL) #remove HTML code after BLAST output
+
+isels_final = pd.DataFrame(columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop',
+                              'check'])  # specific inforamtion about every hit
 
 for contig in isfinder_content.split('<b>Query=</b>')[1:]:
-    gname_match = re.match(' (\S+) ',contig)
-    gname = gname_match.group(1)
+    isels_ge = pd.DataFrame(columns=['name', 'family', 'group', 'origin'])  # general information about IS
+    isels = pd.DataFrame(columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop',
+                                  'check'])  # specific inforamtion about every hit
 
-    for isel in re.findall('<a[^>]+>([^<]+)</a></td><td>([^<]*)</td><td>([^<]*)</td><td><a[^>]+>([^<]*)</a></td><td><a[^>]+>[^<]+</a></td><td>[^<]+</td></tr>',contig):
+    gname_match = re.match(' (\S+)[^\n]*\n\nLength=(\d+)\n',contig)
+    gname = gname_match.group(1)        # contig name
+    gsize = int(gname_match.group(2))   #contig size
+
+    for isel in re.findall('<a[^>]+>([^<]+)</a></td><td>([^<]*)</td><td>([^<]*)</td><td><a[^>]+>([^<]*)</a></td><td><a[^>]+>[^<]+</a></td><td>[^<]+</td></tr>',contig):     # IS name, family, group, genome
         isel_df = pd.DataFrame([list(isel)], columns=['name', 'family', 'group', 'origin'])
-        isels_ge = isels_ge.append(isel_df)
+        isels_ge = isels_ge.append(isel_df, sort=False)
 
     isels_ge = isels_ge.set_index('name')
 
     # collect coordinates of IS elements
-    match = re.search('<pre>&gt;(.+)</pre>', contig, re.DOTALL)
+    match = re.search('<pre>&gt;(.+)', contig, re.DOTALL)
     alignments_block = match.group(1)
     for alignments in alignments_block.split('&gt;'):
-        match = re.search('</a> (\w+) <span', alignments)
+        match = re.search('</a> (\S+) <span', alignments)
         name = match.group(1)
         index = 1
+
         for align in alignments.split(' Score')[1:]:
             evalue = float(re.search('Expect = ([^\n]+)', align).group(1))
             if evalue > 1E-30:
@@ -77,7 +77,7 @@ for contig in isfinder_content.split('<b>Query=</b>')[1:]:
             add_list.extend(list(isels_ge.loc[name,:]))
             add_list.extend([bit, evalue, start, stop, 0])
             isel_df = pd.DataFrame([add_list], columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop', 'check'])
-            isels = isels.append(isel_df)
+            isels = isels.append(isel_df, sort=False)
             index = index + 1
 
     isels = isels.sort_values(by=['score'], ascending=False)
@@ -103,5 +103,7 @@ for contig in isfinder_content.split('<b>Query=</b>')[1:]:
 
     isels = isels[isels['check']==1]            # remove overlapping IS hits with less score
     isels = isels.drop(columns=['check'])       # remove check column
-    isels.to_csv('ISTable_full.txt', sep='\t')       # write full table in file
-    isels.to_csv('ISTable_processing.txt', sep='\t', columns=['contig', 'start', 'stop'], header=False)       # write table for further processing to file
+    isels_final = isels_final.append(isels, sort=False)
+
+isels_final.to_csv('ISTable_full.txt', sep='\t')       # write full table in file
+isels_final.to_csv('ISTable_processing.txt', sep='\t', columns=['contig', 'start', 'stop'], header=False)       # write table for further processing to file
