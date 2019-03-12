@@ -11,9 +11,22 @@ In our experiments we found that often rearrangements are happend by mobile elem
 
 ## Installation
 
-**iJump** is dependent on several python libraries:
+**iJump** do not need special installation but it is dependent on several Python libraries:
 * **biopython**
 
-    Installation guidelines could be found [https://biopython.org/wiki/Download](https://biopython.org/wiki/Download)
+    [Installation guidelines](https://biopython.org/wiki/Download)
 
 * **pandas**
+
+    [Installation guidelines](https://pandas.pydata.org/pandas-docs/stable/install.html)
+    
+* **pysam**
+
+    [Installation guidelines](https://pysam.readthedocs.io/en/latest/installation.html)
+    
+ ## Usage
+ 
+ In general iJump
+ ```
+ python3 isjump.py -f Sample_r_bqsr.bam -r A_baumannii_assembly.fna -g A_baumannii_assembly.gff
+ ```
