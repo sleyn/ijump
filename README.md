@@ -76,7 +76,7 @@ cgtagctgctagctagctagctagcgtacgtacgtagctacgtacgta...
 
 #### GFF file
 
-iJump is working with it's own gff module that is tuned for PATRIC-style GFF.
+iJump is working with it's own gff module that is tuned for PATRIC/PROKKA-style GFF.
 
 Example:
 ```
