@@ -7,18 +7,15 @@ import re
 try:
     opts, args = getopt.getopt(sys.argv[1:], "d:")
 except getopt.GetoptError:
-    print("isfinder_parse.py -d <Directory with report files>")
+    print("combine_results.py -d <Directory with report files>")
     sys.exit(1)
 
 for opt, arg in opts:
     if opt == '-d':
         report_folder = arg
-    else:
-        print("isfinder_parse.py -d <Directory with report files>")
-        sys.exit(1)
 
 
-report_files = glob.glob(report_folder + '/isjump_*')    # collect report files
+report_files = glob.glob(report_folder + '/ijump_*')    # collect report files
 sample_list = list()            # list of samples from reports
 summary_table = pd.DataFrame()
 
@@ -50,5 +47,5 @@ for report in report_files:
         	ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
         	summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
 
-summary_table.to_csv('isjump_summary.txt', sep='\t', index=False)
+summary_table.to_csv('ijump_summary.txt', sep='\t', index=False)
 
