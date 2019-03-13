@@ -98,103 +98,98 @@ iJump run with the following command:
 
 ### Output
 
-#### isjump_junctions.txt
+#### ijump_junctions.txt
 
 Contains information about junctions for each read. File contains following columns:
 
-* index
-
-        order number
+* index  
+	 order number
 	
-* ID
-
-        unique identifier
+* ID  
+	 unique identifier
 	
-* IS name
-
-        mobile element name
+* IS name  
+	 mobile element name
 	
-* IS pos
-
-        what part of the read matches mobile element
+* IS pos  
+	 what part of the read matches mobile element
 	
-* IS chrom
-
-        name of contig where mobile element is located in the reference
+* IS chrom  
+	 name of contig where mobile element is located in the reference
 	
-* Read name
-
-        read name where jubction was observed
-* Chrom
-        name of contig where mobile element jumped
+* Read name  
+	 read name where jubction was observed
 	
-* Position
-
-        posistion of the junction
+* Chrom  
+	 name of contig where mobile element jumped
 	
-* Orientation
-
-        orientation of mobile element relative to junction
+* Position  
+	 posistion of the junction
 	
-* Note
-
-        mark if junction is in other mobile elements - usually indicates false positive hits
+* Orientation  
+	 orientation of mobile element relative to junction
 	
-* Locus tag
-
-        locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
+* Note  
+	 mark if junction is in other mobile elements - usually indicates false positive hits
 	
-* Gene
+* Locus tag  
+	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
 	
-        trivial name of the affected gene
+* Gene  
+	 trivial name of the affected gene
         
-#### isjump_report_by_is_reg.txt
+#### ijump_report_by_is_reg.txt
 
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
 File contains following columns:
-* IS Name
+* IS Name  
+	 mobile element name
 
-	mobile element name
+* Annotation  
+	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
+	
+* Chromosome  
+	 name of contig where affected region is located
+	
+* Start  
+	 start coordinate of affected region
+	
+* Stop  
+	 end coordinate of affected region
+	
+* Frequency  
+	 estimated frequency of the mobile element jumps into a genomic region
+	
+* Depth  
+	 average coverage of the genomic region
 
-* Annotation
+If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
 
-	locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ 
-	
-* Chromosome
-        
-	name of contig where affected region is located
-	
-* Start
-        
-	start coordinate of affected region
-	
-* Stop
-        
-	end coordinate of affected region
-	
-* Frequency
-        
-	estimated frequency of the mobile element jumps into a genomic region
-	
-* Depth
-        
-	average coverage of the genomic region
-        
- #### isjump_sum_by_reg.txt
+```
+python3 combibe_results.py -d .
+```
+
+This will merge all results in one table.
+
+#### ijump_sum_by_reg.txt
  
 Wide format of frequency estimation. Table shows raw counts of reads that support junctions instead of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
  
-  * ann
-    locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_   
-  * chrom
-    name of contig where affected region is located
-  * start
-    start coordinate of affected region
-  * stop
-    end coordinate of affected region
-  * mobile element names
-    raw reads that support junctions
+* ann  
+	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_   
+    
+* chrom  
+	 name of contig where affected region is located
+    
+* start  
+	 start coordinate of affected region
+    
+* stop  
+	 end coordinate of affected region
+    
+* mobile element names  
+	 raw reads that support junctions
     
 #### CIRCOS files
 
