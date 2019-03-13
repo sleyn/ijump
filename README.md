@@ -7,7 +7,7 @@ Software for search of rearrangements in population sequencing data.
 2. Extract unaligned part of reads.
 3. BLAST unaligned parts agains reference.
 4. Find best hits with >90% identity to the reference with unique highest bitscore. If two ore more hits share the same bit score - the junction considered as ambigious and skipped. Usually this is happening because aligner map reads to several copies of mobile element.
-5. Assess frequency of insertion by simple formula (Rl + Rr)/(2 * Dt), where  
+5. Assess frequency of insertion by simple formula *(Rl + Rr)/(2 * Dt)*, where  
 	*Rl* - number of reads that support junction to the target on the "left" side of mobile element  
 	*Rr* - number of reads that support junction to the target on the "right" side of mobile element  
 	*Dt* - average depth of caverage of target region
