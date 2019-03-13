@@ -101,29 +101,51 @@ iJump run with the following command:
 #### isjump_junctions.txt
 
 Contains information about junctions for each read. File contains following columns:
-    *index
+
+* index
+
         order number
-	*ID
+	
+* ID
+
         unique identifier
-	*IS name
+	
+* IS name
+
         mobile element name
-	*IS pos
+	
+* IS pos
+
         what part of the read matches mobile element
-	*IS chrom
+	
+* IS chrom
+
         name of contig where mobile element is located in the reference
-	*Read name
+	
+* Read name
+
         read name where jubction was observed
-	*Chrom
+* Chrom
         name of contig where mobile element jumped
-	*Position
+	
+* Position
+
         posistion of the junction
-	*Orientation
+	
+* Orientation
+
         orientation of mobile element relative to junction
-	*Note
+	
+* Note
+
         mark if junction is in other mobile elements - usually indicates false positive hits
-	*Locus tag
+	
+* Locus tag
+
         locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
-	*Gene
+	
+* Gene
+	
         trivial name of the affected gene
         
 #### isjump_report_by_is_reg.txt
@@ -131,34 +153,47 @@ Contains information about junctions for each read. File contains following colu
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
 File contains following columns:
-    *IS Name
-        mobile element name
-	*Annotation
-        locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ 
-	*Chromosome
-        name of contig where affected region is located
-	*Start
-        start coordinate of affected region
-	*Stop
-        end coordinate of affected region
-	*Frequency
-        estimated frequency of the mobile element jumps into a genomic region
-	*Depth
-        average coverage of the genomic region
+* IS Name
+
+	mobile element name
+
+* Annotation
+
+	locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ 
+	
+* Chromosome
+        
+	name of contig where affected region is located
+	
+* Start
+        
+	start coordinate of affected region
+	
+* Stop
+        
+	end coordinate of affected region
+	
+* Frequency
+        
+	estimated frequency of the mobile element jumps into a genomic region
+	
+* Depth
+        
+	average coverage of the genomic region
         
  #### isjump_sum_by_reg.txt
  
 Wide format of frequency estimation. Table shows raw counts of reads that support junctions instead of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
  
-  *ann
+  * ann
     locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_   
-  *chrom
+  * chrom
     name of contig where affected region is located
-  *start
+  * start
     start coordinate of affected region
-  *stop
+  * stop
     end coordinate of affected region
-  *mobile element names
+  * mobile element names
     raw reads that support junctions
     
 #### CIRCOS files
