@@ -193,4 +193,9 @@ Wide format of frequency estimation. Table shows raw counts of reads that suppor
     
 #### CIRCOS files
 
-iJump can create config files for [CIRCOS](http://circos.ca/) circular diagrams that represent directions of mobile element jumps. Currently commented because of long processing (will be improved soon).
+iJump can create config files (*data* folder) for [CIRCOS](http://circos.ca/) circular diagrams that represent directions of mobile element jumps. Currently commented because of long processing (will be improved soon).
+
+To run CIRCOS you will need to type:
+```
+circos -config ./data/circos.conf
+```
