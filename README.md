@@ -11,7 +11,12 @@ In our experiments we found that often rearrangements are happend by mobile elem
 
 ## Installation
 
-**iJump** do not need special installation but it is dependent on several Python libraries:
+**iJump** do not need special installation. Just clone repository:
+```
+git clone https://github.com/sleyn/ijump.git
+```
+
+But it is dependent on several Python libraries:
 * **biopython**
 
     [Installation guidelines](https://biopython.org/wiki/Download)
