@@ -21,7 +21,7 @@ summary_table = pd.DataFrame()
 
 # collect all variants
 for report in report_files:
-    match = re.search('[-|_](\d\w)\.txt', report)
+    match = re.search('[-|_](.+)\.txt', report)
     sample_list.append(match.group(1))
 
     report_df = pd.read_csv(report,  header=0, sep='\t')
@@ -39,7 +39,7 @@ summary_table[sample_list] = summary_table[sample_list].astype('float')
 
 for report in report_files:
     report_df = pd.read_csv(report, header=0, sep='\t')
-    match = re.search('[-|_](\d\w)\.txt', report)
+    match = re.search('[-|_](.+)\.txt', report)
     sample_name = match.group(1)
 
     for i in range(len(report_df)):
