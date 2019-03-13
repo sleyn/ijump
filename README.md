@@ -38,7 +38,7 @@ In our experiments we found that often rearrangements are happend by mobile elem
  
  File with mobile elements coordinates shoud be tab-separated tables of the following structure:
  ```
- ME_Name    Contig_Name Start_position  End_position
+ IS_Name    Contig_Name Start_position  End_position
  ```
  
  For example:
