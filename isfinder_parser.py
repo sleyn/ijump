@@ -52,6 +52,9 @@ for contig in isfinder_content.split('<b>Query=</b>')[1:]:
 
     # collect coordinates of IS elements
     match = re.search('<pre>&gt;(.+)', contig, re.DOTALL)
+    if match is None:
+        continue
+
     alignments_block = match.group(1)
     for alignments in alignments_block.split('&gt;'):
         match = re.search('</a> (\S+) <span', alignments)
