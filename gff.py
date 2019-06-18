@@ -28,12 +28,14 @@ class gff:
             for pos in range(clen + 1):
                 self.gff_pos[chrom].append(list())
 
-            items = contig.split('\n+')
+            items = contig.split('\n')
 
             if len(items) == 1:     #if contig do not have items - fill it with '-'
                 for i in range(clen + 1):
                     self.gff_pos[chrom][i] = ['', '', '']
                 continue
+
+            items = [x for x in items if x != '']    # remove blank lines in gff file elements
 
             # for intergenic space annotations
             prev_pos = 0
