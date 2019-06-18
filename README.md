@@ -1,7 +1,20 @@
 # iJump
-Software for search of rearrangements in population sequencing data
+Software for search of rearrangements in population sequencing data.
+*Program is in developing stage and feedback is appreciated.*
 
-**iJump** searches for IS elements rearrangements in evolved populations of single organism and estimates what fraction of a population is affected by the rearrangement. iJump uses clipped reads to find evidense for rearrangements.
+**iJump** searches for IS elements rearrangements in evolved populations of single organism and estimates what fraction of a population is affected by the rearrangement. iJump uses soft-clipped reads to find evidense for rearrangements. In general workflow is following:
+1. Find soft-clipped reads near boundaries of mobile elements.
+2. Extract unaligned part of reads.
+3. BLAST unaligned parts agains reference.
+4. Find best hits with >90% identity to the reference with unique highest bitscore. If two ore more hits share the same bit score - the junction considered as ambigious and skipped. Usually this is happening because aligner map reads to several copies of mobile element.
+5. Assess frequency of insertion by simple formula *(Rl + Rr)/(2 * Dt)*, where  
+	*Rl* - number of reads that support junction to the target on the "left" side of mobile element  
+	*Rr* - number of reads that support junction to the target on the "right" side of mobile element  
+	*Dt* - average depth of caverage of target region
+
+![iJump workflow](./img/ijump_workflow.png)
+
+**NOTE: Current versio of iJump do not separate different junction events in one target gene. For example, if IS1 element was inserted in gene X three times in different positions, iJump anyway will show one event of unspecified insertion of IS1 element into gene X with summarized frequency.
 
 ## Motivation
 
@@ -38,6 +51,8 @@ But it is dependent on several Python libraries:
  2. Reference DNA contigs fasta file.
  3. GFF file with reference genome annotations.
  4. BAM file of aligned Illumina reads.
+ 
+ ![iJump input and output](./img/ijump_input.png)
  
  #### Mobile elements coordinates file
  
@@ -76,7 +91,7 @@ cgtagctgctagctagctagctagcgtacgtacgtagctacgtacgta...
 
 #### GFF file
 
-iJump is working with it's own gff module that is tuned for PATRIC-style GFF.
+iJump is working with it's own gff module that is tuned for PATRIC/PROKKA-style GFF.
 
 Example:
 ```
