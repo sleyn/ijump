@@ -28,7 +28,7 @@ class gff:
             for pos in range(clen + 1):
                 self.gff_pos[chrom].append(list())
 
-            items = contig.split('\n')
+            items = contig.split('\n+')
 
             if len(items) == 1:     #if contig do not have items - fill it with '-'
                 for i in range(clen + 1):
@@ -49,9 +49,6 @@ class gff:
             last_orient = '+'
 
             for j in range(1, len(items)):
-                if items[j] == '':      # skip blank lines
-                    continue
-
                 fields = items[j].split('\t')
 
                 id = '-'   # get id
