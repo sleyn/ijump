@@ -49,6 +49,9 @@ class gff:
             last_orient = '+'
 
             for j in range(1, len(items)):
+                if items[j] == '':      # skip blank lines
+                    continue
+
                 fields = items[j].split('\t')
 
                 id = '-'   # get id
