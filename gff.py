@@ -13,9 +13,18 @@ class gff:
         print('Read GFF file ' + self.gff_name)
         gff_file = open(self.gff_name, 'r')
         gff_content = gff_file.read().split('\n##FASTA')    # remove FASTA section
-        gff_content = gff_content[0].split('\n##sequence-region')
+        gff_content = gff_content[0]
+        contig_prop_strings = re.findall('##sequence-region\s+(\S+)\s+(\d+)\s+(\d+)', gff_content)  # seqrch for contig properties
+        gff_content_sorted = list()
 
-        for contig in gff_content[1:]:
+        for c in contig_prop_strings:
+            c_name = c[0]   # contig name
+            gff_ges = re.findall('^' + c_name +'\s[^\n]+', gff_content, re.MULTILINE)
+            x = [' '.join(c)]
+            x.extend(gff_ges)
+            gff_content_sorted.append('\n'.join(x))
+
+        for contig in gff_content_sorted:
             region = re.search('\|?([^\s\|]+)\s+\d+\s+(\d+)', contig)
             chrom = region.group(1)
             if self.capitalize == True:
