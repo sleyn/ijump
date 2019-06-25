@@ -18,8 +18,8 @@ class gff:
         gff_content_sorted = list()
 
         for c in contig_prop_strings:
-            c_name = c[0]   # contig name
-            gff_ges = re.findall('^' + c_name +'\s[^\n]+', gff_content, re.MULTILINE)
+            c_name = re.sub('[^\|]+\|', '', c[0])   # contig name, remove head additional characters separated by "|"
+            gff_ges = re.findall('^' + re.escape(c_name) + '\s[^\n]+', gff_content, re.MULTILINE)
             x = [' '.join(c)]
             x.extend(gff_ges)
             gff_content_sorted.append('\n'.join(x))
