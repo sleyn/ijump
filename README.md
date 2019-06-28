@@ -14,7 +14,9 @@ Software for search of rearrangements in population sequencing data.
 
 ![iJump workflow](./img/ijump_workflow.png)
 
-**NOTE: Current versio of iJump do not separate different junction events in one target gene. For example, if IS1 element was inserted in gene X three times in different positions, iJump anyway will show one event of unspecified insertion of IS1 element into gene X with summarized frequency.
+**NOTE:** Current versio of iJump do not separate different junction events in one target gene. For example, if IS1 element was inserted in gene X three times in different positions, iJump anyway will show one event of unspecified insertion of IS1 element into gene X with summarized frequency.
+
+**NOTE:** Working with short-read-only assembled genomes is difficult with iJump. The reason is that usually IS elements are repetitive regions which are difficult to resolve for assemblers. This often result in shreading IS elements to several/many sometimes overlapped short contigs. This introduce difficulty either for boundaries determination and for mapping algorythms.
 
 ## Motivation
 
