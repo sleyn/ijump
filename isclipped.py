@@ -320,7 +320,8 @@ class isclipped:
         f_columns.extend(list(self.is_coords.keys()))
         for i in range(len(junc_temp)):
             pos = junc_temp.iloc[i]['Position']
-            for ann_id, item in self.gff.ann_pos.items():
+            chrom = junc_temp.iloc[i]['Chrom']
+            for ann_id, item in self.gff.ann_pos[chrom].items():       #
                 if item[2] <= pos <= item[3]:
                     if ann_id not in self.sum_by_region.index:
                         columns = ['ann_id', 'ann', 'chrom', 'start', 'stop']
@@ -459,11 +460,12 @@ class isclipped:
         # depth histogram
         depth_hist = open(self.data_folder + 'depth.txt', 'w')
 
-        for ann_id, ann in self.gff.ann_pos.items():
-            if ann[3] - ann[2] <= 0:
-                continue
-            depth = self._av_depth(ann[1], ann[2], ann[3])
-            depth_hist.write(' '.join([str(x) for x in ann[1:]]) + ' ' + str(depth) + '\n')
+        for contig in self.gff.ann_pos:
+            for ann_id, ann in self.gff.ann_pos[contig].items():
+                if ann[3] - ann[2] <= 0:
+                    continue
+                depth = self._av_depth(ann[1], ann[2], ann[3])
+                depth_hist.write(' '.join([str(x) for x in ann[1:]]) + ' ' + str(depth) + '\n')
 
         depth_hist.close()
 
