@@ -222,7 +222,7 @@ To run CIRCOS you will need to type:
 circos -config ./data/circos.conf
 ```
 
-#### Simulation test
+## Simulation test
 
 To assess accuracy of iJump the defined community was simulated. Simulated data mimics several jumps of one of the copy of IS5 element (has several copies in the genome) in Escherichia coli BW25113 genome. The scripts and auxillary files can be found in the **simulation** folder.
 
