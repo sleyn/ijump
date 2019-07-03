@@ -115,7 +115,7 @@ BAM file with aligned short reads. BAM file should contain soft-slipped reads. O
 
 iJump run with the following command:
  ```
- python3 isjump.py -f <BAM file> -r <Reference FNA file> -g <Reference GFF file> -i <IS coordinates>
+ python3 isjump.py -a <BAM file> -r <Reference FNA file> -g <Reference GFF file> -i <IS coordinates>
  ```
 
 ### Output
@@ -221,3 +221,52 @@ To run CIRCOS you will need to type:
 ```
 circos -config ./data/circos.conf
 ```
+
+#### Simulation test
+
+To assess accuracy of iJump the defined community was simulated. Simulated data mimics several jumps of one of the copy of IS5 element (has several copies in the genome) in Escherichia coli BW25113 genome. The scripts and auxillary files can be found in the **simulation** folder.
+
+The setup of this computational experiment is following:
+
+| Parent | Genome | IS name | IS start | IS stop | Insert position | Tandem | Frequency of insertion | Coverage | Insert repeat |
+|--------|--------|---------|----------|---------|-----------------|--------|------------------------|----------|---------------|
+| EC_WT  | EC_1   | IS5_10  | 2059640  | 2060834 | 1970720         | 5bp    | 100%                   | 190      | TAAAA         |
+| EC_1   | EC_2   | IS5_10  | 2059640  | 2060834 | 1172149         | 5bp    | 25%                    | 250      | GTGCT         |
+| EC_1   | EC_3   | IS5_10  | 2059640  | 2060834 | 3846500         | 5bp    | 5%                     | 50       | CACCG         |
+| EC_1   | EC_4   | IS5_10  | 2059640  | 2060834 | 240955          | 5bp    | 1%                     | 10       | GTCGC         |
+| EC_1   | EC_5   | IS5_10  | 2059640  | 2060834 | 3358463         | 5bp    | 50%                    | 500      | GCAAT         |
+
+Reads were simulated with [ART Illumina](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm)
+Alignment was made with [bwa-mem](http://bio-bwa.sourceforge.net/)
+BAM file manipulations were performed with [samtools](http://samtools.sourceforge.net/)
+
+Results are following:
+
+| IS Name | Annotation   | Chromosome | Start   | Stop    | Frequency | Depth       |
+|---------|--------------|------------|---------|---------|-----------|-------------|
+| IS5_9   | BW25113_1117 | CP009273.1 | 1172083 | 1172777 | 2.94%     | 976.2997118 |
+| IS5_10  | BW25113_1117 | CP009273.1 | 1172083 | 1172777 | 20.90%    | 976.2997118 |
+| IS5_9   | BW25113_3216 | CP009273.1 | 3356166 | 3358544 | 6.17%     | 940.7211943 |
+| IS5_7   | BW25113_3216 | CP009273.1 | 3356166 | 3358544 | 0.07%     | 940.7211943 |
+| IS5_10  | BW25113_3216 | CP009273.1 | 3356166 | 3358544 | 41.39%    | 940.7211943 |
+| IS5_9   | BW25113_0223 | CP009273.1 | 240814  | 241552  | 0.14%     | 966.5948509 |
+| IS5_10  | BW25113_0223 | CP009273.1 | 240814  | 241552  | 0.48%     | 966.5948509 |
+| IS5_1   | BW25113_1890 | CP009273.1 | 1970513 | 1971397 | 0.07%     | 900.4954751 |
+| IS5_8   | BW25113_1890 | CP009273.1 | 1970513 | 1971397 | 0.07%     | 900.4954751 |
+| IS5_5   | BW25113_1890 | CP009273.1 | 1970513 | 1971397 | 0.07%     | 900.4954751 |
+| IS5_4   | BW25113_1890 | CP009273.1 | 1970513 | 1971397 | 12.29%    | 900.4954751 |
+| IS5_10  | BW25113_1890 | CP009273.1 | 1970513 | 1971397 | 83.29%    | 900.4954751 |
+| IS5_10  | BW25113_3671 | CP009273.1 | 3844456 | 3846145 | 4.35%     | 966.0751924 |
+
+We see that some reads were aligned to other copies of IS5 element. However majority of reads were aligned correctly.
+If we summarize all frequences for each affected gene we will get results close to the expected:
+
+| Gene         | Start   | Stop    | Observed | Expected |
+|--------------|---------|---------|----------|----------|
+| BW25113_1890 | 1970513 | 1971397 | 95.79%   | 100.00%  |
+| BW25113_3216 | 3356166 | 3358544 | 47.63%   | 50.00%   |
+| BW25113_1117 | 1172083 | 1172777 | 23.84%   | 25.00%   |
+| BW25113_3671 | 3844456 | 3846145 | 4.35%    | 5.00%    |
+| BW25113_0223 | 240814  | 241552  | 0.62%    | 1.00%    |
+
+Simulation shows that iJump tend to slightly decrease frequency. This is happening because it instead of work with individual junction sites summarize all sites along the genetic element where junctions were found and assess frequency with average depth in the element. However near junctions coverage has slight drop. It happens because aligner has a limit on length that it could align to the reference. iJump estimates this limit and introduces correction cefficients.
