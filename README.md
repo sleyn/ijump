@@ -237,7 +237,9 @@ The setup of this computational experiment is following:
 | EC_1   | EC_5   | IS5_10  | 2059640  | 2060834 | 3358463         | 5bp    | 50%                    | 500      | GCAAT         |
 
 Reads were simulated with [ART Illumina](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm)
+
 Alignment was made with [bwa-mem](http://bio-bwa.sourceforge.net/)
+
 BAM file manipulations were performed with [samtools](http://samtools.sourceforge.net/)
 
 Results are following:
