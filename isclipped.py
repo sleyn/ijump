@@ -5,6 +5,7 @@ import random
 import re
 import os
 import gff
+from statistics import mean
 
 # specify class for clipped reads
 
@@ -52,6 +53,11 @@ class isclipped:
         self.sum_by_region = self._sum_by_reg_tbl()
         self.report_table = self._report_table()
         self.cutoff = 0.005     # show junctions only with this frequency or more
+        self.min_match = 150     # minimum match in sequences
+        self.av_read_len = 150  # average read length
+        self.read_lengths = list() # list of read lengths
+        self.match_lengths = list() # list of lengths for matched segments
+        self.blast_min = 10 # minimum length of clipped part to use in BLAST
 
     # create report table
     @staticmethod
@@ -181,10 +187,15 @@ class isclipped:
         for read in self.aln.fetch(chrom, start + 1,
                                    stop + 1):  # one is added to convert from 0-based to 1-based system
 
+            self.read_lengths.append(read.infer_read_length())      # append read length to collection of lengths
             if read.is_unmapped:
                 continue            # skip unmapped read
             elif 'S' not in read.cigarstring:
                 continue            # skip not clipped read
+
+            m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]    # collect matched lengths
+            m_len = max(m_len)                                # leave only longest match from read
+            self.match_lengths.append(m_len)                  # add lengths to collection
 
 #           for i in range(read.cigarstring.count('S')):
             boundaries = self._clboundaries(read)
@@ -223,7 +234,7 @@ class isclipped:
         print('Run BLAST for clipped parts of the reads')
         fasta_file = 'cl.fasta'
         blast_out_file = 'cl_blast.out'
-        self._write_fasta(fasta_file, 10)
+        self._write_fasta(fasta_file, self.blast_min)
         blastn_cl = NcbiblastnCommandline(query=fasta_file, db=self.ref_name, evalue=0.001, out=blast_out_file,
                                           outfmt=6, word_size=10)
         blastn_cl()
@@ -355,6 +366,8 @@ class isclipped:
     # create report by IS and region
     def report(self):
         print("Create report table")
+        self.min_match = min(self.match_lengths)    # find minimum match length
+        self.av_read_len = mean(self.read_lengths)  # find average read length
         is_names = list(self.sum_by_region)[4:]     # get IS names
         for i in range(len(self.sum_by_region)):
             if self.sum_by_region.iloc[i]['stop'] > self.sum_by_region.iloc[i]['start']:    # check if the interval is non-zero
@@ -372,7 +385,7 @@ class isclipped:
                     temp_tbl.at[0, 'Chromosome'] = self.sum_by_region.iloc[i]['chrom']
                     temp_tbl.at[0, 'Start'] = self.sum_by_region.iloc[i]['start']
                     temp_tbl.at[0, 'Stop'] = self.sum_by_region.iloc[i]['stop']
-                    temp_tbl.at[0, 'Frequency'] = round(self.sum_by_region.iloc[i][is_name] / depth / 2, 4)
+                    temp_tbl.at[0, 'Frequency'] = round((self.sum_by_region.iloc[i][is_name] / 2 * (1 + self.blast_min / self.av_read_len)) / (depth * (1 - self.min_match / self.av_read_len)), 4)
                     temp_tbl.at[0, 'Depth'] = depth
                     self.report_table = self.report_table.append(temp_tbl)
 

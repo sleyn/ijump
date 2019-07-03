@@ -1,44 +1,36 @@
-import sys
 import os
-import getopt
+import argparse
 import pysam
 import isclipped
 import re
 import subprocess
 
 # read arguments
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "f:r:g:i:")
-except getopt.GetoptError:
-    print("isfinder_parse.py -f <Alignment file> -r <Reference in a fasta format> -g <GFF file> -i <IS_File>")
-    sys.exit(1)
+parser = argparse.ArgumentParser(description="iJump searches for small frequency IS elements rearrangements in evolved populations")
+parser.add_argument('-a', '--aln', type=str, action='store', help='BAM or SAM alignment')
+parser.add_argument('-r', '--ref', type=str, action='store', help='Reference genome in FASTA format')
+parser.add_argument('-g', '--gff', type=str, action='store', help='Annotations in GFF format for reference genome')
+parser.add_argument('-i', '--isel', type=str, action='store', help='File with IS elements coordinates')
+parser.add_argument('-c', '--circos', action='store_true', default=False, help="Set flag to build input files for CIRCOS")
+args = parser.parse_args()
 
-for opt, arg in opts:
-    if opt == '-f':
-        alignment_file = arg
-    elif opt == '-r':
-        filename = re.match('(.+)\.', arg)
-        reference = filename.group(1)
-        if os.path.isfile(reference + '.nsq'):          # if blast database exists pass or make it for reference
-            pass
-        else:
-            makeblastdb_command = "makeblastdb -in " + arg + " -dbtype nucl -out " + reference
-            makeblastdb = subprocess.Popen(makeblastdb_command.split(), stdout=subprocess.PIPE)
-    elif opt == '-g':
-        gff = arg
-    elif opt == '-i':
-        is_file = arg
-    else:
-        print("isfinder_parse.py -f <Alignment file>")
-        sys.exit(1)
+alignment_file = args.aln
+gff = args.gff
+is_file = args.isel
+filename = re.match('(.+)\.', args.ref)
+reference = filename.group(1)
+
+if os.path.isfile(reference + '.nsq'):          # if blast database exists pass or make it for reference
+    pass
+else:
+    makeblastdb_command = "makeblastdb -in " + args.ref + " -dbtype nucl -out " + reference
+    makeblastdb = subprocess.Popen(makeblastdb_command.split(), stdout=subprocess.PIPE)
 
 # check alignment type
 if alignment_file[-3:] == 'sam':
     a_type = ''
 elif alignment_file[-3:] == 'bam':
     a_type = 'b'
-
-# read IS coordinares from file
 
 
 # read alignment
@@ -58,4 +50,6 @@ x.summary_junctions_by_region()
 x.sum_by_region.to_csv("ijump_sum_by_reg.txt", sep='\t', index=False)
 x.report()
 x.report_table.to_csv("ijump_report_by_is_reg.txt", sep='\t', index=False)
-# x.create_circos_files()
+
+if args.circos is True:
+    x.create_circos_files()
