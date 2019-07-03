@@ -269,4 +269,4 @@ If we summarize all frequences for each affected gene we will get results close 
 | BW25113_3671 | 3844456 | 3846145 | 4.35%    | 5.00%    |
 | BW25113_0223 | 240814  | 241552  | 0.62%    | 1.00%    |
 
-Simulation shows that iJump tend to slightly decrease frequency. This is happening because it instead of work with individual junction sites summarize all sites along the genetic element where junctions were found and assess frequency with average depth in the element. However near junctions coverage has slight drop. It happens because aligner has a limit on length that it could align to the reference. iJump estimates this limit and introduces correction cefficients.
+Simulation shows that iJump tend to slightly decrease frequency. This is happening because instead of work with individual junction sites it summarizes all sites along the genetic element where junctions were found and assess frequency with average depth in the element. However near junctions coverage has slight drop. The reason of this effect is that aligners have a limit on a length of aligned part of a read. iJump estimates this limit and introduces correction cefficients.
