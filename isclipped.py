@@ -186,8 +186,9 @@ class isclipped:
     def _crtable_ungapped(self, chrom, start, stop, edge, is_name):  # generate clipped read table
         for read in self.aln.fetch(chrom, start + 1,
                                    stop + 1):  # one is added to convert from 0-based to 1-based system
+            if read.infer_read_length():
+                self.read_lengths.append(read.infer_read_length())      # append read length to collection of lengths
 
-            self.read_lengths.append(read.infer_read_length())      # append read length to collection of lengths
             if read.is_unmapped:
                 continue            # skip unmapped read
             elif 'S' not in read.cigarstring:
