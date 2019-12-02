@@ -1,19 +1,18 @@
 import glob
-import getopt
+import argparse
 import pandas as pd
 import sys
 import re
+import gff
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "d:")
-except getopt.GetoptError:
-    print("combine_results.py -d <Directory with report files>")
-    sys.exit(1)
+parser = argparse.ArgumentParser(description='Tool that combines ijump reports from several files into one summary table')
+parser.add_argument('-d', '--dir_report', help='Directory with report files')
+parser.add_argument('-o', '--output', help='Output table file')
+parser.add_argument('-g', '--gff', nargs='?', default='-', help='Path to gff file')
+args = parser.parse_args()
 
-for opt, arg in opts:
-    if opt == '-d':
-        report_folder = arg
-
+report_folder = args.dir_report
+out_file = args.output
 
 report_files = glob.glob(report_folder + '/ijump_*')    # collect report files
 sample_list = list()            # list of samples from reports
@@ -21,6 +20,7 @@ summary_table = pd.DataFrame()
 
 # collect all variants
 for report in report_files:
+    print(f'Reading {report}')
     match = re.search('[-|_](.+)\.txt', report)
     sample_list.append(match.group(1))
 
@@ -43,9 +43,16 @@ for report in report_files:
     sample_name = match.group(1)
 
     for i in range(len(report_df)):
-    	if report_df.iloc[i]['Depth'] > 10:
-        	ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
-        	summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
+        if report_df.iloc[i]['Depth'] > 10:
+            ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
+            summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
 
-summary_table.to_csv('ijump_summary.txt', sep='\t', index=False)
+if args.gff == '-':
+    summary_table['Functional annotation'] = ['-'] * len(summary_table)
+else:
+    gff_file = gff.gff(args.gff)
+    gff_file.readgff()
+    summary_table['Functional annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
+
+summary_table.to_csv(out_file, sep='\t', index=False)
 

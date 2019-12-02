@@ -193,7 +193,7 @@ File contains following columns:
 If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
 
 ```
-python3 combibe_results.py -d .
+python3 combibe_results.py -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
 ```
 
 This will merge all results in one table.
