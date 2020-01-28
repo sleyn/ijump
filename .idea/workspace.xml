@@ -2,53 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1bc2d489-6160-4389-b8b2-2c840b53f92e" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
-  </component>
-  <component name="FUSProjectUsageTrigger">
-    <session id="-901464554">
-      <usages-collector id="statistics.lifecycle.project">
-        <counts>
-          <entry key="project.closed" value="9" />
-          <entry key="project.open.time.1" value="3" />
-          <entry key="project.open.time.20" value="1" />
-          <entry key="project.open.time.33" value="1" />
-          <entry key="project.open.time.44" value="2" />
-          <entry key="project.open.time.6" value="1" />
-          <entry key="project.open.time.68" value="1" />
-          <entry key="project.opened" value="9" />
-        </counts>
-      </usages-collector>
-      <usages-collector id="statistics.file.extensions.open">
-        <counts>
-          <entry key="py" value="7" />
-        </counts>
-      </usages-collector>
-      <usages-collector id="statistics.file.types.open">
-        <counts>
-          <entry key="Python" value="7" />
-        </counts>
-      </usages-collector>
-      <usages-collector id="statistics.file.extensions.edit">
-        <counts>
-          <entry key="Python Console" value="480" />
-          <entry key="py" value="2026" />
-        </counts>
-      </usages-collector>
-      <usages-collector id="statistics.file.types.edit">
-        <counts>
-          <entry key="Python" value="2506" />
-        </counts>
-      </usages-collector>
-    </session>
-  </component>
-  <component name="FileEditorManager">
-    <leaf />
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
@@ -65,55 +25,22 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="IdeDocumentHistory">
-    <option name="CHANGED_PATHS">
-      <list>
-        <option value="$PROJECT_DIR$/gff.py" />
-        <option value="$PROJECT_DIR$/isjump.py" />
-        <option value="$PROJECT_DIR$/isclipped.py" />
-        <option value="$PROJECT_DIR$/isfinder_parser.py" />
-      </list>
-    </option>
-  </component>
   <component name="ProjectFrameBounds">
     <option name="y" value="23" />
     <option name="width" value="1680" />
     <option name="height" value="1027" />
   </component>
+  <component name="ProjectId" id="1X09AAW9fch4MKSJFSpg5QxI2i9" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
-  <component name="ProjectView">
-    <navigator proportions="" version="1">
-      <foldersAlwaysOnTop value="true" />
-    </navigator>
-    <panes>
-      <pane id="Scope" />
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="ijump" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ijump" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-    </panes>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
-  </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
   </component>
   <component name="RunManager">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
@@ -144,13 +71,13 @@
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="$PROJECT_DIR$/env/bin/python" />
+      <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="false" />
+      <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/isfinder_parser.py" />
-      <option name="PARAMETERS" value="-i $USER_HOME$/Downloads/Temp/Blast_SA.html" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/combine_results.py" />
+      <option name="PARAMETERS" value="-d Test/ijump -o Test/out.txt -g Test/Acinetobacter_baumannii_ROB08705.gff" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -163,6 +90,18 @@
         <item itemvalue="Python.ijump" />
       </list>
     </recent_temporary>
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand />
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
+    </option>
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -177,81 +116,50 @@
     </task>
     <servers />
   </component>
-  <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1680" height="1027" extended-state="0" />
-    <editor active="true" />
-    <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.24954791" />
-      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info anchor="bottom" id="Version Control" order="7" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Terminal" order="8" weight="0.32941177" />
-      <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" weight="0.32941177" />
-      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
-      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-    </layout>
-  </component>
-  <component name="VcsContentAnnotationSettings">
-    <option name="myLimit" value="2678400000" />
-  </component>
-  <component name="editorHistoryManager">
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="16005">
-          <caret line="1067" selection-start-line="1067" selection-end-line="1067" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="17" selection-start-line="17" selection-end-line="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/isclipped.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="337">
-          <caret line="200" column="34" selection-start-line="200" selection-start-column="34" selection-end-line="200" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/argparse.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="858">
-          <caret line="1333" selection-start-line="1333" selection-end-line="1333" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/isjump.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="588">
-          <caret line="40" selection-start-line="40" selection-end-line="40" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gff.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="13" selection-start-line="13" selection-end-line="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/isfinder_parser.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="229">
-          <caret line="71" column="81" lean-forward="true" selection-start-line="71" selection-start-column="81" selection-end-line="71" selection-end-column="81" />
-        </state>
-      </provider>
-    </entry>
+  <component name="WindowStateProjectService">
+    <state x="2215" y="250" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1580172082235">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state x="2215" y="250" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172082235" />
+    <state width="1659" height="363" key="GridCell.Tab.0.bottom" timestamp="1580172200006">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.0.bottom/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172200006" />
+    <state width="1659" height="363" key="GridCell.Tab.0.center" timestamp="1580172200004">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.0.center/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172200004" />
+    <state width="1659" height="363" key="GridCell.Tab.0.left" timestamp="1580172200003">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.0.left/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172200003" />
+    <state width="1659" height="363" key="GridCell.Tab.0.right" timestamp="1580172200005">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.0.right/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172200005" />
+    <state width="1659" height="363" key="GridCell.Tab.1.bottom" timestamp="1580172240841">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.1.bottom/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172240841" />
+    <state width="1659" height="363" key="GridCell.Tab.1.center" timestamp="1580172240839">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.1.center/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172240839" />
+    <state width="1659" height="363" key="GridCell.Tab.1.left" timestamp="1580172240838">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.1.left/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172240838" />
+    <state width="1659" height="363" key="GridCell.Tab.1.right" timestamp="1580172240840">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1659" height="363" key="GridCell.Tab.1.right/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172240840" />
+    <state x="2269" y="164" key="SettingsEditor" timestamp="1580172096089">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state x="2269" y="164" key="SettingsEditor/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172096089" />
+    <state width="840" height="525" key="XDebugger.FullValuePopup" timestamp="1580172194162">
+      <screen x="1920" y="0" width="1680" height="1050" />
+    </state>
+    <state width="840" height="525" key="XDebugger.FullValuePopup/0.0.1920.1200/1920.0.1680.1050@1920.0.1680.1050" timestamp="1580172194162" />
   </component>
 </project>
