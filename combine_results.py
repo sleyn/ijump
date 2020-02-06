@@ -15,6 +15,12 @@ report_folder = args.dir_report
 out_file = args.output
 
 report_files = glob.glob(report_folder + '/ijump_*')    # collect report files
+
+# Test if there are iJump report files in the directory
+if not report_files:
+    print('No iJump report files were found. Report files are required to have "ijump_" prefix.')
+    exit(1)
+
 sample_list = list()            # list of samples from reports
 summary_table = pd.DataFrame()
 
