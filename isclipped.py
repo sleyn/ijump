@@ -269,7 +269,7 @@ class isclipped:
 
         blast_out = blast_out[blast_out['pident'] >= 90]  # filter only hits with 90% or higher
         max_in_groups = blast_out.reset_index().groupby(['qseqid'])['bitscore'].max()  # maximum bit score for each read
-        count_max = dict()  # for each clipped segmant summ number of best hits
+        count_max = dict()  # for each clipped segment summarize number of best hits
         temp = pd.DataFrame(columns=blast_out.columns)  # temporary dataframe for filtering
 
         for index in blast_out.index:
@@ -369,28 +369,32 @@ class isclipped:
         print("Create report table")
         self.min_match = min(self.match_lengths)    # find minimum match length
         self.av_read_len = mean(self.read_lengths)  # find average read length
-        is_names = list(self.sum_by_region)[4:]     # get IS names
-        for i in range(len(self.sum_by_region)):
-            if self.sum_by_region.iloc[i]['stop'] > self.sum_by_region.iloc[i]['start']:    # check if the interval is non-zero
-                depth = self._av_depth(self.sum_by_region.iloc[i]['chrom'],  # calculate depth of the junction
-                                       self.sum_by_region.iloc[i]['start'],  # region-based
-                                       self.sum_by_region.iloc[i]['stop'],)
-            else:
-                continue
+        self.report_table = pd.melt(
+            self.sum_by_region,
+            id_vars=('ann', 'chrom', 'start', 'stop'),
+            var_name='IS Name',
+            value_name='count'
+        )
 
-            for is_name in is_names:
-                if self.sum_by_region.iloc[i][is_name] > 0 and depth > 0:
-                    temp_tbl = self._report_table()
-                    temp_tbl.at[0, 'IS Name'] = is_name
-                    temp_tbl.at[0, 'Annotation'] = self.sum_by_region.iloc[i]['ann']
-                    temp_tbl.at[0, 'Chromosome'] = self.sum_by_region.iloc[i]['chrom']
-                    temp_tbl.at[0, 'Start'] = self.sum_by_region.iloc[i]['start']
-                    temp_tbl.at[0, 'Stop'] = self.sum_by_region.iloc[i]['stop']
-                    temp_tbl.at[0, 'Frequency'] = round((self.sum_by_region.iloc[i][is_name] / 2 * (1 + self.blast_min / self.av_read_len)) / (depth * (1 - self.min_match / self.av_read_len)), 4)
-                    temp_tbl.at[0, 'Depth'] = depth
-                    self.report_table = self.report_table.append(temp_tbl)
+        # Drop zero intervals
+        item_drop = self.report_table.apply(lambda x: 0 if x['stop'] - x['start'] > 0 else 1, axis=1).tolist()
+        self.report_table.drop(item_drop, inplace=True)
 
-#                # create Circos files
+        # Add depth
+        self.report_table['Depth'] = self.report_table.apply(
+            lambda x: self._av_depth(x['chrom'], x['start'], x['stop']),
+            axis=1
+        )
+
+        self.report_table['Frequency'] = self.report_table.apply(
+            lambda x: round((x['count'] / 2 * (1 + self.blast_min / self.av_read_len)) / (x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
+            axis=1
+        )
+
+        self.report_table = self.report_table[['IS Name', 'ann', 'chrom', 'start', 'stop', 'Frequency', 'Depth']]
+        self.report_table.columns = ['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop', 'Frequency', 'Depth']
+
+# create Circos files
     def create_circos_files(self):
         print('Create CIRCOS files')
         while not os.path.exists(self.data_folder):
