@@ -48,6 +48,9 @@ But it is dependent on several Python libraries:
 
     [Installation guidelines](https://pysam.readthedocs.io/en/latest/installation.html)
     
+* **pysamstats**
+    [Installation guidelines](https://github.com/alimanfoo/pysamstats)
+    
  ## Usage
  
  ### Input

@@ -5,8 +5,9 @@ import random
 import re
 import os
 import gff
-from statistics import mean
 from functools import lru_cache
+import pysamstats
+from statistics import mean
 
 # specify class for clipped reads
 
@@ -360,9 +361,11 @@ class isclipped:
     # calculate average depth of the region
     @lru_cache(maxsize=128)
     def _av_depth(self, chrom, start, stop):
-        aln_depth = self.aln.count_coverage(chrom, start, stop)
-        depth = sum(map(sum, aln_depth))
-        return depth / len(aln_depth[0])  # average depth of the region
+        #aln_depth = self.aln.count_coverage(chrom, start, stop)
+        #depth = sum(map(sum, aln_depth))
+        #return depth / len(aln_depth[0])  # average depth of the region
+        c = pysamstats.load_coverage(self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000)
+        return mean(c.reads_all)
 
     # create report by IS and region
     def report(self):
