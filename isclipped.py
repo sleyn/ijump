@@ -6,6 +6,7 @@ import re
 import os
 import gff
 from statistics import mean
+from functools import lru_cache
 
 # specify class for clipped reads
 
@@ -55,7 +56,8 @@ class isclipped:
         self.cutoff = 0.005     # show junctions only with this frequency or more
         self.min_match = 150     # minimum match in sequences
         self.av_read_len = 150  # average read length
-        self.read_lengths = list() # list of read lengths
+        self.read_lengths = 0 # total length of reads
+        self.n_reads_analyzed = 0 # number of analyzed reads
         self.match_lengths = list() # list of lengths for matched segments
         self.blast_min = 10 # minimum length of clipped part to use in BLAST
 
@@ -187,7 +189,8 @@ class isclipped:
         for read in self.aln.fetch(chrom, start + 1,
                                    stop + 1):  # one is added to convert from 0-based to 1-based system
             if read.infer_read_length():
-                self.read_lengths.append(read.infer_read_length())      # append read length to collection of lengths
+                self.read_lengths += read.infer_read_length()      # add read length to collection of lengths
+                self.n_reads_analyzed += 1
 
             if read.is_unmapped:
                 continue            # skip unmapped read
@@ -355,6 +358,7 @@ class isclipped:
         self.sum_by_region = self.sum_by_region[f_columns]
 
     # calculate average depth of the region
+    @lru_cache(maxsize=128)
     def _av_depth(self, chrom, start, stop):
         aln_depth = self.aln.count_coverage(chrom, start, stop)
         depth = sum(map(sum, aln_depth))
@@ -364,7 +368,7 @@ class isclipped:
     def report(self):
         print("Create report table")
         self.min_match = min(self.match_lengths)    # find minimum match length
-        self.av_read_len = mean(self.read_lengths)  # find average read length
+        self.av_read_len = self.read_lengths / self.n_reads_analyzed  # find average read length
         self.report_table = pd.melt(
             self.sum_by_region,
             id_vars=('ann', 'chrom', 'start', 'stop'),
@@ -376,6 +380,8 @@ class isclipped:
         self.report_table['drop'] = self.report_table.apply(lambda x: 0 if x['stop'] - x['start'] > 0 else 1, axis=1)
         self.report_table = self.report_table[self.report_table['drop'] == 0]
         self.report_table.drop(columns='drop', inplace=True)
+        self.report_table.sort_values(by=['start', 'stop'], inplace=True)
+        self.report_table = self.report_table[self.report_table['count'] > 0]
 
         # Add depth
         self.report_table['Depth'] = self.report_table.apply(
