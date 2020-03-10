@@ -357,11 +357,7 @@ class isclipped:
     # calculate average depth of the region
     def _av_depth(self, chrom, start, stop):
         aln_depth = self.aln.count_coverage(chrom, start, stop)
-
-        depth = 0
-        for d in range(len(aln_depth)):
-            depth = depth + sum(aln_depth[d])
-
+        depth = sum(map(sum, aln_depth))
         return depth / len(aln_depth[0])  # average depth of the region
 
     # create report by IS and region
@@ -377,8 +373,9 @@ class isclipped:
         )
 
         # Drop zero intervals
-        item_drop = self.report_table.apply(lambda x: 0 if x['stop'] - x['start'] > 0 else 1, axis=1).tolist()
-        self.report_table.drop(item_drop, inplace=True)
+        self.report_table['drop'] = self.report_table.apply(lambda x: 0 if x['stop'] - x['start'] > 0 else 1, axis=1)
+        self.report_table = self.report_table[self.report_table['drop'] == 0]
+        self.report_table.drop(columns='drop', inplace=True)
 
         # Add depth
         self.report_table['Depth'] = self.report_table.apply(
