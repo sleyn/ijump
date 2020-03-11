@@ -4,7 +4,6 @@ import pysam
 import isclipped
 import re
 import subprocess
-from timeit import default_timer as timer
 
 # read arguments
 parser = argparse.ArgumentParser(description="iJump searches for small frequency IS elements rearrangements in evolved populations")
@@ -49,10 +48,7 @@ x.call_junctions()
 x.junctions.to_csv("ijump_junctions.txt", sep='\t', index=False)
 x.summary_junctions_by_region()
 x.sum_by_region.to_csv("ijump_sum_by_reg.txt", sep='\t', index=False)
-start = timer()
 x.report()
-end = timer()
-print(end - start)
 x.report_table.to_csv("ijump_report_by_is_reg.txt", sep='\t', index=False)
 
 if args.circos is True:
