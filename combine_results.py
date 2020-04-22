@@ -43,17 +43,6 @@ summary_table['index'] = [str(summary_table.iloc[i]['Start']) + summary_table.il
 summary_table.set_index('index', inplace=True)
 summary_table[sample_list] = summary_table[sample_list].astype('float')
 
-if args.gff == '-':
-    summary_table['Functional annotation'] = ['-'] * len(summary_table)
-else:
-    gff_file = gff.gff(args.gff)
-    gff_file.readgff()
-    summary_table['Locus Tag'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][0], axis=1)
-    summary_table['Gene'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][1], axis=1)
-    summary_table['ID'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][2], axis=1)
-    summary_table['Annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
-
-
 for report in report_files:
     report_df = pd.read_csv(report, header=0, sep='\t')
     match = re.search('[-|_](.+)\.txt', report)
@@ -64,5 +53,23 @@ for report in report_files:
             ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
             summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
 
+# if no gff file was provided just put '-' in all annotation fields
+if args.gff == '-':
+    summary_table['Locus Tag'] = ['-'] * len(summary_table)
+    summary_table['Gene'] = ['-'] * len(summary_table)
+    summary_table['ID'] = ['-'] * len(summary_table)
+    summary_table['Annotation'] = ['-'] * len(summary_table)
+else:
+    gff_file = gff.gff(args.gff)
+    gff_file.readgff()
+    summary_table['Locus Tag'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][0], axis=1)
+    summary_table['Gene'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][1], axis=1)
+    summary_table['ID'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][2], axis=1)
+    summary_table['Annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
+    
+    # rearrange columns so all annotation columns should go first
+    cols = summary_table.columns.tolist()
+    cols = cols[:4] + cols[-4:] + cols[4:-4]
+    summary_table = summary_table[cols]
+    
 summary_table.to_csv(out_file, sep='\t', index=False)
-
