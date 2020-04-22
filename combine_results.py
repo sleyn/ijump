@@ -43,16 +43,6 @@ summary_table['index'] = [str(summary_table.iloc[i]['Start']) + summary_table.il
 summary_table.set_index('index', inplace=True)
 summary_table[sample_list] = summary_table[sample_list].astype('float')
 
-for report in report_files:
-    report_df = pd.read_csv(report, header=0, sep='\t')
-    match = re.search('[-|_](.+)\.txt', report)
-    sample_name = match.group(1)
-
-    for i in range(len(report_df)):
-        if report_df.iloc[i]['Depth'] > 10:
-            ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
-            summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
-
 if args.gff == '-':
     summary_table['Functional annotation'] = ['-'] * len(summary_table)
 else:
@@ -62,6 +52,17 @@ else:
     summary_table['Gene'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][1], axis=1)
     summary_table['ID'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][2], axis=1)
     summary_table['Annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
+
+
+for report in report_files:
+    report_df = pd.read_csv(report, header=0, sep='\t')
+    match = re.search('[-|_](.+)\.txt', report)
+    sample_name = match.group(1)
+
+    for i in range(len(report_df)):
+        if report_df.iloc[i]['Depth'] > 10:
+            ind = str(report_df.iloc[i]['Start']) + report_df.iloc[i]['IS Name'] + str(report_df.iloc[i]['Stop'])
+            summary_table.at[ind, sample_name] = report_df.iloc[i]['Frequency']
 
 summary_table.to_csv(out_file, sep='\t', index=False)
 
