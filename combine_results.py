@@ -31,7 +31,7 @@ for report in report_files:
     sample_list.append(match.group(1))
 
     report_df = pd.read_csv(report,  header=0, sep='\t')
-    summary_table = summary_table.append(report_df[['Chromosome', 'Annotation', 'Start', 'Stop', 'IS Name']], sort=False)
+    summary_table = summary_table.append(report_df[['Chromosome', 'Start', 'Stop', 'IS Name']], sort=False)
 
 summary_table = summary_table.drop_duplicates()         # remove duplicated strings
 st_len = len(summary_table)                             # length of summary table
@@ -58,7 +58,10 @@ if args.gff == '-':
 else:
     gff_file = gff.gff(args.gff)
     gff_file.readgff()
-    summary_table['Functional annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
+    summary_table['Locus Tag'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][0], axis=1)
+    summary_table['Gene'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][1], axis=1)
+    summary_table['ID'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][2], axis=1)
+    summary_table['Annotation'] = summary_table.apply(lambda x: gff_file.gff_pos[x['Chromosome']][int( (int(x['Start']) + int(x['Stop']) ) / 2)][3], axis=1)
 
 summary_table.to_csv(out_file, sep='\t', index=False)
 

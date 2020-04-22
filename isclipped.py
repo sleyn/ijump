@@ -50,7 +50,7 @@ class isclipped:
         self._ref_colours = dict()  # colors assigned to each chromosome
         self._is_colours = dict()  # colours assigned to each IS element
         self.is_coords = dict()  # IS name => chrom, start, stop
-        self.data_folder = './isjump_data/'  # data folder for circos files
+        self.data_folder = './ijump_data/'  # data folder for circos files
         self.session_id = ''  # id of the session (used in a data folder and config names)
         self.sum_by_region = self._sum_by_reg_tbl()
         self.report_table = self._report_table()
