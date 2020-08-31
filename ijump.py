@@ -12,6 +12,7 @@ parser.add_argument('-r', '--ref', type=str, action='store', help='Reference gen
 parser.add_argument('-g', '--gff', type=str, action='store', help='Annotations in GFF format for reference genome')
 parser.add_argument('-i', '--isel', type=str, action='store', help='File with IS elements coordinates')
 parser.add_argument('-c', '--circos', action='store_true', default=False, help="Set flag to build input files for CIRCOS")
+parser.add_argument('-o', '--outdir', type=str, default='.', help="Output directory")
 args = parser.parse_args()
 
 alignment_file = args.aln
@@ -32,24 +33,29 @@ if alignment_file[-3:] == 'sam':
 elif alignment_file[-3:] == 'bam':
     a_type = 'b'
 
+# Make output directories if not exist
+if not os.path.exists(args.outdir):
+    os.makedirs(args.outdir)
+    
 
 # read alignment
 alignment = pysam.AlignmentFile(alignment_file, "r" + a_type)
 
 x = isclipped.isclipped(alignment, reference, gff)
+x.outdir = args.outdir
 x.gff.readgff()
 x.gff.pos_to_ann()
 x.iscollect(is_file)
 x.crtable(200)   # provide radius
-x.clipped_reads.to_csv("reads.txt", sep='\t', index=False)
+x.clipped_reads.to_csv(os.path.join(outdir, "reads.txt"), sep='\t', index=False)
 x.runblast()
 x.parseblast()
 x.call_junctions()
-x.junctions.to_csv("ijump_junctions.txt", sep='\t', index=False)
+x.junctions.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
 x.summary_junctions_by_region()
-x.sum_by_region.to_csv("ijump_sum_by_reg.txt", sep='\t', index=False)
+x.sum_by_region.to_csv(os.path.join(outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
 x.report()
-x.report_table.to_csv("ijump_report_by_is_reg.txt", sep='\t', index=False)
+x.report_table.to_csv(os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
 
 if args.circos is True:
     x.create_circos_files()

@@ -61,6 +61,7 @@ class isclipped:
         self.n_reads_analyzed = 0 # number of analyzed reads
         self.match_lengths = list() # list of lengths for matched segments
         self.blast_min = 10 # minimum length of clipped part to use in BLAST
+        self.outdir = '.' # output directory
 
     # create report table
     @staticmethod
@@ -237,8 +238,8 @@ class isclipped:
     # run blast and write output to xml
     def runblast(self):
         print('Run BLAST for clipped parts of the reads')
-        fasta_file = 'cl.fasta'
-        blast_out_file = 'cl_blast.out'
+        fasta_file = os.path.join(self.outdir, 'cl.fasta')
+        blast_out_file = os.path.join(self.outdir, 'cl_blast.out')
         self._write_fasta(fasta_file, self.blast_min)
         blastn_cl = NcbiblastnCommandline(query=fasta_file, db=self.ref_name, evalue=0.001, out=blast_out_file,
                                           outfmt=6, word_size=10)
@@ -256,7 +257,7 @@ class isclipped:
     # parse BALST output
     def parseblast(self):
         print('Collect information from BLAST')
-        blast_out = pd.read_csv('cl_blast.out', sep='\t')
+        blast_out = pd.read_csv(os.path.join(self.outdir, 'cl_blast.out'), sep='\t')
 
         blast_out.columns = ['qseqid',
                              'sseqid',
