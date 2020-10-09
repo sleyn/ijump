@@ -294,7 +294,9 @@ class isclipped:
             temp.at[index, 'pos in ref'] = pos
             temp.at[index, 'orientation'] = orient
 
-        temp['pos in ref'] = temp['pos in ref'].astype(int)
+        # if temp has any entries
+        if temp.size:
+            temp['pos in ref'] = temp['pos in ref'].astype(int)
         self.blastout_filtered = self.blastout_filtered.append(temp)
 
     # create table for junctions description

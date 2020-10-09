@@ -51,7 +51,11 @@ x.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=F
 x.runblast()
 x.parseblast()
 x.call_junctions()
-x.junctions.to_csv(os.path.join(args.outdir, "ijump_junctions.txt"), sep='\t', index=False)
+if x.junctions.size:
+    x.junctions.to_csv(os.path.join(args.outdir, "ijump_junctions.txt"), sep='\t', index=False)
+else:
+    print('No junctions was found')
+    exit(0)
 x.summary_junctions_by_region()
 x.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
 x.report()
