@@ -1,14 +1,16 @@
 import glob
 import argparse
 import pandas as pd
-import sys
 import re
 import gff
+from os import path
 
 parser = argparse.ArgumentParser(description='Tool that combines ijump reports from several files into one summary table')
 parser.add_argument('-d', '--dir_report', help='Directory with report files')
 parser.add_argument('-o', '--output', help='Output table file')
 parser.add_argument('-g', '--gff', nargs='?', default='-', help='Path to gff file')
+parser.add_argument('--lab_format',  action='store_true', help='If set, output internal laboratory')
+parser.add_argument('--clonal',  action='store_true', help='If set, runs clonal merging')
 args = parser.parse_args()
 
 report_folder = args.dir_report
@@ -44,6 +46,7 @@ summary_table.set_index('index', inplace=True)
 summary_table[sample_list] = summary_table[sample_list].astype('float')
 
 for report in report_files:
+    # read report file and extract sample name
     report_df = pd.read_csv(report, header=0, sep='\t')
     match = re.search('[-|_](.+)\.txt', report)
     sample_name = match.group(1)
@@ -71,5 +74,34 @@ else:
     cols = summary_table.columns.tolist()
     cols = cols[:4] + cols[-4:] + cols[4:-4]
     summary_table = summary_table[cols]
-    
+    summary_table['MAX'] = summary_table[sample_list].apply(max, axis=1)
+
+    if args.lab_format:
+        if not args.clonal:
+            a_samples = [a_sample for a_sample in sample_list if a_sample[-1] == 'A']
+            summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
+            summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table['A_MAX'].to_list()]
+            summary_table['Effect'] = 'IS_insertion'
+            summary_table['Mutation'] = 'IS_insertion'
+            cols = ['ID', 'Gene', 'Mutation']
+            cols.extend(sample_list)
+            cols.extend(['MAX', 'A_MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome', 'IS Name'])
+            summary_table = summary_table[cols]
+
+            # Sum IS elements with the same name
+            summary_table_collapsed = summary_table.copy()
+            summary_table_collapsed['Mutation'] = [re.match(r'^(.+?)_?\d*$', is_ele).group(1) for
+                                                 is_ele in summary_table_collapsed['IS Name'].tolist()]
+            summary_table_collapsed = summary_table_collapsed.drop(columns=['IS Name'])
+            summary_table_collapsed.groupby(
+                ['ID', 'Gene', 'Mutation', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'],
+                as_index = False
+            ).agg('sum')
+
+            summary_table_collapsed.to_csv(
+                path.join(path.dirname(out_file), 'collapsed' + path.basename(out_file)),
+                sep='\t',
+                index=False)
+
+
 summary_table.to_csv(out_file, sep='\t', index=False)
