@@ -23,7 +23,7 @@ if args.clonal:
     if args.a_samples == '-':
         print('No unevolved samples are provided')
     else:
-        a_sample_files = glob.glob(path.join(args.a_samples, '*'))
+        a_sample_files = glob.glob(path.join(args.a_samples, '*.txt'))
 
 report_files = glob.glob(path.join(report_folder, 'ijump_*'))    # collect report files
 
