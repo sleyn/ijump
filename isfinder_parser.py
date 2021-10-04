@@ -35,7 +35,11 @@ isfinder_content = re.sub('</article>.+', '', isfinder_content, re.DOTALL) #remo
 isels_final = pd.DataFrame(columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop',
                               'check'])  # specific inforamtion about every hit
 
+# Check if the Query= string exists
+query_exists = False
+
 for contig in isfinder_content.split('<b>Query=</b>')[1:]:
+    query_exists = True
     isels_ge = pd.DataFrame(columns=['name', 'family', 'group', 'origin'])  # general information about IS
     isels = pd.DataFrame(columns=['contig', 'name', 'family', 'group', 'origin', 'score', 'e-value', 'start', 'stop',
                                   'check'])  # specific inforamtion about every hit
@@ -108,5 +112,13 @@ for contig in isfinder_content.split('<b>Query=</b>')[1:]:
     isels = isels.drop(columns=['check'])       # remove check column
     isels_final = isels_final.append(isels, sort=False)
 
-isels_final.to_csv('ISTable_full.txt', sep='\t')       # write full table in file
-isels_final.to_csv('ISTable_processing.txt', sep='\t', columns=['contig', 'start', 'stop'], header=False)       # write table for further processing to file
+if query_exists:
+    # write full table in file
+    isels_final.to_csv('ISTable_full.txt', sep='\t')
+    # write table for further processing to file
+    isels_final.to_csv('ISTable_processing.txt', sep='\t', columns=['contig', 'start', 'stop'], header=False)
+else:
+    print('\nWARNING!:'
+          'No "Query=" strings with contig names found in the provided page.\n'
+          'ISFinder BLAST requires short Fasta headers to include contig names.\n'
+          'Please make shorter contig names or remove auxiliary information from the Fasta header.')

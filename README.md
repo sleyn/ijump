@@ -84,6 +84,8 @@ isfinder_parse.py -i <ISfinder BLAST HTML page>
 
 Parser will find non-overlapping hits with empirical E-value threshold 1E-30.
 
+**NOTE:** It was observed that if the contig FASTA header (the line starting with ">") is long then ISFinder BLAST does not produce "Query=" string with the contig name.  This line is critical for `isfinder_parse.py` work. If the script reports empty table please change header by using sorter contig names or removing auxiliary information.
+
 #### Reference Fasta
 
 Regular Fasta file with one Fasta-record per contig:
