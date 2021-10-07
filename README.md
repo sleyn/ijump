@@ -75,14 +75,33 @@ But it is dependent on several Python libraries:
  ISAcsp3	NODE_1	2980551	2981283
  ```
 
-If you don't have file with coordinates of mobile elements you can find them from ISFinder website using their [BLAST](https://isfinder.biotoul.fr/blast.php) against your reference contigs.
+If you don't have file with coordinates of mobile elements you can:
+
+1) Preferred do manual BLAST against standalone ISFinder database. Database could be downloaded from:
+
+- [Author GitHub](https://github.com/thanhleviet/ISfinder-sequences)
+- [My Fork](https://github.com/sleyn/ISfinder-sequences) with already built BLASTn database.
+
+Do BLASTn search:
+
+```
+blastn -query <Genome> -db <BLASTn database from IS.fna> -out <Output file> -outfmt 6
+```
+
+Parse the output table with **isfinder_db_parcer.py** script:
+```
+python3 isfinder_db_parcer.py -b <BLAST output in outfmt 6 format> -o <Output directory>
+```
+
+
+2) Find them from ISFinder website using their [BLAST](https://isfinder.biotoul.fr/blast.php) against your reference contigs.
 
 It will return you  html page of hits that you can download and parse with **isfinder_parser.py**:
 ```
-isfinder_parse.py -i <ISfinder BLAST HTML page>
+python3 isfinder_parse.py -i <ISfinder BLAST HTML page>
 ```
 
-Parser will find non-overlapping hits with empirical E-value threshold 1E-30.
+Both parsers will find non-overlapping hits with empirical E-value threshold 1E-30.
 
 **NOTE:** It was observed that if the contig FASTA header (the line starting with ">") is long then ISFinder BLAST does not produce "Query=" string with the contig name.  This line is critical for `isfinder_parse.py` work. If the script reports empty table please change header by using sorter contig names or removing auxiliary information.
 
@@ -105,13 +124,13 @@ cgtagctgctagctagctagctagcgtacgtacgtagctacgtacgta...
 iJump is working with it's own gff module that is tuned for PATRIC/PROKKA-style GFF.
 
 Example:
+
 ```
 ##gff-version 3								
 ##sequence-region	accn|NODE_1_length_3909467_cov_533.478_ID_22129	1	3909467					
 NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	34	336	.	-	1	ID=fig|400667.82.peg.1;product=hypothetical protein;locus_tag=AUO97b_00141
 NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	352	1578	.	-	1	ID=fig|400667.82.peg.2;product=phage replication protein Cri;locus_tag=AUO97b_00142
 NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	1724	2098	.	+	2	ID=fig|400667.82.peg.3;product=helix-turn-helix family protein;locus_tag=AUO97b_00143
-
 ```
 
 If you have another style of GFF unfortunately you have to reformat it at the current stage of development.
@@ -123,9 +142,10 @@ BAM file with aligned short reads. BAM file should contain soft-slipped reads. O
 ### Run iJump
 
 iJump run with the following command:
- ```
- python3 isjump.py -a <BAM file> -r <Reference FNA file> -g <Reference GFF file> -i <IS coordinates>
- ```
+
+```
+python3 isjump.py -a <BAM file> -r <Reference FNA file> -g <Reference GFF file> -i <IS coordinates>
+```
 
 ### Output
 
