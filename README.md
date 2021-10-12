@@ -14,7 +14,7 @@ Software for search of rearrangements in population sequencing data.
 	*Bmin* - minimum length for unaligned parts that were used in the BLAST step
 	*aRlen* - average read length
 	*mmatch* - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *mmatch* is 30).
-	
+
 
 ![iJump workflow](./img/ijump_workflow.png)
 
@@ -43,33 +43,33 @@ But it is dependent on several Python libraries:
 * **pandas**
 
     [Installation guidelines](https://pandas.pydata.org/pandas-docs/stable/install.html)
-    
+
 * **pysam**
 
     [Installation guidelines](https://pysam.readthedocs.io/en/latest/installation.html)
-    
+
 * **pysamstats**
     [Installation guidelines](https://github.com/alimanfoo/pysamstats)
-    
+
  ## Usage
- 
+
  ### Input
- 
+
  iJump requires four files for input:
  1. File with mobile elements coordinates
  2. Reference DNA contigs fasta file.
  3. GFF file with reference genome annotations.
  4. BAM file of aligned Illumina reads.
- 
+
  ![iJump input and output](./img/ijump_input.png)
- 
+
  #### Mobile elements coordinates file
- 
+
  File with mobile elements coordinates shoud be tab-separated tables of the following structure:
  ```
  IS_Name    Contig_Name Start_position  End_position
  ```
- 
+
  For example:
  ```
  ISAcsp3	NODE_1	2980551	2981283
@@ -123,13 +123,21 @@ cgtagctgctagctagctagctagcgtacgtacgtagctacgtacgta...
 
 iJump is working with it's own gff module that is tuned for PATRIC/PROKKA-style GFF.
 
+Some specifications:
+- The comment string `##sequence-region	accn|[contig name]	[contig start coordinate]	[contig end coordinate]` is required for each contig in the reference.
+- Info field should have the following fields:
+  - ID
+	- product
+	- locus_tag
+	- (optional, if gene has trivial name) gene
+
 Example:
 
 ```
 ##gff-version 3								
 ##sequence-region	accn|NODE_1_length_3909467_cov_533.478_ID_22129	1	3909467					
 NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	34	336	.	-	1	ID=fig|400667.82.peg.1;product=hypothetical protein;locus_tag=AUO97b_00141
-NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	352	1578	.	-	1	ID=fig|400667.82.peg.2;product=phage replication protein Cri;locus_tag=AUO97b_00142
+NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	352	1578	.	-	1	ID=fig|400667.82.peg.2;product=phage replication protein Cri;locus_tag=AUO97b_00142;gene=cri
 NODE_1_length_3909467_cov_533.478_ID_22129	FIG	CDS	1724	2098	.	+	2	ID=fig|400667.82.peg.3;product=helix-turn-helix family protein;locus_tag=AUO97b_00143
 ```
 
@@ -155,40 +163,40 @@ Contains information about junctions for each read. File contains following colu
 
 * index  
 	 order number
-	
+
 * ID  
 	 unique identifier
-	
+
 * IS name  
 	 mobile element name
-	
+
 * IS pos  
 	 what part of the read matches mobile element
-	
+
 * IS chrom  
 	 name of contig where mobile element is located in the reference
-	
+
 * Read name  
 	 read name where jubction was observed
-	
+
 * Chrom  
 	 name of contig where mobile element jumped
-	
+
 * Position  
 	 posistion of the junction
-	
+
 * Orientation  
 	 orientation of mobile element relative to junction
-	
+
 * Note  
 	 mark if junction is in other mobile elements - usually indicates false positive hits
-	
+
 * Locus tag  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
-	
+
 * Gene  
 	 trivial name of the affected gene
-        
+
 #### ijump_report_by_is_reg.txt
 
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
@@ -199,19 +207,19 @@ File contains following columns:
 
 * Annotation  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
-	
+
 * Chromosome  
 	 name of contig where affected region is located
-	
+
 * Start  
 	 start coordinate of affected region
-	
+
 * Stop  
 	 end coordinate of affected region
-	
+
 * Frequency  
 	 estimated frequency of the mobile element jumps into a genomic region
-	
+
 * Depth  
 	 average coverage of the genomic region
 
@@ -224,24 +232,24 @@ python3 combibe_results.py -d [Folder with ijump report files] -o [Output file w
 This will merge all results in one table.
 
 #### ijump_sum_by_reg.txt
- 
+
 Wide format of frequency estimation. Table shows raw counts of reads that support junctions instead of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
- 
+
 * ann  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_   
-    
+
 * chrom  
 	 name of contig where affected region is located
-    
+
 * start  
 	 start coordinate of affected region
-    
+
 * stop  
 	 end coordinate of affected region
-    
+
 * mobile element names  
 	 raw reads that support junctions
-    
+
 #### CIRCOS files
 
 iJump can create config files (*data* folder) for [CIRCOS](http://circos.ca/) circular diagrams that represent directions of mobile element jumps. Currently commented because of long processing (will be improved soon).
