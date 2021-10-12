@@ -2,3 +2,7 @@ env/
 __pycache__/
 .idea/
 Test/
+cl_blast.out
+cl.fasta
+ijump_junctions.txt
+reads.txt
