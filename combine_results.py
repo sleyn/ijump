@@ -59,8 +59,7 @@ if args.clonal:
         report_dfs.append(pd.read_csv(a_sample, sep='\t').query('Depth > 10').drop(columns='Depth').rename(columns = {'Frequency': sample_name}))
 
 # Merge all data frames to one comparative table
-summary_table = reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop']))
-summary_table = pd.merge(summary_table, report_dfs, how='left', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop'])
+summary_table = reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop']), report_dfs)
 summary_table = summary_table.fillna(0)
 
 # if no gff file was provided just put '-' in all annotation fields
@@ -80,38 +79,34 @@ else:
     # Add maximum observed frequency
     summary_table['MAX'] = summary_table[sample_list].apply(max, axis=1)
     summary_table = summary_table.query('MAX > 0')
+    # List for column names
+    cols = []
+    cols = ['ID', 'Gene', 'Mutation']
+    # Generate short format names
+    sample_list_rename = [re.search('_([^_]+)', sample).group(1) for sample in sample_list]
+    cols.extend(sample_list_rename)
+    cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
 
     if args.lab_format:
         if args.clonal:
             # Calculate maximum in unevolved population samples if they are provided
             if args.a_samples != '-':
                 summary_table['A_MAX'] = summary_table[a_sample_list].apply(max, axis=1)
-                summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table['A_MAX'].to_list()]
+                summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
+                                                       summary_table['A_MAX'].to_list()]
             else:
                 summary_table['A_MAX'] = '?'
                 summary_table['Category'] = '?'
             summary_table['Effect'] = 'IS_insertion'
             summary_table['Mutation'] = 'IS_insertion'
-            cols = ['ID', 'Gene', 'Mutation']
-            cols.extend(sample_list)
-            cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome', 'IS Name'])
-            cols.extend(a_sample_list)
-            cols.extend(['A_MAX'])
-            summary_table = summary_table[cols]
             
         else:
             a_samples = [a_sample for a_sample in sample_list if a_sample[-1] == 'A']
             summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
-            summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table['A_MAX'].to_list()]
             summary_table['Effect'] = 'IS_insertion'
             summary_table['Mutation'] = 'IS_insertion'
-            cols = ['ID', 'Gene', 'Mutation']
-            cols.extend(sample_list)
-            cols.extend(['MAX', 'A_MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome', 'IS Name'])
-            summary_table = summary_table[cols]
 
         # Rename samples to short format
-        sample_list_rename = [re.search('_([^_]+)', sample).group(1) for sample in sample_list]
         summary_table = summary_table.rename(
             columns = dict(zip(sample_list, sample_list_rename))
         )
@@ -122,16 +117,27 @@ else:
                 summary_table = summary_table.rename(
                     columns=dict(zip(a_sample_list, a_sample_list_rename))
                 )
+                # Add columns for A-samples to the final table
+                cols.extend(a_sample_list)
+                cols.extend(['A_MAX'])
 
         # Sum IS elements with the same name
-        summary_table_collapsed = summary_table.copy()
+        summary_table_collapsed = summary_table.drop(columns=['Category']).copy()
         summary_table_collapsed['Mutation'] = [re.match(r'^(.+?)_?\d*$', is_ele).group(1) for
-                                             is_ele in summary_table_collapsed['IS Name'].tolist()]
-        summary_table_collapsed = summary_table_collapsed.drop(columns=['IS Name'])
-        summary_table_collapsed.groupby(
-            ['ID', 'Gene', 'Mutation', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'],
-            as_index = False
+                                               is_ele in summary_table_collapsed['IS Name'].tolist()]
+        summary_table_collapsed = summary_table_collapsed.drop(columns=['IS Name', 'Start', 'Stop'])
+        summary_table_collapsed = summary_table_collapsed.groupby(
+            ['ID', 'Gene', 'Mutation', 'Annotation', 'Effect', 'Locus Tag', 'Chromosome'],
+            as_index=False
         ).agg('sum')
+
+        if args.clonal:
+            if args.a_samples != '-':
+                summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table_collapsed['A_MAX'].to_list()]
+            else:
+                summary_table_collapsed['Category'] = '?'
+
+        summary_table_collapsed = summary_table_collapsed[cols]
 
         summary_table_collapsed.to_csv(
             path.join(path.dirname(out_file), 'collapsed_' + path.basename(out_file)),
@@ -143,4 +149,4 @@ else:
             sep='\t',
             index=False)
 
-summary_table.to_csv(out_file, sep='\t', index=False)
+summary_table[cols].to_csv(out_file, sep='\t', index=False)
