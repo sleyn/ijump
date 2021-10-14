@@ -59,7 +59,8 @@ if args.clonal:
         report_dfs.append(pd.read_csv(a_sample, sep='\t').query('Depth > 10').drop(columns='Depth').rename(columns = {'Frequency': sample_name}))
 
 # Merge all data frames to one comparative table
-summary_table = reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop']), report_dfs)
+summary_table = reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop']))
+summary_table = pd.merge(summary_table, report_dfs, how='left', on=['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop'])
 summary_table = summary_table.fillna(0)
 
 # if no gff file was provided just put '-' in all annotation fields
