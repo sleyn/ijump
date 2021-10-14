@@ -90,9 +90,11 @@ else:
     else:
         cols.extend(sample_list)
 
-    cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
+    cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
 
     if args.lab_format:
+        cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
+
         if args.clonal:
             # Calculate maximum in unevolved population samples if they are provided
             if args.a_samples != '-':
