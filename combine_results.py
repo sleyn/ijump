@@ -85,7 +85,7 @@ else:
     # Generate short format names
     sample_list_rename = [re.search('_([^_]+)', sample).group(1) for sample in sample_list]
 
-    if args.clonal:
+    if args.lab_format:
         cols.extend(sample_list_rename)
     else:
         cols.extend(sample_list)
@@ -162,4 +162,4 @@ else:
             sep='\t',
             index=False)
 
-summary_table[cols].to_csv(out_file, sep='\t', index=False)
+    summary_table[cols].to_csv(out_file, sep='\t', index=False)
