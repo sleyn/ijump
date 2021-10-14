@@ -84,7 +84,12 @@ else:
     cols = ['ID', 'Gene', 'Mutation']
     # Generate short format names
     sample_list_rename = [re.search('_([^_]+)', sample).group(1) for sample in sample_list]
-    cols.extend(sample_list_rename)
+
+    if args.clonal:
+        cols.extend(sample_list_rename)
+    else:
+        cols.extend(sample_list)
+
     cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
 
     if args.lab_format:
@@ -110,7 +115,7 @@ else:
 
         # Rename samples to short format
         summary_table = summary_table.rename(
-            columns = dict(zip(sample_list, sample_list_rename))
+            columns=dict(zip(sample_list, sample_list_rename))
         )
 
         if args.clonal:
