@@ -105,6 +105,8 @@ else:
             summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
             summary_table['Effect'] = 'IS_insertion'
             summary_table['Mutation'] = 'IS_insertion'
+            summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
+                                         summary_table['A_MAX'].to_list()]
 
         # Rename samples to short format
         summary_table = summary_table.rename(
@@ -119,7 +121,8 @@ else:
                 )
                 # Add columns for A-samples to the final table
                 cols.extend(a_sample_list)
-                cols.extend(['A_MAX'])
+
+        cols.extend(['A_MAX'])
 
         # Sum IS elements with the same name
         summary_table_collapsed = summary_table.drop(columns=['Category']).copy()
@@ -136,6 +139,9 @@ else:
                 summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table_collapsed['A_MAX'].to_list()]
             else:
                 summary_table_collapsed['Category'] = '?'
+        else:
+            summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in
+                                                   summary_table_collapsed['A_MAX'].to_list()]
 
         summary_table_collapsed = summary_table_collapsed[cols]
 
