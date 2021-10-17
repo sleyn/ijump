@@ -36,6 +36,7 @@ if not report_files:
 sample_list = [re.search('ijump_(.+)\.txt', report).group(1) for report in
                [path.basename(file) for file in report_files]
                ]
+sample_list.sort()
 
 # list of unevolved samples
 if args.clonal:
@@ -83,7 +84,7 @@ else:
     cols = []
     cols = ['ID', 'Gene', 'Mutation']
     # Generate short format names
-    sample_list_rename = [re.search('_([^_]+)', sample).group(1) for sample in sample_list]
+    sample_list_rename = [re.search('_([^_]+)$', sample).group(1) for sample in sample_list]
 
     if args.lab_format:
         cols.extend(sample_list_rename)
@@ -122,7 +123,7 @@ else:
 
         if args.clonal:
             if args.a_samples != '-':
-                a_sample_list_rename = [re.search('_?([^_]+)', sample).group(1) for sample in a_sample_list]
+                a_sample_list_rename = [re.search('_?([^_]+)$', sample).group(1) for sample in a_sample_list]
                 summary_table = summary_table.rename(
                     columns=dict(zip(a_sample_list, a_sample_list_rename))
                 )
