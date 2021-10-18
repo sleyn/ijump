@@ -110,7 +110,11 @@ else:
             
         else:
             a_samples = [a_sample for a_sample in sample_list if a_sample[-1] == 'A']
-            summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
+            if args.a_samples != '-':
+                summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
+            else:
+                summary_table['A_MAX'] = '?'
+
             summary_table['Effect'] = 'IS_insertion'
             summary_table['Mutation'] = 'IS_insertion'
             summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
@@ -147,6 +151,7 @@ else:
                 summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table_collapsed['A_MAX'].to_list()]
             else:
                 summary_table_collapsed['Category'] = '?'
+                summary_table_collapsed['A_MAX'] = '?'
         else:
             summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in
                                                    summary_table_collapsed['A_MAX'].to_list()]
