@@ -91,8 +91,6 @@ else:
     else:
         cols.extend(sample_list)
 
-    cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
-
     if args.lab_format:
         cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
 
@@ -167,5 +165,7 @@ else:
             path.join(path.dirname(out_file), 'selected_collapsed_' + path.basename(out_file)),
             sep='\t',
             index=False)
+    else:
+        cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
 
     summary_table[cols].to_csv(out_file, sep='\t', index=False)
