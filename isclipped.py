@@ -250,7 +250,7 @@ class isclipped:
     def _choosecoord(qleft, qright, lr):
         qcoord = [qleft, qright]
         qorientation = ['left', 'rigth']
-        coord = int(qcoord[not (qcoord[1] > qcoord[0]) ^ (lr == 'left')])
+        coord = int(qcoord[lr == 'left'])
         orientation = qorientation[not (qcoord[1] > qcoord[0]) ^ (lr == 'left')]
         return coord, orientation
 
