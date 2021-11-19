@@ -324,7 +324,16 @@ class isclipped:
 
         self.junctions = self.junctions.reset_index()
 
-    # create summary table that specifies
+    # create summary table that specifies range of junctions in the gene
+    def _junction_range(self):
+        j_range = self.junctions[['IS name', 'Locus tag', 'Position']].\
+            groupby(['IS name', 'Locus tag'], as_index=False).\
+            agg({'Position': [min, max]}).\
+            rename(columns={'Locus tag': 'Annotation'})
+
+        j_range.columns = ['IS name', 'Annotation', 'min', 'max']
+        j_range = j_range.astype({'min': int, 'max': int})
+        return j_range
 
     # generate random string
     @staticmethod
@@ -367,7 +376,14 @@ class isclipped:
         #aln_depth = self.aln.count_coverage(chrom, start, stop)
         #depth = sum(map(sum, aln_depth))
         #return depth / len(aln_depth[0])  # average depth of the region
-        c = pysamstats.load_coverage(self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000)
+        c = pysamstats.load_coverage(self.aln,
+                                     chrom=chrom,
+                                     start=start,
+                                     end=stop + 1,  # pysamstats does not include stop position
+                                     truncate=True,
+                                     max_depth=100000,
+                                     one_based=True,
+                                     pad=True)
         return mean(c.reads_all)
 
     # create report by IS and region
@@ -390,8 +406,13 @@ class isclipped:
         self.report_table = self.report_table[self.report_table['count'] > 0]
 
         # Add depth
+        junction_range = self._junction_range()
+        self.report_table = pd.merge(self.report_table, junction_range,
+                                                    left_on=['IS Name', 'ann'],
+                                                    right_on=['IS name', 'Annotation'],
+                                                    how='left')
         self.report_table['Depth'] = self.report_table.apply(
-            lambda x: self._av_depth(x['chrom'], x['start'], x['stop']),
+            lambda x: self._av_depth(x['chrom'], x['min'], x['max']),
             axis=1
         )
 
