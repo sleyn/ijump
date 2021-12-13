@@ -13,6 +13,7 @@ parser.add_argument('-g', '--gff', type=str, action='store', help='Annotations i
 parser.add_argument('-i', '--isel', type=str, action='store', help='File with IS elements coordinates')
 parser.add_argument('-c', '--circos', action='store_true', default=False, help="Set flag to build input files for CIRCOS")
 parser.add_argument('-o', '--outdir', type=str, default='.', help="Output directory")
+parser.add_argument('--radius', type=int, default=200, help="Radius around IS elements boundaries to search soft clipped reads.")
 args = parser.parse_args()
 
 alignment_file = args.aln
@@ -46,7 +47,7 @@ x.outdir = args.outdir
 x.gff.readgff()
 x.gff.pos_to_ann()
 x.iscollect(is_file)
-x.crtable(200)   # provide radius
+x.crtable(args.radius)   # provide radius
 x.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=False)
 x.runblast()
 x.parseblast()
