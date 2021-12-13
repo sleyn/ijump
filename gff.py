@@ -172,6 +172,6 @@ class gff:
                 if prev_ann != self.gff_pos[contig][pos][0]:
                     prev_ann = self.gff_pos[contig][pos][0]
                     if ann_id in self.ann_pos[contig]:
-                        self.ann_pos[contig][ann_id][3] = pos
+                        self.ann_pos[contig][ann_id][3] = pos - 1
                     ann_id += 1
                     self.ann_pos[contig][ann_id] = [self.gff_pos[contig][pos][0], contig, pos, pos]
