@@ -52,7 +52,7 @@ for report in report_files:
     print(f'Reading {report}')
     report_dfs.append(pd.read_csv(report, sep='\t').query('Depth > 10').drop(columns='Depth').rename(columns = {'Frequency': sample_name}))
 
-# read unevolved ssmples if provided
+# read unevolved samples if provided (only for clonal data)
 if args.clonal:
     for a_sample in a_sample_files:
         sample_name = re.search('(\dA)\.txt', path.basename(a_sample)).group(1)
@@ -65,10 +65,11 @@ summary_table = summary_table.fillna(0)
 
 # if no gff file was provided just put '-' in all annotation fields
 if args.gff == '-':
-    summary_table['Locus Tag'] = ['-'] * len(summary_table)
-    summary_table['Gene'] = ['-'] * len(summary_table)
-    summary_table['ID'] = ['-'] * len(summary_table)
-    summary_table['Annotation'] = ['-'] * len(summary_table)
+    n_variants = len(summary_table)
+    summary_table['Locus Tag'] = ['-'] * n_variants
+    summary_table['Gene'] = ['-'] * n_variants
+    summary_table['ID'] = ['-'] * n_variants
+    summary_table['Annotation'] = ['-'] * n_variants
 else:
     gff_file = gff.gff(args.gff)
     gff_file.readgff()
@@ -104,19 +105,21 @@ else:
                 summary_table['A_MAX'] = '?'
                 summary_table['Category'] = '?'
             summary_table['Effect'] = 'IS_insertion'
-            summary_table['Mutation'] = 'IS_insertion'
+            summary_table['Mutation'] = summary_table['IS Name']
             
         else:
+            # Process population unevolved samples
             a_samples = [a_sample for a_sample in sample_list if a_sample[-1] == 'A']
-            if args.a_samples != '-':
+            if len(a_samples) > 0:
                 summary_table['A_MAX'] = summary_table[a_samples].apply(max, axis=1)
+                summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
+                                          summary_table['A_MAX'].to_list()]
             else:
                 summary_table['A_MAX'] = '?'
+                summary_table['Category'] = '?'
 
             summary_table['Effect'] = 'IS_insertion'
-            summary_table['Mutation'] = 'IS_insertion'
-            summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
-                                         summary_table['A_MAX'].to_list()]
+            summary_table['Mutation'] = summary_table['IS Name']
 
         # Rename samples to short format
         summary_table = summary_table.rename(
@@ -151,8 +154,11 @@ else:
                 summary_table_collapsed['Category'] = '?'
                 summary_table_collapsed['A_MAX'] = '?'
         else:
-            summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in
-                                                   summary_table_collapsed['A_MAX'].to_list()]
+            if len(a_samples) > 0:
+                summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in summary_table_collapsed['A_MAX'].to_list()]
+            else:
+                summary_table_collapsed['Category'] = '?'
+                summary_table_collapsed['A_MAX'] = '?'
 
         summary_table_collapsed = summary_table_collapsed[cols]
 
