@@ -7,14 +7,23 @@ Software for search of rearrangements in population sequencing data.
 2. Extract unaligned part of reads.
 3. BLAST unaligned parts agains reference.
 4. Find best hits with >90% identity to the reference with unique highest bitscore. If two ore more hits share the same bit score - the junction considered as ambigious and skipped. Usually this is happening because aligner map reads to several copies of mobile element.
-5. Assess frequency of insertion by simple formula *((Rl + Rr) / 2 * ( 1 + Bmin / aRlen)) / (Dt * ( 1 - mmatch / aRlen ))*, where  
+5. Assess frequency of insertion by simple formula *((Rl + Rr) / 2 * ( 1 + Bmin / aRlen) ) / (Dt * ( 1 - mmatch / aRlen ))*, where  
+	
 	*Rl* - number of reads that support junction to the target on the "left" side of mobile element  
+	
 	*Rr* - number of reads that support junction to the target on the "right" side of mobile element  
+	
 	*Dt* - average depth of caverage of target region
+	
 	*Bmin* - minimum length for unaligned parts that were used in the BLAST step
+	
 	*aRlen* - average read length
+	
 	*mmatch* - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *mmatch* is 30).
 
+	1 + Bmin / aRlen - correction for reads that were found on the IS element boundary but were not mapped back due to short clipped part.
+	
+	1 - mmatch / aRlen - correction for reads that were not mapped to the IS element boundary but present on the insertion side.
 
 ![iJump workflow](./img/ijump_workflow.png)
 
