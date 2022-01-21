@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description='Tool that combines ijump reports f
 parser.add_argument('-d', '--dir_report', help='Directory with report files')
 parser.add_argument('-o', '--output', help='Output table file')
 parser.add_argument('-g', '--gff', nargs='?', default='-', help='Path to gff file')
-parser.add_argument('-p', '--prefix', default='', help='If set would be used as prefix)
+parser.add_argument('-p', '--prefix', default='', help='If set would be used as prefix')
 parser.add_argument('--lab_format',  action='store_true', help='If set, output internal laboratory')
 parser.add_argument('--clonal',  action='store_true', help='If set, runs clonal merging')
 parser.add_argument('-a', '--a_samples', nargs='?', default='-', help='Path to folder with unevolved population samples. Used for clonal analysis.')
