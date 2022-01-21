@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description='Tool that combines ijump reports f
 parser.add_argument('-d', '--dir_report', help='Directory with report files')
 parser.add_argument('-o', '--output', help='Output table file')
 parser.add_argument('-g', '--gff', nargs='?', default='-', help='Path to gff file')
+parser.add_argument('-p', '--prefix', default='', help='If set would be used as prefix)
 parser.add_argument('--lab_format',  action='store_true', help='If set, output internal laboratory')
 parser.add_argument('--clonal',  action='store_true', help='If set, runs clonal merging')
 parser.add_argument('-a', '--a_samples', nargs='?', default='-', help='Path to folder with unevolved population samples. Used for clonal analysis.')
@@ -163,15 +164,21 @@ else:
         summary_table_collapsed = summary_table_collapsed[cols]
 
         summary_table_collapsed.to_csv(
-            path.join(path.dirname(out_file), 'collapsed_' + path.basename(out_file)),
+            path.join(path.dirname(out_file), '_'.join([args.prefix, 'collapsed', path.basename(out_file)])),
             sep='\t',
             index=False)
 
         summary_table_collapsed.query('MAX >= 0.01').to_csv(
-            path.join(path.dirname(out_file), 'selected_collapsed_' + path.basename(out_file)),
+            path.join(path.dirname(out_file), '_'.join([args.prefix, 'selected_collapsed', path.basename(out_file)])),
             sep='\t',
             index=False)
     else:
         cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
 
-    summary_table[cols].to_csv(out_file, sep='\t', index=False)
+    summary_table[cols].to_csv(
+                          path.join(
+                                  path.dirname(out_file),
+                                  '_'.join([args.prefix, path.basename(out_file)])),
+                          sep='\t',
+                          index=False
+                          )
