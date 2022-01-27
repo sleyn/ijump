@@ -98,14 +98,14 @@ class gff:
                     orient1 = 'ds'  # downstream
                     orient2 = 'us'  # upstream
 
-                    if prev_orient is '+':
+                    if prev_orient == '+':
                         orient1 = 'ds'
-                    elif prev_orient is '-':
+                    elif prev_orient == '-':
                         orient1 = 'us'
 
-                    if fields[6] is '-':
+                    if fields[6] == '-':
                         orient2 = 'ds'
-                    elif fields[6] is '+':
+                    elif fields[6] == '+':
                         orient2 = 'us'
 
                     for k in range(prev_pos + 1, int(fields[3])):
@@ -126,16 +126,16 @@ class gff:
 
                 if j == 1:
                     first_pos = int(fields[3])
-                    if fields[6] is '+':
+                    if fields[6] == '+':
                         first_orient = 'us'
-                    elif fields[6] is '-':
+                    elif fields[6] == '-':
                         first_orient = 'ds'
                     first_ann = self.gff_pos[chrom][int(fields[3])].copy()
 
                 if j == len(items) - 1:
-                    if fields[6] is '-':
+                    if fields[6] == '-':
                         last_orient = 'us'
-                    elif fields[6] is '+':
+                    elif fields[6] == '+':
                         last_orient = 'ds'
                     last_pos = int(fields[4])
                     last_ann = self.gff_pos[chrom][int(fields[4])].copy()
@@ -175,3 +175,6 @@ class gff:
                         self.ann_pos[contig][ann_id][3] = pos - 1
                     ann_id += 1
                     self.ann_pos[contig][ann_id] = [self.gff_pos[contig][pos][0], contig, pos, pos]
+            
+            # Add last length as length of the chromsome
+            self.ann_pos[contig][ann_id][3] = len(self.gff_pos[contig]) - 1
