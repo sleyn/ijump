@@ -162,23 +162,26 @@ else:
                 summary_table_collapsed['A_MAX'] = '?'
 
         summary_table_collapsed = summary_table_collapsed[cols]
-
+        
+        out_file_collapsed = '_'.join([part for part in [args.prefix, 'collapsed', path.basename(out_file)] if part])
         summary_table_collapsed.to_csv(
-            path.join(path.dirname(out_file), '_'.join([args.prefix, 'collapsed', path.basename(out_file)])),
+            path.join(path.dirname(out_file), out_file_collapsed),
             sep='\t',
             index=False)
-
+        
+        out_file_sel_collapsed = '_'.join([part for part in [args.prefix, 'selected_collapsed', path.basename(out_file)] if part])
         summary_table_collapsed.query('MAX >= 0.01').to_csv(
-            path.join(path.dirname(out_file), '_'.join([args.prefix, 'selected_collapsed', path.basename(out_file)])),
+            path.join(path.dirname(out_file), out_file_sel_collapsed),
             sep='\t',
             index=False)
     else:
         cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
 
+    out_file_full = '_'.join([part for part in [args.prefix, path.basename(out_file)] if part])
     summary_table[cols].to_csv(
                           path.join(
                                   path.dirname(out_file),
-                                  '_'.join([args.prefix, path.basename(out_file)])),
+                                  out_file_full),
                           sep='\t',
                           index=False
                           )
