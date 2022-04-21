@@ -14,6 +14,9 @@ parser.add_argument('-i', '--isel', type=str, action='store', help='File with IS
 parser.add_argument('-c', '--circos', action='store_true', default=False, help="Set flag to build input files for CIRCOS")
 parser.add_argument('-o', '--outdir', type=str, default='.', help="Output directory")
 parser.add_argument('--radius', type=int, default=200, help="Radius around IS elements boundaries to search soft clipped reads.")
+parser.add_argument('--estimation_mode', type=str, default='average',
+                    help="Specifies how the IS frequency will be esimated. 'average' - by averaging the region coverage"
+                         " and number of clipped reads. Or 'point' - iJump will try to separate each insertion event.")
 args = parser.parse_args()
 
 alignment_file = args.aln
@@ -57,10 +60,15 @@ if x.junctions.size:
 else:
     print('No junctions was found')
     exit(0)
-x.summary_junctions_by_region()
-x.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
-x.report()
-x.report_table.to_csv(os.path.join(args.outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
+if args.estimation_mode == 'average':
+    x.summary_junctions_by_region()
+    x.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
+    x.report()
+    x.report_table.to_csv(os.path.join(args.outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
+elif args.estimation_mode == 'point':
+    x.search_insert_pos()
+    x.assess_isel_freq()
+    x.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
 if args.circos is True:
     x.create_circos_files()

@@ -1,5 +1,6 @@
 import string
 import pandas as pd
+import numpy as np
 from Bio.Blast.Applications import NcbiblastnCommandline
 import random
 import re
@@ -9,8 +10,8 @@ from functools import lru_cache
 import pysamstats
 from statistics import mean
 
-# specify class for clipped reads
 
+# specify class for clipped reads
 class isclipped:
     def __init__(self, aln, ref_name, gff_name):
         self.aln = aln  # pysam file
@@ -33,8 +34,8 @@ class isclipped:
                                                        'bitscore',
                                                        'pos in ref',
                                                        'orientation'])
-        self.junctions = self._jtbl_init()
-        self.ref_len = dict()
+        self.junctions = self._jtbl_init()  # junction table
+        self.ref_len = dict()  # length of reference contigs
         for contig_i in range(len(self.aln.references)):
             self.ref_len[self.aln.references[contig_i]] = self.aln.lengths[contig_i]
 
@@ -47,21 +48,31 @@ class isclipped:
                                'yellow',
                                'grey')
 
-        self._ref_colours = dict()  # colors assigned to each chromosome
-        self._is_colours = dict()  # colours assigned to each IS element
-        self.is_coords = dict()  # IS name => chrom, start, stop
+        self._ref_colours = dict()      # colors assigned to each chromosome
+        self._is_colours = dict()       # colours assigned to each IS element
+        self.is_coords = dict()         # IS name => chrom, start, stop
         self.data_folder = './ijump_data/'  # data folder for circos files
-        self.session_id = ''  # id of the session (used in a data folder and config names)
+        self.session_id = ''            # id of the session (used in a data folder and config names)
         self.sum_by_region = self._sum_by_reg_tbl()
         self.report_table = self._report_table()
-        self.cutoff = 0.005     # show junctions only with this frequency or more
-        self.min_match = 150     # minimum match in sequences
-        self.av_read_len = 150  # average read length
-        self.read_lengths = 0 # total length of reads
-        self.n_reads_analyzed = 0 # number of analyzed reads
-        self.match_lengths = list() # list of lengths for matched segments
-        self.blast_min = 10 # minimum length of clipped part to use in BLAST
-        self.outdir = '.' # output directory
+        self.cutoff = 0.005             # show junctions only with this frequency or more
+        self.min_match = 150            # minimum match in sequences
+        self.av_read_len = 150          # average read length
+        self.read_lengths = 0           # total length of reads
+        self.n_reads_analyzed = 0       # number of analyzed reads
+        self.match_lengths = list()     # list of lengths for matched segments
+        self.blast_min = 10             # minimum length of clipped part to use in BLAST
+        self.outdir = '.'               # output directory
+        self.max_is_dup_len = 20        # maximum expected length of duplication created from the insertion event
+        self.pairs_df = pd.DataFrame(   # prototype of pairs table
+            {'IS_name': ['-'],
+             'Position_l': [0],
+             'Position_r': [0],
+             'Count_l': [0],
+             'Count_r': [0],
+             'Chrom': ['-']
+            }
+        )
 
     # create report table
     @staticmethod
@@ -187,6 +198,9 @@ class isclipped:
             self._crtable_ungapped(b[4], b[0], b[1], b[2], b[3])
 
     # collect clipped reads from the intervals that do not cross boundaries of a contig
+    # The more correct way to collect junction positions would be to find another part of the
+    # clipped read in the alignment and take its coordinates. CIGAR strings for both parts could
+    # be not mirrored due to some short repeats (1+nt size) near junction positions.
     def _crtable_ungapped(self, chrom, start, stop, edge, is_name):  # generate clipped read table
         for read in self.aln.fetch(chrom, start + 1,
                                    stop + 1):  # one is added to convert from 0-based to 1-based system
@@ -249,7 +263,7 @@ class isclipped:
     @staticmethod
     def _choosecoord(qleft, qright, lr):
         qcoord = [qleft, qright]
-        qorientation = ['left', 'rigth']
+        qorientation = ['left', 'right']
         coord = int(qcoord[lr == 'left'])
         orientation = qorientation[not (qcoord[1] > qcoord[0]) ^ (lr == 'left')]
         return coord, orientation
@@ -324,7 +338,294 @@ class isclipped:
 
         self.junctions = self.junctions.reset_index()
 
-    # create summary table that specifies
+    # Make clusters of left and right insertions junctions from positions.
+    # Outputs table of right and left positions of of junctions pairs with counts of clipped
+    # reads accounted to each junction.
+    # Similar results could be achieved by KNN search, but this algorithm shows slightly better performance on
+    # tests.
+    @staticmethod
+    def _find_pair(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len, chrom):
+        # Check if both left and right junctions present. If not - process just present part of junctions.
+        if pos_l.size == 0 or pos_r.size == 0:
+            n_pairs = pos_l.size + pos_r.size
+            pairs_df = pd.DataFrame(
+                {'Position_l': [0] * n_pairs,
+                 'Position_r': [0] * n_pairs,
+                 'Count_l': [0] * n_pairs,
+                 'Count_r': [0] * n_pairs,
+                 'Chrom': chrom}
+            )
+
+            if pos_r.size == 0:
+                for pos_l_index, pos in enumerate(pos_l):
+                    pairs_df.iloc[pos_l_index, :] = [
+                        pos,
+                        0,
+                        pos_l_count[pos_l_index],
+                        0,
+                        chrom
+                    ]
+            else:
+                for pos_r_index, pos in enumerate(pos_r):
+                    pairs_df.iloc[pos_r_index, :] = [
+                        pos,
+                        0,
+                        pos_r_count[pos_r_index],
+                        0,
+                        chrom
+                    ]
+
+            return pairs_df
+
+        # Store close positions in the matrix with rows as left positions and columns are right positions
+        # The value is 1 if two positions are closer then max_is_dup_len value
+        closeness_matrix = np.zeros((pos_l.size, pos_r.size))
+
+        # Check if any position close to the contig ends
+        if pos_r[-1] - pos_l[0] > chrom_len / 2:
+            if chrom_len - (pos_r[-1] - pos_l[0]) <= max_is_dup_len:
+                closeness_matrix[0, -1] = 1
+
+        if pos_l[-1] - pos_r[0] > chrom_len / 2:
+            if chrom_len - (pos_l[-1] - pos_r[0]) <= max_is_dup_len:
+                closeness_matrix[-1, 0] = 1
+
+        # Populate closeness matrix
+        for pos_index, pos in enumerate(pos_l):
+            closeness_matrix[pos_index] = (np.ones_like(pos_r) * (np.abs(pos_r - pos) < max_is_dup_len)).astype(np.int0)
+
+        # Assign clusters and sort in each cluster by junction representation in descending order
+
+        # Build dataframe to populate pairs
+        # First calculate lowest number of pairs
+        # Then sum it with number of 0-rows and 0-columns – the peaks that do not have pairs
+        n_pairs = np.sum(closeness_matrix[closeness_matrix.any(1), closeness_matrix.any(0)].shape) + \
+                  np.sum(~closeness_matrix.any(0)) + \
+                  np.sum(~closeness_matrix.any(1))
+
+        pairs_df = pd.DataFrame(
+            {'Position_l': [0] * n_pairs,
+             'Position_r': [0] * n_pairs,
+             'Count_l': [0] * n_pairs,
+             'Count_r': [0] * n_pairs,
+             'Chrom': chrom}
+        )
+
+        # Build clusters of close positions
+        # Clusters are attributed to the left joints
+        cluster_ids = np.zeros(len(closeness_matrix))
+        cluster_cur_id = 0
+        column_index = 0
+        # Itrerate through all closeness_matrix columns or before all left joints will be assigned to clusters
+        while not (column_index >= closeness_matrix.shape[1] or np.all(cluster_ids > 0)):
+            # Check if the column not zero (orphan right position)
+            if closeness_matrix[:, column_index].any():
+                # If any left position has several right positions in proximity
+                # unite clusters
+                if np.any(closeness_matrix[:, column_index][cluster_ids > 0] == 1):
+                    cluster_ids[closeness_matrix[:, column_index] == 1] = cluster_cur_id
+                else:
+                    # If cluster is first or clusters do not overlap add cluster id
+                    cluster_cur_id += 1
+                    cluster_ids[closeness_matrix[:, column_index] == 1] = cluster_cur_id
+
+            column_index += 1
+
+        # Sort each cluster
+        for cluster_id in np.unique(cluster_ids[cluster_ids > 0]):
+            pos_l[np.where(cluster_ids == cluster_id)] = \
+                pos_l[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
+            pos_l_count[np.where(cluster_ids == cluster_id)] = \
+                pos_l_count[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
+            closeness_matrix[np.where(cluster_ids == cluster_id), :] = \
+                closeness_matrix[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1], :]
+
+        # Collect right indexes
+        pos_r_orphan = np.arange(pos_r.size)
+
+        # Populate pairs table
+        for pos_l_index, pos_l_cur in enumerate(pos_l):
+            if np.sum(closeness_matrix[pos_l_index, :]):
+                pos_r_index = np.argmin(
+                    np.abs(pos_r_count - pos_l_count[pos_l_index]) + ~(closeness_matrix[pos_l_index, :] == 1) * 10000
+                )
+                pairs_df.iloc[pos_l_index, :] = [
+                    pos_l_cur,
+                    pos_r[pos_r_index],
+                    pos_l_count[pos_l_index],
+                    pos_r_count[pos_r_index],
+                    chrom
+                ]
+
+                closeness_matrix[:, pos_r_index] = 0
+
+                pos_r_orphan[pos_r_index] = -1
+
+            # Write orhphan peaks
+            else:
+                pairs_df.iloc[pos_l_index, :] = [
+                    pos_l_cur,
+                    0,
+                    pos_l_count[pos_l_index],
+                    0,
+                    chrom
+                ]
+
+        df_offset = pos_l_index + 1
+
+        # Add right orphan peaks
+        for shift, pos_r_index_orphan in enumerate(pos_r_orphan[pos_r_orphan != -1]):
+            pairs_df.iloc[df_offset + shift, :] = [
+                0,
+                pos_r[pos_r_index_orphan],
+                0,
+                pos_r_count[pos_r_index_orphan],
+                chrom
+            ]
+
+        return pairs_df
+
+    # Find positions of insertions
+    def search_insert_pos(self):
+        print('Serach for junction pairs')
+        position_tbl = self.junctions
+        # It is much better to work with when IS elements collapsed by their copy then to work with each copy separately
+        # remove copy tags from the IS element names like "_1", "_2".
+        position_tbl['IS'] = position_tbl['IS name'].apply(lambda x: re.search(r'(.+)_\d+', x).group(1))
+        position_tbl = position_tbl.groupby(['Chrom', 'Position', 'IS', 'Orientation'])['Position'].\
+            count().\
+            reset_index(name='Counts')
+
+        # collect dataframes for pairs of junctions (or orphan junctions) that should mark IS elements insertions
+        is_pairs_collection = []
+
+        for chrom in position_tbl['Chrom'].drop_duplicates().tolist():
+            # Take IS elements only from the selected chromsome
+            position_tbl_chrom = position_tbl.query('Chrom == @chrom')
+            for is_name in position_tbl_chrom['IS'].drop_duplicates().tolist():
+                positions_left = position_tbl_chrom.query(
+                    'Orientation == "left" & IS == @is_name'
+                ).sort_values('Position')
+                positions_left_pos = positions_left['Position'].to_numpy()
+                positions_left_counts = positions_left['Counts'].to_numpy()
+                positions_right = position_tbl_chrom.query(
+                    'Orientation == "right" & IS == @is_name'
+                ).sort_values('Position')
+                positions_right_pos = positions_right['Position'].to_numpy()
+                positions_right_counts = positions_right['Counts'].to_numpy()
+
+                # Calculate table
+                pair_tbl_chunk = self._find_pair(
+                        positions_left_pos,
+                        positions_right_pos,
+                        positions_left_counts,
+                        positions_right_counts,
+                        self.ref_len[chrom],
+                        self.max_is_dup_len,
+                        chrom
+                    )
+
+                pair_tbl_chunk['IS_name'] = is_name
+
+                is_pairs_collection.append(pair_tbl_chunk)
+
+        # Concatenate all pair tables into one table
+        self.pairs_df = pd.concat(is_pairs_collection, ignore_index=True)
+
+    # Extract number of clipped reads and total number of reads overlapping with the position
+    def _pos_depth_count(self, chrom, position):
+        if position:
+            # Read Pilup for a position
+            plps = self.aln.pileup(
+                contig=chrom,
+                start=position,
+                stop=position + 1,
+                ignore_overlaps=True,
+                stepper='nofilter',
+                min_base_quality=0
+            )
+
+            n_total = 0
+            n_clipped = 0
+
+            # Filter information only for position of interest
+            for plp in plps:
+                if plp.reference_pos == position:
+                    for read in plp.pileups:
+                        n_total += 1
+                        if 'S' in read.alignment.cigarstring:
+                            n_clipped += 1
+
+            return n_total, n_clipped
+        # If position == 0 then no clipped reads are assigned for it
+        else:
+            return 0, 0
+
+    # Calculate frequency
+    @staticmethod
+    def _calc_freq_point(freq_l, freq_r):
+        if freq_l == 0:
+            return freq_r
+        elif freq_r == 0:
+            return freq_l
+        else:
+            return (freq_l + freq_r) / 2
+
+    # Assess frequency of the insertion in population
+    def assess_isel_freq(self):
+        # Collect numbers of reads at positions for left junctions
+        self.pairs_df['N_total_l'] = 0
+        self.pairs_df['N_clipped_l'] = 0
+
+        self.pairs_df[['N_total_l', 'N_clipped_l']] = \
+            pd.DataFrame(
+                self.pairs_df[['Chrom', 'Position_l']].apply(
+                   lambda x: self._pos_depth_count(x[0], x[1]),
+                   axis=1
+                   ).to_list()
+            )
+
+        # Collect numbers of reads at positions for right junctions
+        self.pairs_df['N_total_r'] = 0
+        self.pairs_df['N_clipped_r'] = 0
+
+        self.pairs_df[['N_total_r', 'N_clipped_r']] = \
+            pd.DataFrame(
+                self.pairs_df[['Chrom', 'Position_r']].apply(
+                    lambda x: self._pos_depth_count(x[0], x[1]),
+                    axis=1
+                ).to_list()
+            )
+
+        # Add corrections for clipped reads
+        self.min_match = min(self.match_lengths)
+        self.av_read_len = self.read_lengths / self.n_reads_analyzed
+
+        self.pairs_df['N_clipped_l_correction'] = self.pairs_df['N_clipped_l'] * \
+                                (1 + self.blast_min / self.av_read_len) / (1 - self.min_match / self.av_read_len) - \
+                                self.pairs_df['N_clipped_l']
+        self.pairs_df['N_clipped_r_correction'] = self.pairs_df['N_clipped_r'] * \
+                                (1 + self.blast_min / self.av_read_len) / (1 - self.min_match / self.av_read_len) - \
+                                self.pairs_df['N_clipped_r']
+
+        self.pairs_df['N_clipped_l'] = self.pairs_df['N_clipped_l'] + self.pairs_df['N_clipped_l_correction']
+        self.pairs_df['N_total_l'] = self.pairs_df['N_total_l'] + self.pairs_df['N_clipped_l_correction']
+        self.pairs_df['N_clipped_r'] = self.pairs_df['N_clipped_r'] + self.pairs_df['N_clipped_r_correction']
+        self.pairs_df['N_total_r'] = self.pairs_df['N_total_r'] + self.pairs_df['N_clipped_r_correction']
+
+        # Calculate frequency as average between left and right boundaries if present
+        # If not - just by one boundary
+        # 0.1 pseudocount keeps from div/0 error
+        # in the denominator: (total - clipped) + clipped / 2 = total - clipped / 2
+        self.pairs_df['Frequency_l'] = self.pairs_df['N_clipped_l'] / \
+                                    (2 * (self.pairs_df['N_total_l'] -
+                                    self.pairs_df['N_clipped_l'] / 2) + 0.1)
+        self.pairs_df['Frequency_r'] = self.pairs_df['N_clipped_r'] / \
+                                    (2 * (self.pairs_df['N_total_r'] -
+                                    self.pairs_df['N_clipped_r'] / 2) + 0.1)
+
+        self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']].\
+            apply(lambda x: self._calc_freq_point(x[0], x[1]), axis=1)
 
     # generate random string
     @staticmethod
@@ -403,7 +704,7 @@ class isclipped:
         self.report_table = self.report_table[['IS Name', 'ann', 'chrom', 'start', 'stop', 'Frequency', 'Depth']]
         self.report_table.columns = ['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop', 'Frequency', 'Depth']
 
-# create Circos files
+    # create Circos files
     def create_circos_files(self):
         print('Create CIRCOS files')
         while not os.path.exists(self.data_folder):
