@@ -9,6 +9,7 @@ import gff
 from functools import lru_cache
 import pysamstats
 from statistics import mean
+from sklearn.cluster import AgglomerativeClustering
 
 
 # specify class for clipped reads
@@ -16,24 +17,12 @@ class isclipped:
     def __init__(self, aln, ref_name, gff_name):
         self.aln = aln  # pysam file
         self.clipped_reads = self._cltbl_init()
+        self.clipped_reads_bwrd = self._cltbl_init() # clipped reads for backward run for point pipeline
         self._index = 0  # an unique index of the read
         self.ref_name = ref_name  # file with the reference genome in FASTA format
         self.gff_name = gff_name  # file with GFF annotations
         self.gff = gff.gff(self.gff_name)       # read GFF file
-        self.blastout_filtered = pd.DataFrame(columns=['qseqid',  # filered blast output
-                                                       'sseqid',
-                                                       'pident',
-                                                       'length',
-                                                       'mismatch',
-                                                       'gapopen',
-                                                       'qstart',
-                                                       'qend',
-                                                       'sstart',
-                                                       'send',
-                                                       'evalue',
-                                                       'bitscore',
-                                                       'pos in ref',
-                                                       'orientation'])
+        self.blastout_filtered = self._blastout_filtered_init() # filered blast output
         self.junctions = self._jtbl_init()  # junction table
         self.ref_len = dict()  # length of reference contigs
         for contig_i in range(len(self.aln.references)):
@@ -85,16 +74,6 @@ class isclipped:
                                      'Frequency',
                                      'Depth'])
 
-    # collect information about IS elements
-    def iscollect(self, file):
-        print('Read file ' + file)
-        is_coords_file = open(file, 'r')
-        for coord in is_coords_file.readlines():
-            c = coord.split()
-            self.is_coords[c[0]] = c[1:]
-
-        is_coords_file.close()
-
     # initialize a new copy of clipped reads table
     @staticmethod
     def _cltbl_init():
@@ -108,6 +87,34 @@ class isclipped:
                                      'junction in read',  # side of a clipped segment connected to a read (l/r)
                                      'reverse',  # is read reverse
                                      'sequence'])  # sequence of a clipped read
+
+    # filered blast output
+    @staticmethod
+    def _blastout_filtered_init():
+        return pd.DataFrame(columns=['qseqid',
+                                     'sseqid',
+                                     'pident',
+                                     'length',
+                                     'mismatch',
+                                     'gapopen',
+                                     'qstart',
+                                     'qend',
+                                     'sstart',
+                                     'send',
+                                     'evalue',
+                                     'bitscore',
+                                     'pos in ref',
+                                     'orientation'])
+
+    # collect information about IS elements
+    def iscollect(self, file):
+        print('Read file ' + file)
+        is_coords_file = open(file, 'r')
+        for coord in is_coords_file.readlines():
+            c = coord.split()
+            self.is_coords[c[0]] = c[1:]
+
+        is_coords_file.close()
 
     # initialize junction table
     @staticmethod
@@ -195,66 +202,101 @@ class isclipped:
 
         for b in self.boundaries:
             print(' '.join(str(x) for x in b))
-            self._crtable_ungapped(b[4], b[0], b[1], b[2], b[3])
+            chrom = b[4]
+            start_collection = b[0]
+            stop_collection = b[1]
+            edge_of_is = b[2]
+            name_of_is = b[3]
+            self._crtable_ungapped(chrom,
+                                   start_collection,
+                                   stop_collection,
+                                   edge_of_is,
+                                   name_of_is,
+                                   1)
 
     # collect clipped reads from the intervals that do not cross boundaries of a contig
     # The more correct way to collect junction positions would be to find another part of the
     # clipped read in the alignment and take its coordinates. CIGAR strings for both parts could
     # be not mirrored due to some short repeats (1+nt size) near junction positions.
-    def _crtable_ungapped(self, chrom, start, stop, edge, is_name):  # generate clipped read table
-        for read in self.aln.fetch(chrom, start + 1,
-                                   stop + 1):  # one is added to convert from 0-based to 1-based system
-            if read.infer_read_length():
-                self.read_lengths += read.infer_read_length()      # add read length to collection of lengths
-                self.n_reads_analyzed += 1
+    # run: 1 => IS->Ref, 0 => Ref->IS (in point pipeline)
+    def _crtable_ungapped(self, chrom, start, stop, edge, is_name, run):  # generate clipped read table
+        # one is added to convert from 0-based to 1-based system
+        for read in self.aln.fetch(chrom, start + 1, stop + 1):
+            if run:
+                if read.infer_read_length():
+                    self.read_lengths += read.infer_read_length()      # add read length to collection of lengths
+                    self.n_reads_analyzed += 1
 
             if read.is_unmapped:
                 continue            # skip unmapped read
             elif 'S' not in read.cigarstring:
                 continue            # skip not clipped read
 
-            m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]    # collect matched lengths
-            m_len = max(m_len)                                # leave only longest match from read
-            self.match_lengths.append(m_len)                  # add lengths to collection
+            if run:
+                m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]    # collect matched lengths
+                m_len = max(m_len)                                # leave only longest match from read
+                self.match_lengths.append(m_len)                  # add lengths to collection
 
 #           for i in range(read.cigarstring.count('S')):
             boundaries = self._clboundaries(read)
             for cl_seg in boundaries:
-                if (cl_seg[2] == "left" and edge == "start") or (cl_seg[2] == "right" and edge == "stop"):
-                    clip_temp = self._cltbl_init()
-                    clip_temp.at[0, 'ID'] = self._index
+                # On the IS->Ref search check if read was collected on the correct side of the IS element
+                if run and not ((cl_seg[2] == "left" and edge == "start") or (cl_seg[2] == "right" and edge == "stop")):
+                    continue
+
+                clip_temp = self._cltbl_init()
+                clip_temp.at[0, 'ID'] = self._index
+
+                if run:
                     clip_temp.at[0, 'IS name'] = is_name
-                    clip_temp.at[0, 'IS chrom'] = chrom
-                    clip_temp.at[0, 'Read name'] = read.query_name
-                    clip_temp.at[0, 'left pos'] = cl_seg[0]
-                    clip_temp.at[0, 'right pos'] = cl_seg[1]
-                    clip_temp.at[0, 'clip position'] = cl_seg[2]
-                    clip_temp.at[0, 'junction in read'] = cl_seg[3]
-                    if read.is_reverse:
-                        clip_temp.at[0, 'reverse'] = True
-                    else:
-                        clip_temp.at[0, 'reverse'] = False
-                    clip_temp.at[0, 'sequence'] = self._clipped_seq(read, cl_seg[0], cl_seg[1])
+                else:
+                    clip_temp.at[0, 'IS name'] = '-'
+
+                clip_temp.at[0, 'IS chrom'] = chrom
+                clip_temp.at[0, 'Read name'] = read.query_name
+                clip_temp.at[0, 'left pos'] = cl_seg[0]
+                clip_temp.at[0, 'right pos'] = cl_seg[1]
+                clip_temp.at[0, 'clip position'] = cl_seg[2]
+                clip_temp.at[0, 'junction in read'] = cl_seg[3]
+
+                if read.is_reverse:
+                    clip_temp.at[0, 'reverse'] = True
+                else:
+                    clip_temp.at[0, 'reverse'] = False
+
+                clip_temp.at[0, 'sequence'] = self._clipped_seq(read, cl_seg[0], cl_seg[1])
+
+                if run:
                     self.clipped_reads = self.clipped_reads.append(clip_temp)
-                    self._index = self._index + 1
+                else:
+                    self.clipped_reads_bwrd = self.clipped_reads_bwrd.append(clip_temp)
+
+                self._index = self._index + 1
 
     # write clipped reads to fasta file with minimum length
-    def _write_fasta(self, cl_fasta_name, min_len):
+    # run: 1 => IS->Ref, 0 => Ref->IS
+    def _write_fasta(self, cl_fasta_name, min_len, run):
+        if run:
+            cl_table = self.clipped_reads
+        else:
+            cl_table = self.clipped_reads_bwrd
+
         fasta_file = open(cl_fasta_name, 'w')
-        self.clipped_reads.index = self.clipped_reads['ID']
-        for index in self.clipped_reads.index:
-            if len(self.clipped_reads.at[index, 'sequence']) >= min_len:
-                fasta_file.write('>' + str(self.clipped_reads.at[index, 'ID']) + '\n')
-                fasta_file.write(str(self.clipped_reads.at[index, 'sequence']) + '\n')
+        cl_table.index = cl_table['ID']
+        for index in cl_table.index:
+            if len(cl_table.at[index, 'sequence']) >= min_len:
+                fasta_file.write('>' + str(cl_table.at[index, 'ID']) + '\n')
+                fasta_file.write(str(cl_table.at[index, 'sequence']) + '\n')
                 fasta_file.write('\n')
         fasta_file.close()
 
     # run blast and write output to xml
-    def runblast(self):
+    # run: 1 => IS->Ref, 0 => Ref->IS
+    def runblast(self, in_file, out_file, run):
         print('Run BLAST for clipped parts of the reads')
-        fasta_file = os.path.join(self.outdir, 'cl.fasta')
-        blast_out_file = os.path.join(self.outdir, 'cl_blast.out')
-        self._write_fasta(fasta_file, self.blast_min)
+        fasta_file = os.path.join(self.outdir, in_file)
+        blast_out_file = os.path.join(self.outdir, out_file)
+        self._write_fasta(fasta_file, self.blast_min, run)
         blastn_cl = NcbiblastnCommandline(query=fasta_file, db=self.ref_name, evalue=0.001, out=blast_out_file,
                                           outfmt=6, word_size=10)
         blastn_cl()
@@ -269,9 +311,10 @@ class isclipped:
         return coord, orientation
 
     # parse BALST output
-    def parseblast(self):
+    # run: 1=>IS->Ref, 0=>Ref->IS. For Ref->IS we don't need to remove duplicates, we need only one of them
+    def parseblast(self, run, blast_out_file):
         print('Collect information from BLAST')
-        blast_out = pd.read_csv(os.path.join(self.outdir, 'cl_blast.out'), sep='\t')
+        blast_out = pd.read_csv(os.path.join(self.outdir, blast_out_file), sep='\t')
 
         blast_out.columns = ['qseqid',
                              'sseqid',
@@ -287,35 +330,49 @@ class isclipped:
                              'bitscore']
 
         blast_out = blast_out[blast_out['pident'] >= 90]  # filter only hits with 90% or higher
-        max_in_groups = blast_out.reset_index().groupby(['qseqid'])['bitscore'].max()  # maximum bit score for each read
-        count_max = dict()  # for each clipped segment summarize number of best hits
-        temp = pd.DataFrame(columns=blast_out.columns)  # temporary dataframe for filtering
 
-        for index in blast_out.index:
-            if blast_out.at[index, 'bitscore'] == max_in_groups.at[blast_out.at[index, 'qseqid']]:
-                temp = temp.append(blast_out.loc[[index]])
-                if blast_out.at[index, 'qseqid'] in count_max.keys():
-                    count_max[blast_out.at[index, 'qseqid']] = count_max[blast_out.at[index, 'qseqid']] + 1
-                else:
-                    count_max[blast_out.at[index, 'qseqid']] = 1
+        idx_max = blast_out.groupby('qseqid')['bitscore'].transform(max) == blast_out['bitscore']
+        temp = blast_out[idx_max].copy()       # temporary dataframe for filtering with only best hits by bitscore
 
-        drop_seg = [cl_seq for cl_seq in count_max.keys() if count_max[cl_seq] > 1]  # collect IDs to drop from the table
-        temp = temp[~temp['qseqid'].isin(drop_seg)]  # drop from the table
+        if run:
+            temp['count'] = temp.groupby('qseqid')['qseqid'].transform('count')
+            temp = temp[temp['count'] == 1]     # leave only hits with one best hit
+            temp = temp.drop(columns=['count'])
+        else:
+            temp['rank'] = temp.groupby('qseqid')['bitscore'].rank(method="first", ascending=True)
+            temp = temp[temp['rank'] == 1]  # leave only first best hit
+            temp = temp.drop(columns=['rank'])
+
+        if run:
+            cl_table = self.clipped_reads
+        else:
+            cl_table = self.clipped_reads_bwrd
+
         for index in temp.index:
             pos, orient = self._choosecoord(temp.at[index, 'sstart'],
                                             temp.at[index, 'send'],
-                                            self.clipped_reads.at[temp.at[index, 'qseqid'], 'clip position'])
+                                            cl_table.at[temp.at[index, 'qseqid'], 'clip position'])
             temp.at[index, 'pos in ref'] = pos
             temp.at[index, 'orientation'] = orient
 
         # if temp has any entries
         if temp.size:
             temp['pos in ref'] = temp['pos in ref'].astype(int)
-        self.blastout_filtered = self.blastout_filtered.append(temp)
+        self.blastout_filtered = temp
+
+    # Check if position close to the IS element
+    def _check_is_boundary_proximity(self, chrom, position):
+        for b in self.boundaries:
+            if b[4] == chrom:
+                if b[0] * 2 <= position <= b[1] * 2:  # use doubled boundaries
+                    return 'IS element'
+        return '-'
 
     # create table for junctions description
-    def call_junctions(self):
+    def call_junctions(self, run):
         print('Create junction table')
+        self.junctions = self._jtbl_init()
+
         for index in self.blastout_filtered.index:
             jtemp = self._jtbl_init()
             read_id = self.blastout_filtered['qseqid'][index]
@@ -330,13 +387,70 @@ class isclipped:
             jtemp.at[index, 'Note'] = '-'
             jtemp.at[index, 'Locus tag'] = self.gff.gff_pos[jtemp.at[index, 'Chrom']][jtemp.at[index, 'Position']][0]
             jtemp.at[index, 'Gene'] = self.gff.gff_pos[jtemp.at[index, 'Chrom']][jtemp.at[index, 'Position']][1]
-            for b in self.boundaries:
-                if b[0] * 2 <= jtemp.at[index, 'Position'] <= b[1] * 2:        # use doubled boundaries
-                    jtemp.at[index, 'Note'] = 'IS element'
-                    break
+            jtemp.at[index, 'Note'] = self._check_is_boundary_proximity(
+                jtemp.at[index, 'Chrom'],
+                jtemp.at[index, 'Position']
+            )
+
             self.junctions = self.junctions.append(jtemp, sort=False)
 
         self.junctions = self.junctions.reset_index()
+
+
+
+    # use hierarchical clustering to cluster close positions in the chromosome
+    def make_gene_side_regions(self):
+        # Remove positions close to the IS elements boundaries from the analysis
+        ref_cl_reads = self.blastout_filtered[['sseqid', 'pos in ref']]
+        ref_cl_reads = ref_cl_reads.rename(columns={'sseqid': 'Chrom', 'pos in ref': 'Position'})
+        ref_cl_reads['Note'] = ref_cl_reads.apply(
+            lambda x: self._check_is_boundary_proximity(x['Chrom'], x['Position']),
+            axis=1
+        )
+        ref_cl_reads = ref_cl_reads[ref_cl_reads['Note'] == '-']
+        ref_cl_reads = ref_cl_reads.drop(columns=['Note'])
+
+        def hclust(X):
+            # If only one sample is present clustering will not work
+            if len(X) == 1:
+                return [0]
+            hcl = AgglomerativeClustering(n_clusters=None, distance_threshold=30, linkage='single').\
+                fit(X.to_numpy().\
+                    reshape(-1, 1)
+                    )
+            return hcl.labels_
+
+        ref_cl_reads['Cluster'] = ref_cl_reads.groupby(['Chrom'])['Position'].\
+            transform(hclust)
+
+        ref_regions = ref_cl_reads.groupby(['Cluster', 'Chrom']).\
+            aggregate(['min', 'max']).\
+            reset_index()
+
+        ref_regions.columns =['Cluster', 'Chrom', 'Position_left', 'Position_right']
+        ref_regions = ref_regions.drop(columns=['Cluster'])
+
+        # Extend regions by 5nt if possible
+        ref_regions['Position_left'] = ref_regions['Position_left'].\
+            apply(lambda x: max(x - 5, 0))
+
+        ref_regions['Position_right'] = ref_regions.\
+            apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
+
+        return ref_regions
+
+    # collect reads from reference regions (backwards mapping of clipped reads to their IS elements)
+    def crtable_bwds(self, ref_regions):
+        ref_regions.apply(
+            lambda x: self._crtable_ungapped(
+                x['Chrom'],
+                x['Position_left'],
+                x['Position_right'],
+                '-',
+                '-',
+                0
+            ),
+            axis=1)
 
     # Make clusters of left and right insertions junctions from positions.
     # Outputs table of right and left positions of of junctions pairs with counts of clipped
