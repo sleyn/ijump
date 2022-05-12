@@ -5,6 +5,14 @@ import isclipped
 import re
 import subprocess
 
+# Check if junctions exist for IS elements
+def check_junctions_presence(junc_tbl, outdir):
+    if junc_tbl.size:
+        junc_tbl.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
+    else:
+        print('No junctions was found')
+        exit(0)
+
 
 if __name__ == "__main__":
     # read arguments
@@ -58,11 +66,7 @@ if __name__ == "__main__":
     x.parseblast(1, 'cl_blast.out')
     if args.estimation_mode == 'average':
         x.call_junctions(1)
-        if x.junctions.size:
-            x.junctions.to_csv(os.path.join(args.outdir, "ijump_junctions.txt"), sep='\t', index=False)
-        else:
-            print('No junctions was found')
-            exit(0)
+        check_junctions_presence(x.junctions, args.outdir)
         x.summary_junctions_by_region()
         x.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
         x.report()
@@ -73,12 +77,8 @@ if __name__ == "__main__":
         x.crtable_bwds(reference_regions)
         x.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
         x.parseblast(0, 'cl_blast_bwds.out')
-        x.call_junctions()
-        if x.junctions.size:
-            x.junctions.to_csv(os.path.join(args.outdir, "ijump_junctions.txt"), sep='\t', index=False)
-        else:
-            print('No junctions was found')
-            exit(0)
+        x.call_junctions(0)
+        check_junctions_presence(x.junctions, args.outdir)
         x.search_insert_pos()
         x.assess_isel_freq()
         x.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)

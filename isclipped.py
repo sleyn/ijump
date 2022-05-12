@@ -1,3 +1,5 @@
+# Implement resolve position conflict function when two IS elements are inserted at the same position.
+
 import string
 import pandas as pd
 import numpy as np
@@ -103,7 +105,7 @@ class isclipped:
                                      'send',
                                      'evalue',
                                      'bitscore',
-                                     'pos in ref',
+                                     'pos_in_ref',
                                      'orientation'])
 
     # collect information about IS elements
@@ -118,7 +120,7 @@ class isclipped:
 
     # initialize junction table
     @staticmethod
-    def _jtbl_init():
+    def _jtbl_init(n_rows=0):
         return pd.DataFrame(columns=['ID',
                                      'IS name',
                                      'IS pos',
@@ -129,7 +131,8 @@ class isclipped:
                                      'Orientation',  # where non-clipped region is relative to position
                                      'Note',
                                      'Locus tag',
-                                     'Gene'])
+                                     'Gene'],
+                            index=[i for i in range(n_rows)])
 
     # for a clipped segment return left, right positions, junction side, coordinate of adjacent non-clipped nucleotide
     @staticmethod
@@ -329,7 +332,7 @@ class isclipped:
                              'evalue',
                              'bitscore']
 
-        blast_out = blast_out[blast_out['pident'] >= 90]  # filter only hits with 90% or higher
+        blast_out = blast_out[blast_out['pident'] >= 75]  # filter only hits with 75% or higher
 
         idx_max = blast_out.groupby('qseqid')['bitscore'].transform(max) == blast_out['bitscore']
         temp = blast_out[idx_max].copy()       # temporary dataframe for filtering with only best hits by bitscore
@@ -352,59 +355,30 @@ class isclipped:
             pos, orient = self._choosecoord(temp.at[index, 'sstart'],
                                             temp.at[index, 'send'],
                                             cl_table.at[temp.at[index, 'qseqid'], 'clip position'])
-            temp.at[index, 'pos in ref'] = pos
+            temp.at[index, 'pos_in_ref'] = pos
             temp.at[index, 'orientation'] = orient
 
         # if temp has any entries
         if temp.size:
-            temp['pos in ref'] = temp['pos in ref'].astype(int)
+            temp['pos_in_ref'] = temp['pos_in_ref'].astype(int)
         self.blastout_filtered = temp
 
     # Check if position close to the IS element
     def _check_is_boundary_proximity(self, chrom, position):
         for b in self.boundaries:
             if b[4] == chrom:
-                if b[0] * 2 <= position <= b[1] * 2:  # use doubled boundaries
-                    return 'IS element'
-        return '-'
-
-    # create table for junctions description
-    def call_junctions(self, run):
-        print('Create junction table')
-        self.junctions = self._jtbl_init()
-
-        for index in self.blastout_filtered.index:
-            jtemp = self._jtbl_init()
-            read_id = self.blastout_filtered['qseqid'][index]
-            jtemp.at[index, 'ID'] = read_id
-            jtemp.at[index, 'IS name'] = self.clipped_reads['IS name'][read_id]
-            jtemp.at[index, 'IS chrom'] = self.clipped_reads['IS chrom'][read_id]
-            jtemp.at[index, 'IS pos'] = self.clipped_reads['clip position'][read_id]
-            jtemp.at[index, 'Read name'] = self.clipped_reads['Read name'][read_id]
-            jtemp.at[index, 'Chrom'] = self.blastout_filtered['sseqid'][index]
-            jtemp.at[index, 'Position'] = self.blastout_filtered['pos in ref'][index]
-            jtemp.at[index, 'Orientation'] = self.blastout_filtered['orientation'][index]
-            jtemp.at[index, 'Note'] = '-'
-            jtemp.at[index, 'Locus tag'] = self.gff.gff_pos[jtemp.at[index, 'Chrom']][jtemp.at[index, 'Position']][0]
-            jtemp.at[index, 'Gene'] = self.gff.gff_pos[jtemp.at[index, 'Chrom']][jtemp.at[index, 'Position']][1]
-            jtemp.at[index, 'Note'] = self._check_is_boundary_proximity(
-                jtemp.at[index, 'Chrom'],
-                jtemp.at[index, 'Position']
-            )
-
-            self.junctions = self.junctions.append(jtemp, sort=False)
-
-        self.junctions = self.junctions.reset_index()
-
-
+                boundary_width = b[1] - b[0]
+                if b[0] - boundary_width / 2 <= position <= b[1] + boundary_width / 2:  # use doubled boundaries
+                    return 'IS element', b[3]
+        return '-', '-'
 
     # use hierarchical clustering to cluster close positions in the chromosome
     def make_gene_side_regions(self):
         # Remove positions close to the IS elements boundaries from the analysis
-        ref_cl_reads = self.blastout_filtered[['sseqid', 'pos in ref']]
-        ref_cl_reads = ref_cl_reads.rename(columns={'sseqid': 'Chrom', 'pos in ref': 'Position'})
+        ref_cl_reads = self.blastout_filtered[['sseqid', 'pos_in_ref']]
+        ref_cl_reads = ref_cl_reads.rename(columns={'sseqid': 'Chrom', 'pos_in_ref': 'Position'})
         ref_cl_reads['Note'] = ref_cl_reads.apply(
-            lambda x: self._check_is_boundary_proximity(x['Chrom'], x['Position']),
+            lambda x: self._check_is_boundary_proximity(x['Chrom'], x['Position'])[0],
             axis=1
         )
         ref_cl_reads = ref_cl_reads[ref_cl_reads['Note'] == '-']
@@ -415,9 +389,7 @@ class isclipped:
             if len(X) == 1:
                 return [0]
             hcl = AgglomerativeClustering(n_clusters=None, distance_threshold=30, linkage='single').\
-                fit(X.to_numpy().\
-                    reshape(-1, 1)
-                    )
+                fit(X.to_numpy().reshape(-1, 1))
             return hcl.labels_
 
         ref_cl_reads['Cluster'] = ref_cl_reads.groupby(['Chrom'])['Position'].\
@@ -451,6 +423,48 @@ class isclipped:
                 0
             ),
             axis=1)
+
+    # create table for junctions description
+    def call_junctions(self, run):
+        print('Create junction table')
+        self.junctions = self._jtbl_init(self.blastout_filtered.shape[0])
+        index = 0
+
+        for hit in self.blastout_filtered.itertuples(index=False):
+            read_id = hit.qseqid
+            if run:
+                pos = hit.pos_in_ref
+                chrom = hit.sseqid
+                is_name = self.clipped_reads['IS name'][read_id]
+                is_chrom = self.clipped_reads['IS chrom'][read_id]
+                is_pos = self.clipped_reads['clip position'][read_id]
+                is_elem_border_mark, _ = self._check_is_boundary_proximity(chrom, pos)
+                orientation = hit.orientation
+                read_name = self.clipped_reads['Read name'][read_id]
+            else:
+                pos = self.clipped_reads_bwrd['junction in read'][read_id]
+                chrom = self.clipped_reads_bwrd['IS chrom'][read_id]
+                is_chrom = hit.sseqid
+                is_pos = hit.pos_in_ref
+                _, is_name = self._check_is_boundary_proximity(is_chrom, is_pos)
+                is_elem_border_mark = '-'
+                orientation = self.clipped_reads_bwrd['clip position'][read_id]
+                read_name = self.clipped_reads_bwrd['Read name'][read_id]
+
+            self.junctions.at[index, 'ID'] = read_id
+            self.junctions.at[index, 'IS name'] = is_name
+            self.junctions.at[index, 'IS chrom'] = is_chrom
+            self.junctions.at[index, 'IS pos'] = is_pos
+            self.junctions.at[index, 'Read name'] = read_name
+            self.junctions.at[index, 'Chrom'] = chrom
+            self.junctions.at[index, 'Position'] = pos
+            self.junctions.at[index, 'Orientation'] = orientation
+            self.junctions.at[index, 'Locus tag'] = self.gff.gff_pos[chrom][pos][0]
+            self.junctions.at[index, 'Gene'] = self.gff.gff_pos[chrom][pos][1]
+            self.junctions.at[index, 'Note'] = is_elem_border_mark
+            index += 1
+
+        self.junctions = self.junctions.reset_index()
 
     # Make clusters of left and right insertions junctions from positions.
     # Outputs table of right and left positions of of junctions pairs with counts of clipped
@@ -511,11 +525,18 @@ class isclipped:
         # Assign clusters and sort in each cluster by junction representation in descending order
 
         # Build dataframe to populate pairs
-        # First calculate lowest number of pairs
-        # Then sum it with number of 0-rows and 0-columns – the peaks that do not have pairs
-        n_pairs = np.sum(closeness_matrix[closeness_matrix.any(1), closeness_matrix.any(0)].shape) + \
-                  np.sum(~closeness_matrix.any(0)) + \
-                  np.sum(~closeness_matrix.any(1))
+        # First calculate number of pairs
+        # min(n_rows_with_1, n_cols_with_1) (will definitely have pairs) +
+        # n_rows_with_0 (will be orphan) +
+        # n_cols_with_0 (will be orphan) +
+        # max(n_rows_with_1, n_cols_with_1) - min(n_rows_with_1, n_cols_with_1) (the clustered positions without pairs)
+        # min(n_rows_with_1, n_cols_with_1) goes away
+        n_pairs = np.max([
+            closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[0],
+            closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[1]
+        ]) + \
+            np.sum(~closeness_matrix.any(0)) + \
+            np.sum(~closeness_matrix.any(1))
 
         pairs_df = pd.DataFrame(
             {'Position_l': [0] * n_pairs,
@@ -547,12 +568,23 @@ class isclipped:
 
         # Sort each cluster
         for cluster_id in np.unique(cluster_ids[cluster_ids > 0]):
-            pos_l[np.where(cluster_ids == cluster_id)] = \
-                pos_l[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
-            pos_l_count[np.where(cluster_ids == cluster_id)] = \
-                pos_l_count[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
-            closeness_matrix[np.where(cluster_ids == cluster_id), :] = \
-                closeness_matrix[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1], :]
+            # Sort positions sub-list
+            cluster_pos_l = pos_l[np.where(cluster_ids == cluster_id)]
+            cluster_pos_l = \
+                cluster_pos_l[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
+            pos_l[np.where(cluster_ids == cluster_id)] = cluster_pos_l
+
+            # Sort closeness sub-matrix
+            cluster_closeness_matrix = closeness_matrix[np.where(cluster_ids == cluster_id)]
+            cluster_closeness_matrix = \
+                cluster_closeness_matrix[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
+            closeness_matrix[np.where(cluster_ids == cluster_id), :] = cluster_closeness_matrix
+
+            # Sort counsts sub-list
+            cluster_pos_l_count = pos_l_count[np.where(cluster_ids == cluster_id)]
+            cluster_pos_l_count = \
+                cluster_pos_l_count[np.argsort(pos_l_count[np.where(cluster_ids == cluster_id)])[::-1]]
+            pos_l_count[np.where(cluster_ids == cluster_id)] = cluster_pos_l_count
 
         # Collect right indexes
         pos_r_orphan = np.arange(pos_r.size)
@@ -560,6 +592,8 @@ class isclipped:
         # Populate pairs table
         for pos_l_index, pos_l_cur in enumerate(pos_l):
             if np.sum(closeness_matrix[pos_l_index, :]):
+                # Find right index that has minimum difference in counts
+                # Penalize non-cluster items difference by 10000
                 pos_r_index = np.argmin(
                     np.abs(pos_r_count - pos_l_count[pos_l_index]) + ~(closeness_matrix[pos_l_index, :] == 1) * 10000
                 )
@@ -602,7 +636,7 @@ class isclipped:
     # Find positions of insertions
     def search_insert_pos(self):
         print('Serach for junction pairs')
-        position_tbl = self.junctions
+        position_tbl = self.junctions[self.junctions['IS name'] != '-'].copy()
         # It is much better to work with when IS elements collapsed by their copy then to work with each copy separately
         # remove copy tags from the IS element names like "_1", "_2".
         position_tbl['IS'] = position_tbl['IS name'].apply(lambda x: re.search(r'(.+)_\d+', x).group(1))
@@ -628,6 +662,7 @@ class isclipped:
                 positions_right_pos = positions_right['Position'].to_numpy()
                 positions_right_counts = positions_right['Counts'].to_numpy()
 
+                print(f'Find pairs for {is_name}')
                 # Calculate table
                 pair_tbl_chunk = self._find_pair(
                         positions_left_pos,
