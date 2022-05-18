@@ -74,12 +74,16 @@ if __name__ == "__main__":
     elif args.estimation_mode == 'point':
         # Make table of regions in the reference genome where extract clipped reads for backwards assignment
         reference_regions = x.make_gene_side_regions()
+        # We will need average read length to extend region boudaries
+        x.av_read_len = x.read_lengths / x.n_reads_analyzed
         x.crtable_bwds(reference_regions)
         x.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
         x.parseblast(0, 'cl_blast_bwds.out')
         x.call_junctions(0)
         check_junctions_presence(x.junctions, args.outdir)
         x.search_insert_pos()
+        x.count_depth(x.pairs_df[['Position_l', 'Chrom']].rename(columns={'Position_l': 'Position'}))
+        x.count_depth(x.pairs_df[['Position_r', 'Chrom']].rename(columns={'Position_r': 'Position'}))
         x.assess_isel_freq()
         x.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 

@@ -19,16 +19,19 @@ class isclipped:
     def __init__(self, aln, ref_name, gff_name):
         self.aln = aln  # pysam file
         self.clipped_reads = self._cltbl_init()
-        self.clipped_reads_bwrd = self._cltbl_init() # clipped reads for backward run for point pipeline
+        self.clipped_reads_bwrd = self._cltbl_init()  # clipped reads for backward run for point pipeline
         self._index = 0  # an unique index of the read
         self.ref_name = ref_name  # file with the reference genome in FASTA format
         self.gff_name = gff_name  # file with GFF annotations
-        self.gff = gff.gff(self.gff_name)       # read GFF file
-        self.blastout_filtered = self._blastout_filtered_init() # filered blast output
+        self.gff = gff.gff(self.gff_name)  # read GFF file
+        self.blastout_filtered = self._blastout_filtered_init()  # filered blast output
         self.junctions = self._jtbl_init()  # junction table
         self.ref_len = dict()  # length of reference contigs
+        self.unclipped_depth = {}  # dictionary of depth attriduted to unclipped reads
+        # (do not contain "S" in CIGAR string)
         for contig_i in range(len(self.aln.references)):
-            self.ref_len[self.aln.references[contig_i]] = self.aln.lengths[contig_i]
+            self.ref_len[self.aln.references[contig_i]] = self.aln.lengths[contig_i]  # Populate lengths of contigs
+            self.unclipped_depth[self.aln.references[contig_i]] = {}  # Make nested dictionaries for depth counts
 
         self.boundaries = list()  # boundaries of clipped reads
         self._cirocs_colors = ('green',
@@ -39,30 +42,30 @@ class isclipped:
                                'yellow',
                                'grey')
 
-        self._ref_colours = dict()      # colors assigned to each chromosome
-        self._is_colours = dict()       # colours assigned to each IS element
-        self.is_coords = dict()         # IS name => chrom, start, stop
+        self._ref_colours = dict()  # colors assigned to each chromosome
+        self._is_colours = dict()  # colours assigned to each IS element
+        self.is_coords = dict()  # IS name => chrom, start, stop
         self.data_folder = './ijump_data/'  # data folder for circos files
-        self.session_id = ''            # id of the session (used in a data folder and config names)
+        self.session_id = ''  # id of the session (used in a data folder and config names)
         self.sum_by_region = self._sum_by_reg_tbl()
         self.report_table = self._report_table()
-        self.cutoff = 0.005             # show junctions only with this frequency or more
-        self.min_match = 150            # minimum match in sequences
-        self.av_read_len = 150          # average read length
-        self.read_lengths = 0           # total length of reads
-        self.n_reads_analyzed = 0       # number of analyzed reads
-        self.match_lengths = list()     # list of lengths for matched segments
-        self.blast_min = 10             # minimum length of clipped part to use in BLAST
-        self.outdir = '.'               # output directory
-        self.max_is_dup_len = 20        # maximum expected length of duplication created from the insertion event
-        self.pairs_df = pd.DataFrame(   # prototype of pairs table
+        self.cutoff = 0.005  # show junctions only with this frequency or more
+        self.min_match = 150  # minimum match in sequences
+        self.av_read_len = 150  # average read length
+        self.read_lengths = 0  # total length of reads
+        self.n_reads_analyzed = 0  # number of analyzed reads
+        self.match_lengths = list()  # list of lengths for matched segments
+        self.blast_min = 10  # minimum length of clipped part to use in BLAST
+        self.outdir = '.'  # output directory
+        self.max_is_dup_len = 20  # maximum expected length of duplication created from the insertion event
+        self.pairs_df = pd.DataFrame(  # prototype of pairs table
             {'IS_name': ['-'],
              'Position_l': [0],
              'Position_r': [0],
              'Count_l': [0],
              'Count_r': [0],
              'Chrom': ['-']
-            }
+             }
         )
 
     # create report table
@@ -81,12 +84,12 @@ class isclipped:
     def _cltbl_init():
         return pd.DataFrame(columns=['ID',
                                      'IS name',
-                                     'IS chrom',
+                                     'IS_chrom',
                                      'Read name',
                                      'left pos',  # left position of a clipped segment in a read
                                      'right pos',  # right position of a clipped segment in a read
-                                     'clip position',  # clip position in a reference
-                                     'junction in read',  # side of a clipped segment connected to a read (l/r)
+                                     'clip_position',  # clip position in a reference
+                                     'junction_in_read',  # side of a clipped segment connected to a read (l/r)
                                      'reverse',  # is read reverse
                                      'sequence'])  # sequence of a clipped read
 
@@ -124,7 +127,7 @@ class isclipped:
         return pd.DataFrame(columns=['ID',
                                      'IS name',
                                      'IS pos',
-                                     'IS chrom',
+                                     'IS_chrom',
                                      'Read name',
                                      'Chrom',
                                      'Position',
@@ -145,7 +148,7 @@ class isclipped:
         is_left = None  # is this clipped segment left or right
         lstr = ''  # string (left/right)
         junction_pos = 0  # position of a junction in an aligned part of a read
-        for pos in range(len(positions)):               # collect all clipped segments
+        for pos in range(len(positions)):  # collect all clipped segments
             if positions[pos] is None and is_cl_prev is False:
                 if pos == 0:
                     is_left = True
@@ -186,7 +189,8 @@ class isclipped:
             start = int(self.is_coords[is_name][1])
             stop = int(self.is_coords[is_name][2])
             if start - radius < 0:
-                self.boundaries.append([self.ref_len[chrom] - radius + start, self.ref_len[chrom], "start", is_name, chrom])
+                self.boundaries.append(
+                    [self.ref_len[chrom] - radius + start, self.ref_len[chrom], "start", is_name, chrom])
                 self.boundaries.append([0, start + radius, "start", is_name, chrom])
             elif start + radius > self.ref_len[chrom]:
                 self.boundaries.append([start - radius, self.ref_len[chrom], "start", is_name, chrom])
@@ -198,7 +202,8 @@ class isclipped:
                 self.boundaries.append([stop - radius, self.ref_len[chrom], "stop", is_name, chrom])
                 self.boundaries.append([0, stop + radius - self.ref_len[chrom], "stop", is_name, chrom])
             elif stop - radius < 0:
-                self.boundaries.append([self.ref_len[chrom] - radius + stop, self.ref_len[chrom], "stop", is_name, chrom])
+                self.boundaries.append(
+                    [self.ref_len[chrom] - radius + stop, self.ref_len[chrom], "stop", is_name, chrom])
                 self.boundaries.append([0, stop + radius, "stop", is_name, chrom])
             else:
                 self.boundaries.append([stop - radius, stop + radius, "stop", is_name, chrom])
@@ -227,20 +232,20 @@ class isclipped:
         for read in self.aln.fetch(chrom, start + 1, stop + 1):
             if run:
                 if read.infer_read_length():
-                    self.read_lengths += read.infer_read_length()      # add read length to collection of lengths
+                    self.read_lengths += read.infer_read_length()  # add read length to collection of lengths
                     self.n_reads_analyzed += 1
 
             if read.is_unmapped:
-                continue            # skip unmapped read
+                continue  # skip unmapped read
             elif 'S' not in read.cigarstring:
-                continue            # skip not clipped read
+                continue  # skip not clipped read
 
             if run:
-                m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]    # collect matched lengths
-                m_len = max(m_len)                                # leave only longest match from read
-                self.match_lengths.append(m_len)                  # add lengths to collection
+                m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]  # collect matched lengths
+                m_len = max(m_len)  # leave only longest match from read
+                self.match_lengths.append(m_len)  # add lengths to collection
 
-#           for i in range(read.cigarstring.count('S')):
+            #           for i in range(read.cigarstring.count('S')):
             boundaries = self._clboundaries(read)
             for cl_seg in boundaries:
                 # On the IS->Ref search check if read was collected on the correct side of the IS element
@@ -255,12 +260,12 @@ class isclipped:
                 else:
                     clip_temp.at[0, 'IS name'] = '-'
 
-                clip_temp.at[0, 'IS chrom'] = chrom
+                clip_temp.at[0, 'IS_chrom'] = chrom
                 clip_temp.at[0, 'Read name'] = read.query_name
                 clip_temp.at[0, 'left pos'] = cl_seg[0]
                 clip_temp.at[0, 'right pos'] = cl_seg[1]
-                clip_temp.at[0, 'clip position'] = cl_seg[2]
-                clip_temp.at[0, 'junction in read'] = cl_seg[3]
+                clip_temp.at[0, 'clip_position'] = cl_seg[2]
+                clip_temp.at[0, 'junction_in_read'] = cl_seg[3]
 
                 if read.is_reverse:
                     clip_temp.at[0, 'reverse'] = True
@@ -335,11 +340,11 @@ class isclipped:
         blast_out = blast_out[blast_out['pident'] >= 75]  # filter only hits with 75% or higher
 
         idx_max = blast_out.groupby('qseqid')['bitscore'].transform(max) == blast_out['bitscore']
-        temp = blast_out[idx_max].copy()       # temporary dataframe for filtering with only best hits by bitscore
+        temp = blast_out[idx_max].copy()  # temporary dataframe for filtering with only best hits by bitscore
 
         if run:
             temp['count'] = temp.groupby('qseqid')['qseqid'].transform('count')
-            temp = temp[temp['count'] == 1]     # leave only hits with one best hit
+            temp = temp[temp['count'] == 1]  # leave only hits with one best hit
             temp = temp.drop(columns=['count'])
         else:
             temp['rank'] = temp.groupby('qseqid')['bitscore'].rank(method="first", ascending=True)
@@ -354,7 +359,7 @@ class isclipped:
         for index in temp.index:
             pos, orient = self._choosecoord(temp.at[index, 'sstart'],
                                             temp.at[index, 'send'],
-                                            cl_table.at[temp.at[index, 'qseqid'], 'clip position'])
+                                            cl_table.at[temp.at[index, 'qseqid'], 'clip_position'])
             temp.at[index, 'pos_in_ref'] = pos
             temp.at[index, 'orientation'] = orient
 
@@ -384,29 +389,30 @@ class isclipped:
         ref_cl_reads = ref_cl_reads[ref_cl_reads['Note'] == '-']
         ref_cl_reads = ref_cl_reads.drop(columns=['Note'])
 
+        # Cluster positions together to form seed for backwards clipped read search
         def hclust(X):
-            # If only one sample is present clustering will not work
+            # If only one sample is present – clustering will not work
             if len(X) == 1:
                 return [0]
-            hcl = AgglomerativeClustering(n_clusters=None, distance_threshold=30, linkage='single').\
+            hcl = AgglomerativeClustering(n_clusters=None, distance_threshold=30, linkage='single'). \
                 fit(X.to_numpy().reshape(-1, 1))
             return hcl.labels_
 
-        ref_cl_reads['Cluster'] = ref_cl_reads.groupby(['Chrom'])['Position'].\
+        ref_cl_reads['Cluster'] = ref_cl_reads.groupby(['Chrom'])['Position']. \
             transform(hclust)
 
-        ref_regions = ref_cl_reads.groupby(['Cluster', 'Chrom']).\
-            aggregate(['min', 'max']).\
+        ref_regions = ref_cl_reads.groupby(['Cluster', 'Chrom']). \
+            aggregate(['min', 'max']). \
             reset_index()
 
-        ref_regions.columns =['Cluster', 'Chrom', 'Position_left', 'Position_right']
+        ref_regions.columns = ['Cluster', 'Chrom', 'Position_left', 'Position_right']
         ref_regions = ref_regions.drop(columns=['Cluster'])
 
         # Extend regions by 5nt if possible
-        ref_regions['Position_left'] = ref_regions['Position_left'].\
+        ref_regions['Position_left'] = ref_regions['Position_left']. \
             apply(lambda x: max(x - 5, 0))
 
-        ref_regions['Position_right'] = ref_regions.\
+        ref_regions['Position_right'] = ref_regions. \
             apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
 
         return ref_regions
@@ -436,24 +442,24 @@ class isclipped:
                 pos = hit.pos_in_ref
                 chrom = hit.sseqid
                 is_name = self.clipped_reads['IS name'][read_id]
-                is_chrom = self.clipped_reads['IS chrom'][read_id]
-                is_pos = self.clipped_reads['clip position'][read_id]
+                is_chrom = self.clipped_reads['IS_chrom'][read_id]
+                is_pos = self.clipped_reads['clip_position'][read_id]
                 is_elem_border_mark, _ = self._check_is_boundary_proximity(chrom, pos)
                 orientation = hit.orientation
                 read_name = self.clipped_reads['Read name'][read_id]
             else:
-                pos = self.clipped_reads_bwrd['junction in read'][read_id]
-                chrom = self.clipped_reads_bwrd['IS chrom'][read_id]
+                pos = self.clipped_reads_bwrd['junction_in_read'][read_id]
+                chrom = self.clipped_reads_bwrd['IS_chrom'][read_id]
                 is_chrom = hit.sseqid
                 is_pos = hit.pos_in_ref
                 _, is_name = self._check_is_boundary_proximity(is_chrom, is_pos)
                 is_elem_border_mark = '-'
-                orientation = self.clipped_reads_bwrd['clip position'][read_id]
+                orientation = self.clipped_reads_bwrd['clip_position'][read_id]
                 read_name = self.clipped_reads_bwrd['Read name'][read_id]
 
             self.junctions.at[index, 'ID'] = read_id
             self.junctions.at[index, 'IS name'] = is_name
-            self.junctions.at[index, 'IS chrom'] = is_chrom
+            self.junctions.at[index, 'IS_chrom'] = is_chrom
             self.junctions.at[index, 'IS pos'] = is_pos
             self.junctions.at[index, 'Read name'] = read_name
             self.junctions.at[index, 'Chrom'] = chrom
@@ -525,18 +531,11 @@ class isclipped:
         # Assign clusters and sort in each cluster by junction representation in descending order
 
         # Build dataframe to populate pairs
-        # First calculate number of pairs
-        # min(n_rows_with_1, n_cols_with_1) (will definitely have pairs) +
-        # n_rows_with_0 (will be orphan) +
-        # n_cols_with_0 (will be orphan) +
-        # max(n_rows_with_1, n_cols_with_1) - min(n_rows_with_1, n_cols_with_1) (the clustered positions without pairs)
-        # min(n_rows_with_1, n_cols_with_1) goes away
-        n_pairs = np.max([
+        # We will use maximum number of rows (if all positions do not have pairs)
+        n_pairs = np.sum([
             closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[0],
             closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[1]
-        ]) + \
-            np.sum(~closeness_matrix.any(0)) + \
-            np.sum(~closeness_matrix.any(1))
+        ])
 
         pairs_df = pd.DataFrame(
             {'Position_l': [0] * n_pairs,
@@ -631,6 +630,9 @@ class isclipped:
                 chrom
             ]
 
+        # Remove empty rows
+        pairs_df = pairs_df.query('Position_l > 0 or Position_r > 0')
+
         return pairs_df
 
     # Find positions of insertions
@@ -640,8 +642,8 @@ class isclipped:
         # It is much better to work with when IS elements collapsed by their copy then to work with each copy separately
         # remove copy tags from the IS element names like "_1", "_2".
         position_tbl['IS'] = position_tbl['IS name'].apply(lambda x: re.search(r'(.+)_\d+', x).group(1))
-        position_tbl = position_tbl.groupby(['Chrom', 'Position', 'IS', 'Orientation'])['Position'].\
-            count().\
+        position_tbl = position_tbl.groupby(['Chrom', 'Position', 'IS', 'Orientation'])['Position']. \
+            count(). \
             reset_index(name='Counts')
 
         # collect dataframes for pairs of junctions (or orphan junctions) that should mark IS elements insertions
@@ -665,14 +667,14 @@ class isclipped:
                 print(f'Find pairs for {is_name}')
                 # Calculate table
                 pair_tbl_chunk = self._find_pair(
-                        positions_left_pos,
-                        positions_right_pos,
-                        positions_left_counts,
-                        positions_right_counts,
-                        self.ref_len[chrom],
-                        self.max_is_dup_len,
-                        chrom
-                    )
+                    positions_left_pos,
+                    positions_right_pos,
+                    positions_left_counts,
+                    positions_right_counts,
+                    self.ref_len[chrom],
+                    self.max_is_dup_len,
+                    chrom
+                )
 
                 pair_tbl_chunk['IS_name'] = is_name
 
@@ -680,35 +682,6 @@ class isclipped:
 
         # Concatenate all pair tables into one table
         self.pairs_df = pd.concat(is_pairs_collection, ignore_index=True)
-
-    # Extract number of clipped reads and total number of reads overlapping with the position
-    def _pos_depth_count(self, chrom, position):
-        if position:
-            # Read Pilup for a position
-            plps = self.aln.pileup(
-                contig=chrom,
-                start=position,
-                stop=position + 1,
-                ignore_overlaps=True,
-                stepper='nofilter',
-                min_base_quality=0
-            )
-
-            n_total = 0
-            n_clipped = 0
-
-            # Filter information only for position of interest
-            for plp in plps:
-                if plp.reference_pos == position:
-                    for read in plp.pileups:
-                        n_total += 1
-                        if 'S' in read.alignment.cigarstring:
-                            n_clipped += 1
-
-            return n_total, n_clipped
-        # If position == 0 then no clipped reads are assigned for it
-        else:
-            return 0, 0
 
     # Calculate frequency
     @staticmethod
@@ -720,60 +693,171 @@ class isclipped:
         else:
             return (freq_l + freq_r) / 2
 
+    # Make read count matrices
+    @staticmethod
+    def _read_count_mtx(pairs_df, orientation):
+        if orientation == 'left':
+            pos_df = pairs_df.query('Position_l > 0').copy()
+            pos_df = pos_df.rename(columns={'Position_l': 'Position', 'Count_l': 'Count'})
+        elif orientation == 'right':
+            pos_df = pairs_df.query('Position_r > 0').copy()
+            pos_df = pos_df.rename(columns={'Position_r': 'Position', 'Count_r': 'Count'})
+        else:
+            print('Error: the parameter should be "left" or "right"')
+            exit(1)
+
+        # Dictionary to translate positions (Contig name/Coordinate) to matrix row indeces
+        pos = {}
+        for chrom in pos_df.Chrom.unique():
+            pos[chrom] = {}
+
+        i = 0
+
+        for pos_row in pos_df[['Position', 'Chrom']].drop_duplicates().itertuples():
+            pos[pos_row.Chrom][pos_row.Position] = i
+            i += 1
+
+        # Dictionary to translate IS names to matrix row indeces
+        is_names = dict(
+            zip(
+                pos_df['IS_name'].unique().tolist(),
+                [i for i in range(pos_df['IS_name'].unique().size)]
+            )
+        )
+
+        counts = np.zeros((
+            len(pos_df[['Position', 'Chrom']].drop_duplicates()),
+            len(is_names)
+        ))
+
+        for row in pos_df.itertuples():
+            counts[pos[row.Chrom][row.Position], is_names[row.IS_name]] = row.Count
+
+        return pos, is_names, counts
+
+    # Translate matrix of read count proporions to the original read counts
+    # (calculated from the second pass of clipped reads collection)
+    @staticmethod
+    def _resore_orig_counts(counts_mtx, original_rc_counts, pos_dict):
+        counts_mtx /= counts_mtx.sum(1).reshape(-1, 1)
+
+        for chr in pos_dict.keys():
+            for junct_pos in pos_dict[chr].keys():
+                counts_mtx[pos_dict[chr][junct_pos]] *= original_rc_counts[chr].get(junct_pos, 0)
+
+        return counts_mtx
+
+    # Count depth at the position using only unclipped reads
+    # Input is a data frame with columns 'Position' and 'Chrom'
+    def count_depth(self, position_tbl):
+        for position in position_tbl.itertuples():
+            chrom = position.Chrom
+            pos = position.Position
+            if pos == 0:
+                continue
+
+            for read in self.aln.fetch(chrom, pos, pos + 1):
+                if read.is_unmapped:
+                    continue  # skip unmapped read
+                elif 'S' not in read.cigarstring:
+                    self.unclipped_depth[chrom][pos] = \
+                        self.unclipped_depth[chrom].get(pos, 0) + 1
+
     # Assess frequency of the insertion in population
     def assess_isel_freq(self):
-        # Collect numbers of reads at positions for left junctions
-        self.pairs_df['N_total_l'] = 0
-        self.pairs_df['N_clipped_l'] = 0
+        # Setup calculation of number of reads supporting each position count
+        # for each IS element
+        # 1: Count reads for right and left positions that came directly from positions.
+        # Caveat - they do not have information about corresponding IS elements.
+        original_rc_l_df = self.clipped_reads_bwrd. \
+            query('clip_position == "left"'). \
+            groupby(['junction_in_read', 'IS_chrom'], as_index=False)['Read name']. \
+            count(). \
+            rename(columns={'Read name': 'Count', 'IS_chrom': 'Chrom'})
 
-        self.pairs_df[['N_total_l', 'N_clipped_l']] = \
-            pd.DataFrame(
-                self.pairs_df[['Chrom', 'Position_l']].apply(
-                   lambda x: self._pos_depth_count(x[0], x[1]),
-                   axis=1
-                   ).to_list()
-            )
+        original_rc_l = {}
+        for chrom in self.ref_len.keys():
+            original_rc_l[chrom] = {}
+
+        for rc_row_l in original_rc_l_df.itertuples():
+            original_rc_l[rc_row_l.Chrom][rc_row_l.junction_in_read] = rc_row_l.Count
+
+        original_rc_r_df = self.clipped_reads_bwrd. \
+            query('clip_position == "right"'). \
+            groupby(['junction_in_read', 'IS_chrom'], as_index=False)['Read name']. \
+            count(). \
+            rename(columns={'Read name': 'Count', 'IS_chrom': 'Chrom'})
+
+        original_rc_r = {}
+        for chrom in self.ref_len.keys():
+            original_rc_r[chrom] = {}
+
+        for rc_row_r in original_rc_r_df.itertuples():
+            original_rc_r[rc_row_r.Chrom][rc_row_r.junction_in_read] = rc_row_r.Count
+
+        # 2: Make matrix for left positions
+        pos_l, is_names_l, counts_l = self._read_count_mtx(self.pairs_df, 'left')
+
+        # 3: Make matrix for right positions
+        pos_r, is_names_r, counts_r = self._read_count_mtx(self.pairs_df, 'right')
+
+        # Calculate proportions of reads for each IS for each conflicting position
+        # and split reads supporting position from the clipped_reads_bwrd table
+        # 1: left matrix
+        counts_l = self._resore_orig_counts(counts_l, original_rc_l, pos_l)
+
+        # 2: right matrix
+        counts_r = self._resore_orig_counts(counts_r, original_rc_r, pos_r)
+
+        # Collect numbers of reads at positions for left junctions
+        self.pairs_df['N_unclipped_l'] = self.pairs_df.apply(
+            lambda pos: self.unclipped_depth[pos.Chrom].get(pos.Position_l, 0),
+            axis=1
+        )
+        self.pairs_df['N_clipped_l'] = self.pairs_df.apply(
+            lambda pair: counts_l[
+                pos_l[pair.Chrom][pair.Position_l], is_names_l[pair.IS_name]] if pair.Position_l > 0 else 0,
+            axis=1
+        )
 
         # Collect numbers of reads at positions for right junctions
-        self.pairs_df['N_total_r'] = 0
-        self.pairs_df['N_clipped_r'] = 0
-
-        self.pairs_df[['N_total_r', 'N_clipped_r']] = \
-            pd.DataFrame(
-                self.pairs_df[['Chrom', 'Position_r']].apply(
-                    lambda x: self._pos_depth_count(x[0], x[1]),
-                    axis=1
-                ).to_list()
-            )
+        self.pairs_df['N_unclipped_r'] = self.pairs_df.apply(
+            lambda pos: self.unclipped_depth[pos.Chrom].get(pos.Position_r, 0),
+            axis=1
+        )
+        self.pairs_df['N_clipped_r'] = self.pairs_df.apply(
+            lambda pair: counts_r[
+                pos_r[pair.Chrom][pair.Position_r], is_names_l[pair.IS_name]] if pair.Position_r > 0 else 0,
+            axis=1
+        )
 
         # Add corrections for clipped reads
         self.min_match = min(self.match_lengths)
         self.av_read_len = self.read_lengths / self.n_reads_analyzed
 
         self.pairs_df['N_clipped_l_correction'] = self.pairs_df['N_clipped_l'] * \
-                                (1 + self.blast_min / self.av_read_len) / (1 - self.min_match / self.av_read_len) - \
-                                self.pairs_df['N_clipped_l']
+                                                  (1 + self.blast_min / self.av_read_len) / (
+                                                              1 - self.min_match / self.av_read_len) - \
+                                                  self.pairs_df['N_clipped_l']
         self.pairs_df['N_clipped_r_correction'] = self.pairs_df['N_clipped_r'] * \
-                                (1 + self.blast_min / self.av_read_len) / (1 - self.min_match / self.av_read_len) - \
-                                self.pairs_df['N_clipped_r']
+                                                  (1 + self.blast_min / self.av_read_len) / (
+                                                              1 - self.min_match / self.av_read_len) - \
+                                                  self.pairs_df['N_clipped_r']
 
         self.pairs_df['N_clipped_l'] = self.pairs_df['N_clipped_l'] + self.pairs_df['N_clipped_l_correction']
-        self.pairs_df['N_total_l'] = self.pairs_df['N_total_l'] + self.pairs_df['N_clipped_l_correction']
+        self.pairs_df['N_unclipped_l'] = self.pairs_df['N_unclipped_l']
         self.pairs_df['N_clipped_r'] = self.pairs_df['N_clipped_r'] + self.pairs_df['N_clipped_r_correction']
-        self.pairs_df['N_total_r'] = self.pairs_df['N_total_r'] + self.pairs_df['N_clipped_r_correction']
+        self.pairs_df['N_unclipped_r'] = self.pairs_df['N_unclipped_r']
 
         # Calculate frequency as average between left and right boundaries if present
         # If not - just by one boundary
         # 0.1 pseudocount keeps from div/0 error
-        # in the denominator: (total - clipped) + clipped / 2 = total - clipped / 2
         self.pairs_df['Frequency_l'] = self.pairs_df['N_clipped_l'] / \
-                                    (2 * (self.pairs_df['N_total_l'] -
-                                    self.pairs_df['N_clipped_l'] / 2) + 0.1)
+                                       (self.pairs_df['N_unclipped_l'] + self.pairs_df['N_clipped_l'] + 0.1)
         self.pairs_df['Frequency_r'] = self.pairs_df['N_clipped_r'] / \
-                                    (2 * (self.pairs_df['N_total_r'] -
-                                    self.pairs_df['N_clipped_r'] / 2) + 0.1)
+                                       (self.pairs_df['N_unclipped_r'] + self.pairs_df['N_clipped_r'] + 0.1)
 
-        self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']].\
+        self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']]. \
             apply(lambda x: self._calc_freq_point(x[0], x[1]), axis=1)
 
     # generate random string
@@ -790,7 +874,7 @@ class isclipped:
         for i in range(len(junc_temp)):
             pos = junc_temp.iloc[i]['Position']
             chrom = junc_temp.iloc[i]['Chrom']
-            for ann_id, item in self.gff.ann_pos[chrom].items():       #
+            for ann_id, item in self.gff.ann_pos[chrom].items():  #
                 if item[2] <= pos <= item[3]:
                     if ann_id not in self.sum_by_region.index:
                         columns = ['ann_id', 'ann', 'chrom', 'start', 'stop']
@@ -814,16 +898,16 @@ class isclipped:
     # calculate average depth of the region
     @lru_cache(maxsize=128)
     def _av_depth(self, chrom, start, stop):
-        #aln_depth = self.aln.count_coverage(chrom, start, stop)
-        #depth = sum(map(sum, aln_depth))
-        #return depth / len(aln_depth[0])  # average depth of the region
+        # aln_depth = self.aln.count_coverage(chrom, start, stop)
+        # depth = sum(map(sum, aln_depth))
+        # return depth / len(aln_depth[0])  # average depth of the region
         c = pysamstats.load_coverage(self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000)
         return mean(c.reads_all)
 
     # create report by IS and region
     def report(self):
         print("Create report table")
-        self.min_match = min(self.match_lengths)    # find minimum match length
+        self.min_match = min(self.match_lengths)  # find minimum match length
         self.av_read_len = self.read_lengths / self.n_reads_analyzed  # find average read length
         self.report_table = pd.melt(
             self.sum_by_region,
@@ -846,7 +930,8 @@ class isclipped:
         )
 
         self.report_table['Frequency'] = self.report_table.apply(
-            lambda x: round((x['count'] / 2 * (1 + self.blast_min / self.av_read_len)) / (x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
+            lambda x: round((x['count'] / 2 * (1 + self.blast_min / self.av_read_len)) / (
+                        x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
             axis=1
         )
 
@@ -857,8 +942,8 @@ class isclipped:
     def create_circos_files(self):
         print('Create CIRCOS files')
         while not os.path.exists(self.data_folder):
-            #self.session_id = self._rand_str(5)
-            #self.data_folder = "./data" + self.session_id + "/"
+            # self.session_id = self._rand_str(5)
+            # self.data_folder = "./data" + self.session_id + "/"
             os.makedirs(self.data_folder)
 
         # karyotype file
@@ -882,7 +967,7 @@ class isclipped:
             self._is_colours[is_name] = self._cirocs_colors[col_ind % len(self._cirocs_colors)]
             col_ind += 1
 
-        text_regions = list()       # to remove duplicates
+        text_regions = list()  # to remove duplicates
 
         # add regions information
         for i in range(len(self.report_table)):
@@ -902,7 +987,7 @@ class isclipped:
         links = open(self.data_folder + 'links.txt', 'w')
 
         for i in range(len(self.report_table)):
-            if self.report_table.iloc[i]['Frequency'] >= self.cutoff:     # draw only lines with cutoff more than specified
+            if self.report_table.iloc[i]['Frequency'] >= self.cutoff:  # draw only lines with cutoff more than specified
                 is_name = self.report_table.iloc[i]['IS Name']
                 is_chrom, is_start, is_stop = self.is_coords[is_name]
                 j_chrom = self.report_table.iloc[i]['Chromosome']
@@ -919,7 +1004,7 @@ class isclipped:
         for i in range(len(self.sum_by_region)):
             depth = self._av_depth(self.sum_by_region.iloc[i]['chrom'],
                                    self.sum_by_region.iloc[i]['start'],
-                                   self.sum_by_region.iloc[i]['stop'],)           # average depth of the region
+                                   self.sum_by_region.iloc[i]['stop'], )  # average depth of the region
 
             # recalculate junction counts to depth
             h_columns = ['chrom', 'start', 'stop']
@@ -929,7 +1014,8 @@ class isclipped:
                 if depth > 0:
                     if self.sum_by_region.iloc[i][h] / depth / 2 >= self.cutoff:
                         histogram.write(' '.join(self.sum_by_region.iloc[i][h_columns].apply(str)) + ' ' +
-                                            ','.join(self.sum_by_region.iloc[i][h_columns_is].apply(lambda x: round(((x / depth / 2) * 100), 2)).apply(str)) + '\n')
+                                        ','.join(self.sum_by_region.iloc[i][h_columns_is].apply(
+                                            lambda x: round(((x / depth / 2) * 100), 2)).apply(str)) + '\n')
                         break
 
         histogram.close()
@@ -968,4 +1054,3 @@ class isclipped:
         conf = re.sub('XXX		#stacked_colors', hist_colors, conf)
 
         config.write(conf)
-
