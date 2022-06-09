@@ -29,9 +29,11 @@ class isclipped:
         self.ref_len = dict()  # length of reference contigs
         self.unclipped_depth = {}  # dictionary of depth attriduted to unclipped reads
         # (do not contain "S" in CIGAR string)
+        self.cl_read_cov_overlap = {}
         for contig_i in range(len(self.aln.references)):
             self.ref_len[self.aln.references[contig_i]] = self.aln.lengths[contig_i]  # Populate lengths of contigs
             self.unclipped_depth[self.aln.references[contig_i]] = {}  # Make nested dictionaries for depth counts
+            self.cl_read_cov_overlap[self.aln.references[contig_i]] = {}
 
         self.boundaries = list()  # boundaries of clipped reads
         self._cirocs_colors = ('green',
@@ -222,6 +224,25 @@ class isclipped:
                                    name_of_is,
                                    1)
 
+    # Collect information about coverage that comes from clipped reads outside junction position
+    def _cl_read_cov_overlap(self, aln_pairs, chrom):
+        if len(aln_pairs) < 3:
+            return 0
+
+        read_pos = [a_pair[0] for a_pair in aln_pairs]
+        ref_pos = [a_pair[1] for a_pair in aln_pairs]
+
+        for i in read_pos[1:-1]:
+            # If nucleotide is not aligned - skip it
+            if ref_pos[i] is None:
+                continue
+            else:
+                # If the position is junction - skip it
+                if ref_pos[i - 1] is None or ref_pos[i + 1] is None:
+                    continue
+                else:
+                    self.cl_read_cov_overlap[chrom][ref_pos[i]] = self.cl_read_cov_overlap[chrom].get(ref_pos[i], 0) + 1
+
     # collect clipped reads from the intervals that do not cross boundaries of a contig
     # The more correct way to collect junction positions would be to find another part of the
     # clipped read in the alignment and take its coordinates. CIGAR strings for both parts could
@@ -244,6 +265,9 @@ class isclipped:
                 m_len = [int(x) for x in re.findall('(\d+)M', read.cigarstring)]  # collect matched lengths
                 m_len = max(m_len)  # leave only longest match from read
                 self.match_lengths.append(m_len)  # add lengths to collection
+            else:
+                # Add coverage from aligned positions of clipped reads that are not junctions
+                self._cl_read_cov_overlap(read.aligned_pairs, read.reference_name)
 
             #           for i in range(read.cigarstring.count('S')):
             boundaries = self._clboundaries(read)
@@ -753,6 +777,7 @@ class isclipped:
         for position in position_tbl.itertuples():
             chrom = position.Chrom
             pos = position.Position
+
             if pos == 0:
                 continue
 
@@ -831,31 +856,65 @@ class isclipped:
             axis=1
         )
 
+        # Add coverage from clipped reads that overlap with junction
+        self.pairs_df['N_overlap_l'] = self.pairs_df[['Position_l', 'Chrom']]. \
+            apply(lambda x: self.cl_read_cov_overlap[x.Chrom].get(x.Position_l, 0), axis=1)
+        self.pairs_df['N_overlap_r'] = self.pairs_df[['Position_r', 'Chrom']]. \
+            apply(lambda x: self.cl_read_cov_overlap[x.Chrom].get(x.Position_r, 0), axis=1)
+
         # Add corrections for clipped reads
         self.min_match = min(self.match_lengths)
         self.av_read_len = self.read_lengths / self.n_reads_analyzed
 
         self.pairs_df['N_clipped_l_correction'] = self.pairs_df['N_clipped_l'] * \
                                                   (1 + self.blast_min / self.av_read_len) / (
-                                                              1 - self.min_match / self.av_read_len) - \
+                                                          1 - self.min_match / self.av_read_len) - \
                                                   self.pairs_df['N_clipped_l']
+
         self.pairs_df['N_clipped_r_correction'] = self.pairs_df['N_clipped_r'] * \
                                                   (1 + self.blast_min / self.av_read_len) / (
-                                                              1 - self.min_match / self.av_read_len) - \
+                                                          1 - self.min_match / self.av_read_len) - \
                                                   self.pairs_df['N_clipped_r']
 
+        self.pairs_df['N_overlap_l_correction'] = self.pairs_df['N_overlap_l'] * \
+                                                  (1 + self.blast_min / self.av_read_len) / (
+                                                          1 - self.min_match / self.av_read_len) - \
+                                                  self.pairs_df['N_overlap_l']
+
+        self.pairs_df['N_overlap_r_correction'] = self.pairs_df['N_overlap_r'] * \
+                                                  (1 + self.blast_min / self.av_read_len) / (
+                                                          1 - self.min_match / self.av_read_len) - \
+                                                  self.pairs_df['N_overlap_r']
+
         self.pairs_df['N_clipped_l'] = self.pairs_df['N_clipped_l'] + self.pairs_df['N_clipped_l_correction']
-        self.pairs_df['N_unclipped_l'] = self.pairs_df['N_unclipped_l']
+        self.pairs_df['N_overlap_l'] = self.pairs_df['N_overlap_l'] + self.pairs_df['N_overlap_r_correction']
         self.pairs_df['N_clipped_r'] = self.pairs_df['N_clipped_r'] + self.pairs_df['N_clipped_r_correction']
-        self.pairs_df['N_unclipped_r'] = self.pairs_df['N_unclipped_r']
+        self.pairs_df['N_overlap_r'] = self.pairs_df['N_overlap_r'] + self.pairs_df['N_overlap_r_correction']
+
+        self.pairs_df['N_overlap_formula_l'] = self.pairs_df[
+            ['N_overlap_l', 'N_clipped_r', 'Position_l', 'Position_r']
+        ]. \
+            apply(lambda x: x.N_overlap_l - x.N_clipped_r if x.Position_r > x.Position_l else x.N_overlap_l, axis=1)
+        self.pairs_df['N_overlap_formula_r'] = self.pairs_df[
+            ['N_overlap_r', 'N_clipped_l', 'Position_l', 'Position_r']
+        ]. \
+            apply(lambda x: x.N_overlap_r - x.N_clipped_l if x.Position_r > x.Position_l else x.N_overlap_r, axis=1)
 
         # Calculate frequency as average between left and right boundaries if present
         # If not - just by one boundary
         # 0.1 pseudocount keeps from div/0 error
         self.pairs_df['Frequency_l'] = self.pairs_df['N_clipped_l'] / \
-                                       (self.pairs_df['N_unclipped_l'] + self.pairs_df['N_clipped_l'] + 0.1)
+                                       (self.pairs_df['N_unclipped_l'] +
+                                        self.pairs_df['N_overlap_formula_l'] +
+                                        self.pairs_df['N_clipped_l'] +
+                                        0.1
+                                        )
         self.pairs_df['Frequency_r'] = self.pairs_df['N_clipped_r'] / \
-                                       (self.pairs_df['N_unclipped_r'] + self.pairs_df['N_clipped_r'] + 0.1)
+                                       (self.pairs_df['N_unclipped_r'] +
+                                        self.pairs_df['N_overlap_formula_r'] +
+                                        self.pairs_df['N_clipped_r'] +
+                                        0.1
+                                        )
 
         self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']]. \
             apply(lambda x: self._calc_freq_point(x[0], x[1]), axis=1)
@@ -931,7 +990,7 @@ class isclipped:
 
         self.report_table['Frequency'] = self.report_table.apply(
             lambda x: round((x['count'] / 2 * (1 + self.blast_min / self.av_read_len)) / (
-                        x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
+                    x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
             axis=1
         )
 

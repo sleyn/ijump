@@ -1,5 +1,7 @@
 import os
 import argparse
+
+import pandas as pd
 import pysam
 import isclipped
 import re
@@ -82,8 +84,15 @@ if __name__ == "__main__":
         x.call_junctions(0)
         check_junctions_presence(x.junctions, args.outdir)
         x.search_insert_pos()
-        x.count_depth(x.pairs_df[['Position_l', 'Chrom']].rename(columns={'Position_l': 'Position'}))
-        x.count_depth(x.pairs_df[['Position_r', 'Chrom']].rename(columns={'Position_r': 'Position'}))
+
+        positions = pd.concat(
+            [
+                x.pairs_df[['Position_l', 'Chrom']].rename(columns={'Position_l': 'Position'}),
+                x.pairs_df[['Position_r', 'Chrom']].rename(columns={'Position_r': 'Position'})
+            ],
+            axis=0
+        ).drop_duplicates()
+        x.count_depth(positions)
         x.assess_isel_freq()
         x.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
