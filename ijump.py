@@ -81,11 +81,15 @@ def main():
     # Check exisitance of  BLAST database.
     check_blast_ref(reference, args.ref)
 
+    a_type = ''
     # Check alignment file type (SAM/BAM).
     if alignment_file[-3:] == 'sam':
         a_type = ''
     elif alignment_file[-3:] == 'bam':
         a_type = 'b'
+    else:
+        logging.error('Unknown format of the alignment. Extension should be .sam or .bam')
+        exit(0)
 
     # Make work directory if not exists
     if not os.path.exists(args.wd):
