@@ -882,10 +882,9 @@ class ISClipped:
         if depth_l == 0:
             return depth_r
         elif depth_r == 0:
-            return  depth_l
+            return depth_l
         else:
             return (depth_l + depth_r) / 2
-
 
     # Assess frequency of the insertion in population.
     def assess_isel_freq(self):
@@ -893,6 +892,7 @@ class ISClipped:
         # for each IS element.
         # 1: Count reads for right and left positions that came directly from positions.
         # Caveat - they do not have information about corresponding IS elements.
+        logging.info('Estimate insertion frequencies.')
         original_rc_l_df = self.clipped_reads_bwrd. \
             query('clip_position == "left"'). \
             groupby(['junction_in_read', 'IS_chrom'], as_index=False)['Read name']. \
@@ -951,7 +951,8 @@ class ISClipped:
         )
         self.pairs_df['N_clipped_r'] = self.pairs_df.apply(
             lambda pair: counts_r[
-                pos_r[pair.Chrom][pair.Position_r], is_names_l[pair.IS_name]] if pair.Position_r > 0 else 0,
+                pos_r[pair.Chrom][pair.Position_r], is_names_r[pair.IS_name]
+            ] if pair.Position_r > 0 else 0,
             axis=1
         )
 
@@ -1013,15 +1014,20 @@ class ISClipped:
                                         self.pairs_df['N_overlap_formula_r'] +
                                         self.pairs_df['N_clipped_r'] +
                                         0.1
-                                       )
+                                        )
 
         self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']]. \
             apply(lambda x: self._calc_freq_precise(x[0], x[1]), axis=1)
 
         # Add total depth column.
-        self.pairs_df['Depth'] = self._add_total_depth(
-            self.pairs_df['N_unclipped_l'] + self.pairs_df['N_overlap_formula_l'] + self.pairs_df['N_clipped_l'],
-            self.pairs_df['N_unclipped_r'] + self.pairs_df['N_overlap_formula_r'] + self.pairs_df['N_clipped_r']
+        self.pairs_df['Depth'] = self.pairs_df. \
+            apply(
+            lambda event:
+            self._add_total_depth(
+                event.N_unclipped_l + event.N_overlap_formula_l + event.N_clipped_l,
+                event.N_unclipped_r + event.N_overlap_formula_r + event.N_clipped_r
+            ),
+            axis=1
         )
 
     # Generate random string.
