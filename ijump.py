@@ -28,6 +28,16 @@ def check_blast_ref(ref_name, ref_file):
         makeblastdb = subprocess.Popen(makeblastdb_command.split(), stdout=subprocess.PIPE)
 
 
+# Claculate distance between insertion positions.
+def interpos_distance(pos_l, pos_r):
+    if pos_l == 0:
+        return 5
+    elif pos_r == 0:
+        return 5
+    else:
+        return abs(pos_r - pos_l) + 5
+
+
 def main():
     # Command line arguments
     parser = argparse.ArgumentParser(
@@ -143,7 +153,8 @@ def main():
         # Make a report table of assessed insertion frequencies in each GE
         is_processing.report_table_init()
         is_processing.report_average()
-        is_processing.report_table.to_csv(os.path.join(args.outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
+        is_processing.report_table.to_csv(os.path.join(args.outdir, "ijump_report_by_is_reg.txt"), sep='\t',
+                                          index=False)
     elif args.estimation_mode == 'precise':
         # Make table of regions in the reference genome where extract clipped reads for backwards assignment
         reference_regions = is_processing.make_gene_side_regions()
@@ -170,16 +181,25 @@ def main():
         # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
         is_processing.search_insert_pos()
 
+        is_processing.pairs_df['Dist'] = is_processing.pairs_df[['Position_l', 'Position_r']].\
+            apply(
+                lambda clustered_pos: interpos_distance(clustered_pos.Position_l, clustered_pos.Position_r),
+                axis=1
+            )
+
         positions = pd.concat(
             [
-                is_processing.pairs_df[['Position_l', 'Chrom']].rename(columns={'Position_l': 'Position'}),
-                is_processing.pairs_df[['Position_r', 'Chrom']].rename(columns={'Position_r': 'Position'})
+                is_processing.pairs_df[['Position_l', 'Chrom', 'Dist']].
+                    rename(columns={'Position_l': 'Position'}),
+                is_processing.pairs_df[['Position_r', 'Chrom', 'Dist']].
+                    rename(columns={'Position_r': 'Position'})
             ],
             axis=0
         ).drop_duplicates()
 
         # Count depth of unclipped reads to have a background depth of coverage
         is_processing.count_depth_unclipped(positions)
+        is_processing.pairs_df.drop(columns='Dist')
 
         # Make an estimate of insertion frequency
         is_processing.assess_isel_freq()

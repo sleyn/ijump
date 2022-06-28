@@ -867,16 +867,23 @@ class ISClipped:
         for position in position_tbl.itertuples():
             chrom = position.Chrom
             pos = position.Position
+            ins_pos_distance = position.Dist
 
             if pos == 0:
                 continue
 
             for read in self.aln.fetch(chrom, pos, pos + 1):
                 if read.is_unmapped:
-                    continue  # skip unmapped read
-                elif 'S' not in read.cigarstring:
-                    self.unclipped_depth[chrom][pos] = \
-                        self.unclipped_depth[chrom].get(pos, 0) + 1
+                    # Skip unmapped read
+                    continue
+                # No soft- or hard-clipped reads
+                elif ('S' not in read.cigarstring) and ('H' not in read.cigarstring):
+                    # Test if position is near the end of the read. If it is near skip the read as
+                    # it is impossible to distinguish unmapped
+                    read_edges = np.array([read.aligned_pairs[0][1], read.aligned_pairs[-1][1]])
+                    if np.min(np.abs(pos - read_edges)) > ins_pos_distance:
+                        self.unclipped_depth[chrom][pos] = \
+                            self.unclipped_depth[chrom].get(pos, 0) + 1
 
     def _add_total_depth(self, depth_l, depth_r):
         if depth_l == 0:
