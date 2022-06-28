@@ -49,6 +49,10 @@ def main():
     parser.add_argument('--version', action='store_true', help='Print iJump version and exit.')
     args = parser.parse_args()
 
+    # Make output directory if not exists.
+    if not os.path.exists(args.outdir):
+        os.makedirs(args.outdir)
+
     # Initialize logger.
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
@@ -96,10 +100,6 @@ def main():
             # Clean work directory
             for file in glob.glob(os.path.join(args.wd, '*')):
                 os.remove(file)
-
-    # Make output directory if not exists.
-    if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
 
     # Open read alignment file (SAM or BAM)
     alignment = pysam.AlignmentFile(alignment_file, "r" + a_type)
