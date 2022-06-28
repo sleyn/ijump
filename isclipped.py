@@ -644,10 +644,10 @@ class ISClipped:
 
         # Build dataframe to populate pairs.
         # We will use maximum number of rows (if all positions do not have pairs).
-        #n_pairs = np.sum([
+        # n_pairs = np.sum([
         #    closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[0],
         #    closeness_matrix[closeness_matrix.any(1)][:, closeness_matrix.any(0)].shape[1]
-        #])
+        # ])
         n_pairs = np.sum(closeness_matrix.shape)
 
         pairs_df = pd.DataFrame(
@@ -878,6 +878,15 @@ class ISClipped:
                     self.unclipped_depth[chrom][pos] = \
                         self.unclipped_depth[chrom].get(pos, 0) + 1
 
+    def _add_total_depth(self, depth_l, depth_r):
+        if depth_l == 0:
+            return depth_r
+        elif depth_r == 0:
+            return  depth_l
+        else:
+            return (depth_l + depth_r) / 2
+
+
     # Assess frequency of the insertion in population.
     def assess_isel_freq(self):
         # Setup calculation of number of reads supporting each position count
@@ -1004,10 +1013,16 @@ class ISClipped:
                                         self.pairs_df['N_overlap_formula_r'] +
                                         self.pairs_df['N_clipped_r'] +
                                         0.1
-                                        )
+                                       )
 
         self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']]. \
             apply(lambda x: self._calc_freq_precise(x[0], x[1]), axis=1)
+
+        # Add total depth column.
+        self.pairs_df['Depth'] = self._add_total_depth(
+            self.pairs_df['N_unclipped_l'] + self.pairs_df['N_overlap_formula_l'] + self.pairs_df['N_clipped_l'],
+            self.pairs_df['N_unclipped_r'] + self.pairs_df['N_overlap_formula_r'] + self.pairs_df['N_clipped_r']
+        )
 
     # Generate random string.
     # Was used for Circos.
