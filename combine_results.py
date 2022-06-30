@@ -48,12 +48,29 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
     for report in report_files:
         sample_name = re.search('ijump_(.+)\.txt', path.basename(report)).group(1)
         print(f'Reading {report}')
-        report_dfs.append(
-            pd.read_csv(report, sep='\t').
-                query('Depth > 10').
-                drop(columns='Depth').
-                rename(columns={'Frequency': sample_name})
-        )
+        if mode == 'average':
+            report_dfs.append(
+                pd.read_csv(report, sep='\t').
+                    query('Depth > 10').
+                    drop(columns='Depth').
+                    rename(columns={'Frequency': sample_name})
+            )
+        elif mode == 'precise':
+            report_dfs.append(
+                pd.read_csv(report, sep='\t')[
+                    ['Position_l', 'Position_r', 'Chrom', 'IS_name', 'Depth', 'Frequency']].
+                    query('Depth > 10').
+                    drop(columns='Depth').
+                    rename(
+                        columns={
+                            'Frequency': sample_name,
+                            'Position_l': 'Start',
+                            'Position_r': 'Stop',
+                            'IS_name': 'IS Name',
+                            'Chrom': 'Chromosome'
+                        }
+                    )
+            )
 
     # Read unevolved samples if provided (only for clonal data)
     if clonal_workflow:
@@ -69,14 +86,14 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
                     query('Depth > 10').
                     drop(columns='Depth').
                     rename(
-                    columns={
-                        'Frequency': sample_name,
-                        'Position_l': 'Start',
-                        'Position_r': 'Stop',
-                        'IS_name': 'IS Name',
-                        'Chrom': 'Chromosome'
-                    }
-                )
+                        columns={
+                            'Frequency': sample_name,
+                            'Position_l': 'Start',
+                            'Position_r': 'Stop',
+                            'IS_name': 'IS Name',
+                            'Chrom': 'Chromosome'
+                        }
+                    )
                 )
 
     # Merge all data frames to one comparative table
@@ -175,7 +192,7 @@ def main():
         summary_table = summary_table.query('MAX > 0').copy()
 
         # Initiate list for column names.
-        cols = ['ID', 'Gene', 'Mutation']
+        cols = ['Start', 'Stop', 'ID', 'Gene', 'Mutation']
 
         if not args.lab_format:
             cols.extend(sample_list)
