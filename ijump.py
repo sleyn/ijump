@@ -2,6 +2,7 @@ import os
 import glob
 import argparse
 import pandas as pd
+import numpy as np
 import pysam
 from isclipped import ISClipped
 import re
@@ -36,6 +37,29 @@ def interpos_distance(pos_l, pos_r):
         return 5
     else:
         return abs(pos_r - pos_l) + 5
+
+
+# Assign Keep status to one pair
+def keep_pair(pair, region_starts, region_ends):
+    for position in pair:
+        compare_starts = region_starts <= position
+        compare_ends = region_ends >= position
+        if np.any(np.all([compare_starts, compare_ends], axis=0)):
+            return True
+    return False
+
+
+# Filter pairs. Keep a pair if at least one position in pair is in the region interval.
+def filter_pairs(pairs_tbl, region_tbl):
+    logging.info('Filer pairs that do not belong to the regions of interest.')
+    regions_starts = region_tbl['Position_left'].to_numpy()
+    regions_ends = region_tbl['Position_right'].to_numpy()
+    pairs_tbl_return = pairs_tbl.copy()
+    pairs_tbl_return['Keep'] = pairs_tbl_return[['Position_l', 'Position_r']].apply(
+        lambda pos_pair: keep_pair(pos_pair.to_list(), regions_starts, regions_ends),
+        axis=1
+    )
+    return pairs_tbl_return[pairs_tbl_return['Keep']].drop(columns=['Keep'])
 
 
 def main():
@@ -126,16 +150,16 @@ def main():
 
     # Collect clipped reads inforamtion.
     is_processing.collect_clipped_reads()
+    is_processing.clipped_reads = pd.DataFrame.from_dict(is_processing.clipped_reads_dict, "index")
     is_processing.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=False)
 
     # Run BLAST to search insertion positions in Reference.
     # 1 - search in IS->Reference direction.
     is_processing.runblast('cl.fasta', 'cl_blast.out', 1)
-    is_processing.parseblast(1, 'cl_blast.out')
+    is_processing.parseblast('cl_blast.out', 1)
 
     # Read GFF file.
     is_processing.gff.readgff()
-    is_processing.gff.pos_to_ann()
 
     # Workflow in "average" mode
     if args.estimation_mode == 'average':
@@ -147,6 +171,8 @@ def main():
 
         # Count reads supporting IS elements insertions for each IS element and each GE
         is_processing.sum_by_reg_tbl_init()
+        # Reformat GFF representation
+        is_processing.gff.pos_to_ann()
         is_processing.summary_junctions_by_region()
         is_processing.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
 
@@ -158,6 +184,7 @@ def main():
     elif args.estimation_mode == 'precise':
         # Make table of regions in the reference genome where extract clipped reads for backwards assignment
         reference_regions = is_processing.make_gene_side_regions()
+        reference_regions.to_csv(os.path.join(args.wd, 'reference_regions.tsv'), sep='\t', index=False)
 
         # We will need average read length to extend region boundaries
         is_processing.av_read_len = is_processing.read_lengths / is_processing.n_reads_analyzed
@@ -165,12 +192,13 @@ def main():
         # Collect clipped reads at the insertion positions
         # found during forward (IS->Reference) search.
         is_processing.crtable_bwds(reference_regions)
+        is_processing.clipped_reads_bwrd = pd.DataFrame.from_dict(is_processing.clipped_reads_bwrd_dict, "index")
 
         # Run BLAST to search for positions of found reads.
         is_processing.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
 
         # Collect BLAST results.
-        is_processing.parseblast(0, 'cl_blast_bwds.out')
+        is_processing.parseblast('cl_blast_bwds.out', 0)
 
         # Format results as junction table to attribute reads and their junction positions to the IS elements.
         is_processing.call_junctions(0)
@@ -181,6 +209,12 @@ def main():
         # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
         is_processing.search_insert_pos()
 
+        # Filter Junction pairs so at least one of the pair is in the "reference_regions" table
+        # Otherwise we could
+        is_processing.pairs_df = filter_pairs(is_processing.pairs_df, reference_regions)
+
+        # Count depth of unclipped reads to have a background depth of coverage
+        # Preparation.
         is_processing.pairs_df['Dist'] = is_processing.pairs_df[['Position_l', 'Position_r']].\
             apply(
                 lambda clustered_pos: interpos_distance(clustered_pos.Position_l, clustered_pos.Position_r),
@@ -197,7 +231,7 @@ def main():
             axis=0
         ).drop_duplicates()
 
-        # Count depth of unclipped reads to have a background depth of coverage
+        # The depth count itself
         is_processing.count_depth_unclipped(positions)
         is_processing.pairs_df.drop(columns='Dist')
 

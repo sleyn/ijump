@@ -32,9 +32,13 @@ class ISClipped:
 
         # Tables:
         # Clipped reads from the forward search (IS -> Ref_genome)
+        # Dictionary is used for speed purposes.
         self.clipped_reads = self._cltbl_init()
+        self.clipped_reads_dict = {}
         # Clipped reads from the backward search for precise pipeline (Ref_genome -> IS)
+        # Dictionary is used for speed purposes.
         self.clipped_reads_bwrd = self._cltbl_init()
+        self.clipped_reads_bwrd_dict = {}
         # Filered BLAST output from search juction location for unaligned part of clipped reads
         self.blastout_filtered = self._blastout_filtered_init()
         # Junction positions table
@@ -89,6 +93,8 @@ class ISClipped:
         self.blast_min = 10
         # Maximum expected length of duplication created from the insertion event
         self.max_is_dup_len = 20
+        # Minimum identity of clipped read BLAST hit to accept it
+        self.blast_min_ident = 75
 
         # Circos parameters and helper structures:
         # Colors used for IS elements and contig representation
@@ -360,32 +366,36 @@ class ISClipped:
                         not ((cl_seg[2] == "left" and edge == "start") or (cl_seg[2] == "right" and edge == "stop")):
                     continue
 
-                clip_temp = self._cltbl_init()
-                clip_temp.at[0, 'ID'] = self._index
+                clip_temp = {
+                    # Unique read ID
+                    'ID': self._index,
+                    # IS name
+                    'IS name': is_name if direction else '-',
+                    # Contig where IS element is located for IS->Ref search and clipped read of Ref->IS
+                    'IS_chrom': chrom,
+                    'Read name': read.query_name,
+                    # Coordinate of clipped segment start
+                    'left pos': cl_seg[0],
+                    # Coordinate of clipped segment end
+                    'right pos': cl_seg[1],
+                    # IS clipped segment on "left" from alignment or on "right"
+                    'clip_position': cl_seg[2],
+                    # Coordinate of junction nucleotide on contig.
+                    # At IS side for IS->Ref search and for contig for Ref->IS search
+                    'junction_in_read': cl_seg[3],
+                    # Is read forward or reverse
+                    'reverse': True if read.is_reverse else False,
+                    # Sequence of clipped segment
+                    'sequence': self._clipped_seq(read, cl_seg[0], cl_seg[1])
+                }
 
+                # Add clipped read information to dictionary to build DataFrame.
+                # It is faster than append segments-by-segments to the existing DataFrame.
+                # As we don't know number of clipped segments we could not create and empty DataFrame of required size.
                 if direction:
-                    clip_temp.at[0, 'IS name'] = is_name
+                    self.clipped_reads_dict[self._index] = clip_temp
                 else:
-                    clip_temp.at[0, 'IS name'] = '-'
-
-                clip_temp.at[0, 'IS_chrom'] = chrom
-                clip_temp.at[0, 'Read name'] = read.query_name
-                clip_temp.at[0, 'left pos'] = cl_seg[0]
-                clip_temp.at[0, 'right pos'] = cl_seg[1]
-                clip_temp.at[0, 'clip_position'] = cl_seg[2]
-                clip_temp.at[0, 'junction_in_read'] = cl_seg[3]
-
-                if read.is_reverse:
-                    clip_temp.at[0, 'reverse'] = True
-                else:
-                    clip_temp.at[0, 'reverse'] = False
-
-                clip_temp.at[0, 'sequence'] = self._clipped_seq(read, cl_seg[0], cl_seg[1])
-
-                if direction:
-                    self.clipped_reads = self.clipped_reads.append(clip_temp)
-                else:
-                    self.clipped_reads_bwrd = self.clipped_reads_bwrd.append(clip_temp)
+                    self.clipped_reads_bwrd_dict[self._index] = clip_temp
 
                 self._index = self._index + 1
 
@@ -429,7 +439,7 @@ class ISClipped:
 
     # Parse BALST output.
     # direction: 1=>IS->Ref, 0=>Ref->IS. For Ref->IS we don't need to remove duplicates, we need only one of them
-    def parseblast(self, direction, blast_out_file):
+    def parseblast(self, blast_out_file, direction):
         logging.info('Collect information from BLAST')
         blast_out = pd.read_csv(os.path.join(self.workdir, blast_out_file), sep='\t')
 
@@ -446,8 +456,8 @@ class ISClipped:
                              'evalue',
                              'bitscore']
 
-        # Filter only hits with identity 75% or higher.
-        blast_out = blast_out[blast_out['pident'] >= 75]
+        # Filter only hits with identity [self.blast_min_ident]% or higher. Default: 75%.
+        blast_out = blast_out[blast_out['pident'] >= self.blast_min_ident]
 
         idx_max = blast_out.groupby('qseqid')['bitscore'].transform(max) == blast_out['bitscore']
         # Temporary dataframe for filtering with only best hits by bitscore.
@@ -483,7 +493,8 @@ class ISClipped:
         for b in self.boundaries:
             if b[4] == chrom:
                 boundary_width = b[1] - b[0]
-                if b[0] - boundary_width / 2 <= position <= b[1] + boundary_width / 2:  # use doubled boundaries
+                # if b[0] - boundary_width / 2 <= position <= b[1] + boundary_width / 2:  # use doubled boundaries
+                if b[0] <= position <= b[1]:
                     return 'IS element', b[3]
         return '-', '-'
 
@@ -499,8 +510,10 @@ class ISClipped:
 
     # Use hierarchical clustering to cluster close positions in the chromosome.
     def make_gene_side_regions(self):
+        logging.info('Cluster close positions in the chromosome')
+
         # Remove positions close to the IS elements boundaries from the analysis
-        ref_cl_reads = self.blastout_filtered[['sseqid', 'pos_in_ref']]
+        ref_cl_reads = self.blastout_filtered[['sseqid', 'pos_in_ref']].copy()
         ref_cl_reads = ref_cl_reads.rename(columns={'sseqid': 'Chrom', 'pos_in_ref': 'Position'})
         ref_cl_reads['Note'] = ref_cl_reads.apply(
             lambda x: self._check_is_boundary_proximity(x['Chrom'], x['Position'])[0],
@@ -509,7 +522,9 @@ class ISClipped:
         ref_cl_reads = ref_cl_reads[ref_cl_reads['Note'] == '-']
         ref_cl_reads = ref_cl_reads.drop(columns=['Note'])
 
-        ref_cl_reads['Cluster'] = ref_cl_reads.groupby(['Chrom'])['Position']. \
+        ref_cl_reads['Cluster'] = ref_cl_reads. \
+            sort_values(by=['Chrom', 'Position']). \
+            groupby(['Chrom'])['Position']. \
             transform(self._hclust)
 
         ref_regions = ref_cl_reads.groupby(['Cluster', 'Chrom']). \
@@ -530,6 +545,7 @@ class ISClipped:
 
     # Collect reads from reference regions (backwards mapping of clipped reads to their IS elements).
     def crtable_bwds(self, ref_regions):
+        logging.info('Collect clipped reads from the reference location')
         ref_regions.apply(
             lambda x: self._crtable_ungapped(
                 x['Chrom'],
@@ -663,7 +679,7 @@ class ISClipped:
         cluster_ids = np.zeros(len(closeness_matrix))
         cluster_cur_id = 0
         column_index = 0
-        # Itrerate through all closeness_matrix columns or before all left joints will be assigned to clusters.
+        # Itrerate through all closeness_matrix columns or until all left joints will be assigned to clusters.
         while not (column_index >= closeness_matrix.shape[1] or np.all(cluster_ids > 0)):
             # Check if the column not zero (orphan right position).
             if closeness_matrix[:, column_index].any():
@@ -864,6 +880,7 @@ class ISClipped:
     # Count depth at the position using only unclipped reads.
     # Input is a data frame with columns 'Position' and 'Chrom'.
     def count_depth_unclipped(self, position_tbl):
+        logging.info('Count depth attributed to unclipped reads')
         for position in position_tbl.itertuples():
             chrom = position.Chrom
             pos = position.Position
@@ -994,18 +1011,19 @@ class ISClipped:
                                                   self.pairs_df['N_overlap_r']
 
         self.pairs_df['N_clipped_l'] = self.pairs_df['N_clipped_l'] + self.pairs_df['N_clipped_l_correction']
-        self.pairs_df['N_overlap_l'] = self.pairs_df['N_overlap_l'] + self.pairs_df['N_overlap_r_correction']
+        self.pairs_df['N_overlap_l'] = self.pairs_df['N_overlap_l'] + self.pairs_df['N_overlap_l_correction']
         self.pairs_df['N_clipped_r'] = self.pairs_df['N_clipped_r'] + self.pairs_df['N_clipped_r_correction']
         self.pairs_df['N_overlap_r'] = self.pairs_df['N_overlap_r'] + self.pairs_df['N_overlap_r_correction']
 
         self.pairs_df['N_overlap_formula_l'] = self.pairs_df[
             ['N_overlap_l', 'N_clipped_r', 'Position_l', 'Position_r']
         ]. \
-            apply(lambda x: x.N_overlap_l - x.N_clipped_r if x.Position_r > x.Position_l else x.N_overlap_l, axis=1)
+            apply(lambda x: x.N_overlap_l - x.N_clipped_r if x.Position_r > x.Position_l > 0 else x.N_overlap_l, axis=1)
+
         self.pairs_df['N_overlap_formula_r'] = self.pairs_df[
             ['N_overlap_r', 'N_clipped_l', 'Position_l', 'Position_r']
         ]. \
-            apply(lambda x: x.N_overlap_r - x.N_clipped_l if x.Position_r > x.Position_l else x.N_overlap_r, axis=1)
+            apply(lambda x: x.N_overlap_r - x.N_clipped_l if x.Position_r > x.Position_l > 0 else x.N_overlap_r, axis=1)
 
         # Calculate frequency as average between left and right boundaries if present.
         # If not - just by one boundary.
