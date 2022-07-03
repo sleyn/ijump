@@ -156,7 +156,13 @@ def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
         return gff_file.gff_pos[chrom][int((int(pos_1) + int(pos_2)) / 2)][field_ix]
     elif mode == 'precise':
         l_ann = gff_file.gff_pos[chrom][int(pos_1)][field_ix]
-        r_ann = gff_file.gff_pos[chrom][int(pos_1)][field_ix]
+        r_ann = gff_file.gff_pos[chrom][int(pos_2)][field_ix]
+        if pos_1 == 0 and pos_2 > 0:
+            return r_ann
+
+        if pos_2 == 0 and pos_1 > 0:
+            return l_ann
+
         if l_ann == r_ann:
             return l_ann
         else:
