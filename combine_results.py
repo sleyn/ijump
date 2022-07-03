@@ -109,6 +109,38 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
     return summary_table
 
 
+# Make dense summary table
+def make_dense_table(summary_table):
+    summary_table_result = summary_table.copy()
+    # Take observations with both junctions defined
+    complete_juctions = summary_table_result[['Start', 'Stop', 'Chromosome', 'IS Name']].query('Start > 0 & Stop > 0')
+    start_junctions = complete_juctions['Start'].to_list()
+    stop_junctions = complete_juctions['Stop'].to_list()
+    chrom_of_junction = complete_juctions['Chromosome'].to_list()
+    is_names_junctions = complete_juctions['IS Name'].to_list()
+
+    for row in summary_table_result.itertuples():
+        if row[1] > 0 and row[2] == 0:
+            if row[1] in start_junctions:
+                junct_index = start_junctions.index(row[1])
+                if chrom_of_junction[junct_index] == row[3] and is_names_junctions[junct_index] == row[4]:
+                    summary_table_result.loc[row[0], 'Stop'] = stop_junctions[start_junctions.index(row[1])]
+        elif row[1] == 0 and row[2] > 0:
+            if row[2] in start_junctions:
+                junct_index = start_junctions.index(row[2])
+                if chrom_of_junction[junct_index] == row[3] and is_names_junctions[junct_index] == row[4]:
+                    summary_table_result.loc[row[0], 'Start'] = start_junctions[stop_junctions.index(row[2])]
+        else:
+            pass
+
+    summary_table_result = summary_table_result. \
+        groupby(['Start', 'Stop', 'Chromosome', 'IS Name'], as_index=False). \
+        sum()
+
+    return summary_table_result
+
+
+
 # Annotate junctions
 def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
     annotation_fields = {
@@ -167,6 +199,12 @@ def main():
     parser.add_argument('--clonal', action='store_true', help='If set, runs clonal merging')
     parser.add_argument('-a', '--a_samples', nargs='?', default='-',
                         help='Path to folder with unevolved population samples. Used for clonal analysis.')
+    parser.add_argument('--precise_mode', default='dense', help='If "dense" mode selected iJump will try to combine '
+                                                                'and sum observations based on one edge. For example: '
+                                                                'If observation 1 has coordinates 100-105 and other '
+                                                                '100-0 (right junction is undefined) the results will '
+                                                                'be combined. The options are "dense" and "sparse". '
+                                                                'Default: dense')
     args = parser.parse_args()
 
     # Check if correct mode was given.
@@ -183,6 +221,8 @@ def main():
     report_files, a_sample_files, sample_list, a_sample_list = collect_reports(report_dir, args.a_samples, args.clonal)
     # Read all reports and combine them to the summary table
     summary_table = read_reports(report_files, a_sample_files, args.clonal, args.ijump_mode)
+    # On precise dense mode summarize reports
+    summary_table = make_dense_table(summary_table)
     # Add annotations from GFF file
     summary_table = add_gff_annotations(summary_table, args.gff, args.ijump_mode)
 
