@@ -51,7 +51,7 @@ def keep_pair(pair, region_starts, region_ends):
 
 # Filter pairs. Keep a pair if at least one position in pair is in the region interval.
 def filter_pairs(pairs_tbl, region_tbl):
-    logging.info('Filer pairs that do not belong to the regions of interest.')
+    logging.info('Filter pairs that do not belong to the regions of interest.')
     regions_starts = region_tbl['Position_left'].to_numpy()
     regions_ends = region_tbl['Position_right'].to_numpy()
     pairs_tbl_return = pairs_tbl.copy()
@@ -209,8 +209,7 @@ def main():
         # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
         is_processing.search_insert_pos()
 
-        # Filter Junction pairs so at least one of the pair is in the "reference_regions" table
-        # Otherwise we could
+        # Filter Junction pairs so at least one of the pair is in the "reference_regions" table.
         is_processing.pairs_df = filter_pairs(is_processing.pairs_df, reference_regions)
 
         # Count depth of unclipped reads to have a background depth of coverage
@@ -237,6 +236,14 @@ def main():
 
         # Make an estimate of insertion frequency
         is_processing.assess_isel_freq()
+
+        # Test if number of clipped reads expected
+        logging.info('Perform Fisher test to find unexpected clipped reads counts.')
+        is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
+            lambda observation: is_processing.fisher_test_clr_number(observation),
+            axis=1
+        )
+
         is_processing.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
     # Plot circular diagram of insertions
