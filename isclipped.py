@@ -776,7 +776,7 @@ class ISClipped:
         # Collect dataframes for pairs of junctions (or orphan junctions) that should mark IS elements insertions.
         is_pairs_collection = []
 
-        #
+        # Find pairs
         for chrom in position_tbl['Chrom'].drop_duplicates().tolist():
             # Take IS elements only from the selected chromosome.
             position_tbl_chrom = position_tbl.query('Chrom == @chrom')
