@@ -253,8 +253,8 @@ def main():
         )
 
         # Convert coordinates from 0-base to 1-base
-        is_processing['Position_l'] = convert_zero_one_base(is_processing['Position_l'].tolist())
-        is_processing['Position_r'] = convert_zero_one_base(is_processing['Position_r'].tolist())
+        is_processing.pairs_df['Position_l'] = convert_zero_one_base(is_processing.pairs_df['Position_l'].tolist())
+        is_processing.pairs_df['Position_r'] = convert_zero_one_base(is_processing.pairs_df['Position_r'].tolist())
         is_processing.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
     # Plot circular diagram of insertions
