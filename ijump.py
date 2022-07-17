@@ -14,6 +14,9 @@ import sys
 # Check if junctions exist for IS elements
 def check_junctions_presence(junc_tbl, outdir):
     if junc_tbl.size:
+        # Convert from 0-base to 1-base system
+        junc_tbl['IS pos'] += 1
+        junc_tbl['Position'] += 1
         junc_tbl.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
     else:
         logging.info('No junctions was found')
@@ -60,6 +63,11 @@ def filter_pairs(pairs_tbl, region_tbl):
         axis=1
     )
     return pairs_tbl_return[pairs_tbl_return['Keep']].drop(columns=['Keep'])
+
+
+# Convert coordinate system of a list from 0-base to 1-base
+def convert_zero_one_base(coordinates_column):
+    return map(lambda x: x + 1 if x > 0 else 0, coordinates_column)
 
 
 def main():
@@ -244,6 +252,9 @@ def main():
             axis=1
         )
 
+        # Convert coordinates from 0-base to 1-base
+        is_processing['Position_l'] = convert_zero_one_base(is_processing['Position_l'].tolist())
+        is_processing['Position_r'] = convert_zero_one_base(is_processing['Position_r'].tolist())
         is_processing.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
     # Plot circular diagram of insertions

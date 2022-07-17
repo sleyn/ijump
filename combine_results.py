@@ -58,9 +58,9 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
         elif mode == 'precise':
             report_dfs.append(
                 pd.read_csv(report, sep='\t')[
-                    ['Position_l', 'Position_r', 'Chrom', 'IS_name', 'Depth', 'Frequency']].
-                    query('Depth > 10').
-                    drop(columns='Depth').
+                    ['Position_l', 'Position_r', 'Chrom', 'IS_name', 'Depth', 'Frequency', 'Expected_clr_fisher_pvalue']].
+                    query('Depth > 10 & Expected_clr_fisher_pvalue > 0.05').
+                    drop(columns=['Depth', 'Expected_clr_fisher_pvalue']).
                     rename(
                         columns={
                             'Frequency': sample_name,
