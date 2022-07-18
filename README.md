@@ -87,7 +87,7 @@ iJump requires four files for input:
  3. GFF file with reference genome annotations.
  4. BAM file of aligned Illumina reads.
 
-![iJump input and output](https://github.com/sleyn/ijump/tree/master/img/ijump_input.png)
+![iJump input and output](./img/ijump_input.png)
 
 <a name="mecf"></a>
 #### Mobile elements coordinates file
@@ -106,7 +106,7 @@ If you don't have file with coordinates of mobile elements you can:
 
 1) Preferred. Do manual BLAST against standalone ISFinder database. Database could be downloaded from:
 
-- [Author GitHub](https://github.com/thanhleviet/ISfinder-sequences)
+- [ISFinder original GitHub](https://github.com/thanhleviet/ISfinder-sequences)
 - [My Fork](https://github.com/sleyn/ISfinder-sequences) with already built BLASTn database.
 
 Do BLASTn search:
