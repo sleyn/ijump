@@ -22,7 +22,7 @@ where
 	
 	$1 - m_{match} / a_{Rlen}$ - correction for reads that were not mapped to the IS element boundary but present on the insertion side.
 
-![iJump workflow](https://github.com/sleyn/ijump/img/ijump_workflow.png)
+![iJump workflow](../img/ijump_workflow.png)
 
 **NOTE:** The "Average" workflow of iJump do not separate different junction events in one target gene. For example, if IS1 element was inserted in gene X three times in different positions, iJump anyway will show one event of unspecified insertion of IS1 element into gene X with summarized frequency.
 
