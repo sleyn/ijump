@@ -11,12 +11,12 @@ $\frac{\frac{R_l + R_r}{2 * ( 1 + B_{min} / a_{Rlen})}}{D_t * ( 1 - m_{match} / 
 
 where
 
-- *$R_l$* - number of reads that support junction to the target on the "left" side of mobile element
-- *$R_r$* - number of reads that support junction to the target on the "right" side of mobile element
-- *$D_t$* - average depth of caverage of target region
-- *$B_{min}$* - minimum length for unaligned parts that were used in the BLAST step
-- *$a_{Rlen}$* - average read length
-- *$m_{match}$* - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *$m_{match}$* is 30).
+- $R_l$ - number of reads that support junction to the target on the "left" side of mobile element
+- $R_r$ - number of reads that support junction to the target on the "right" side of mobile element
+- $D_t$ - average depth of caverage of target region
+- $B_{min}$ - minimum length for unaligned parts that were used in the BLAST step
+- $a_{Rlen}$ - average read length
+- $m_{match}$ - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *$m_{match}$* is 30).
 
 	$1 + B_{min} / a_{Rlen}$ - correction for reads that were found on the IS element boundary but were not mapped back due to short clipped part.
 	
