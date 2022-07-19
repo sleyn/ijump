@@ -67,7 +67,7 @@ def filter_pairs(pairs_tbl, region_tbl):
 
 # Convert coordinate system of a list from 0-base to 1-base
 def convert_zero_one_base(coordinates_column):
-    return map(lambda x: x + 1 if x > 0 else 0, coordinates_column)
+    return list(map(lambda x: x + 1 if x > 0 else 0, coordinates_column))
 
 
 def main():
