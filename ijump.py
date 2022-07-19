@@ -15,9 +15,10 @@ import sys
 def check_junctions_presence(junc_tbl, outdir):
     if junc_tbl.size:
         # Convert from 0-base to 1-base system
-        junc_tbl['IS pos'] += 1
-        junc_tbl['Position'] += 1
-        junc_tbl.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
+        junc_tbl_copy = junc_tbl.copy()
+        junc_tbl_copy['IS pos'] += 1
+        junc_tbl_copy['Position'] += 1
+        junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
     else:
         logging.info('No junctions was found')
         exit(0)
