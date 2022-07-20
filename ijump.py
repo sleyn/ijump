@@ -15,9 +15,10 @@ import sys
 def check_junctions_presence(junc_tbl, outdir):
     if junc_tbl.size:
         # Convert from 0-base to 1-base system
-        junc_tbl['IS pos'] += 1
-        junc_tbl['Position'] += 1
-        junc_tbl.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
+        junc_tbl_copy = junc_tbl.copy()
+        junc_tbl_copy['IS pos'] += 1
+        junc_tbl_copy['Position'] += 1
+        junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
     else:
         logging.info('No junctions was found')
         exit(0)
@@ -67,7 +68,7 @@ def filter_pairs(pairs_tbl, region_tbl):
 
 # Convert coordinate system of a list from 0-base to 1-base
 def convert_zero_one_base(coordinates_column):
-    return map(lambda x: x + 1 if x > 0 else 0, coordinates_column)
+    return list(map(lambda x: x + 1 if x > 0 else 0, coordinates_column))
 
 
 def main():
@@ -246,11 +247,11 @@ def main():
         is_processing.assess_isel_freq()
 
         # Test if number of clipped reads expected
-        logging.info('Perform Fisher test to find unexpected clipped reads counts.')
-        is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
-            lambda observation: is_processing.fisher_test_clr_number(observation),
-            axis=1
-        )
+        # logging.info('Perform Fisher test to find unexpected clipped reads counts.')
+        # is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
+        #     lambda observation: is_processing.fisher_test_clr_number(observation),
+        #     axis=1
+        # )
 
         # Convert coordinates from 0-base to 1-base
         is_processing.pairs_df['Position_l'] = convert_zero_one_base(is_processing.pairs_df['Position_l'].tolist())
