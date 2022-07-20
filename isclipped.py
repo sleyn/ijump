@@ -923,6 +923,15 @@ class ISClipped:
         if sum_clr_count_at_jnc - sum_clr_mapped_to_is < 0:
             return 0
 
+        # Contingency table:
+        # [[(a), (c)]
+        #  [(b), (d)]]
+        # (a) Number of clipped reads mapped to the IS element
+        # (b) Number of clipped reads that were not mapped to IS element but found at insertion position
+        # (c) Estimated number of reads mapped to the IS element
+        # (d) Estimated number of reads not mapped to the IS element
+        # As we test if indels account to the significant portion of clipped reads we expect
+        # (a) to be smaller than expected
         contingency_table = np.array(
             [
                 [sum_clr_mapped_to_is, sum_clr_count_at_jnc * (1 - self.min_match / self.av_read_len)],

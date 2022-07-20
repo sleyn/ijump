@@ -247,11 +247,11 @@ def main():
         is_processing.assess_isel_freq()
 
         # Test if number of clipped reads expected
-        logging.info('Perform Fisher test to find unexpected clipped reads counts.')
-        is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
-            lambda observation: is_processing.fisher_test_clr_number(observation),
-            axis=1
-        )
+        # logging.info('Perform Fisher test to find unexpected clipped reads counts.')
+        # is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
+        #     lambda observation: is_processing.fisher_test_clr_number(observation),
+        #     axis=1
+        # )
 
         # Convert coordinates from 0-base to 1-base
         is_processing.pairs_df['Position_l'] = convert_zero_one_base(is_processing.pairs_df['Position_l'].tolist())
