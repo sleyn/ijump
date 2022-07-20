@@ -183,8 +183,8 @@ BAM file with aligned short reads. BAM file should contain soft-slipped reads. O
 ### Run iJump
 
 iJump has two workflows:
-1. "Average". iJump estimates frequency of IS element insertions in genes or intergenic region based on average coverage of the gene. This workflow is original and made to estimate the case of very heterogeneous populations. This workflow has low accuracy. However it has a good sensistivity.
-2. "Precise". iJump will try to localize insertion coordinates first and then estimate frequency of insertion in population. Less tested but logically more correct.
+1. ["Average"](./docs/Average.md). iJump estimates frequency of IS element insertions in genes or intergenic region based on average coverage of the gene. This workflow is original and made to estimate the case of very heterogeneous populations. This workflow has low accuracy. However it has a good sensistivity.
+2. ["Precise"](./docs/Precise.md). iJump will try to localize insertion coordinates first and then estimate frequency of insertion in population. Less tested but logically more correct.
 
 Example of "Average" workflow:
 ```
@@ -235,4 +235,53 @@ optional arguments:
                         number of clipped reads. Or 'precise' - iJump will try
                         to separate each insertion event.
   --version             Print iJump version and exit.
+```
+
+### Compare samples
+
+If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
+
+```
+python3 combibe_results.py -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
+```
+
+This will merge all results in one table.
+
+Available parameters:
+
+```
+python3  combine_results.py -h
+usage: combine_results.py [-h] [-d DIR_REPORT] [-o OUTPUT] [-g [GFF]]
+                          [-p PREFIX] [-m IJUMP_MODE] [--lab_format]
+                          [--clonal] [-a [A_SAMPLES]]
+                          [--precise_mode PRECISE_MODE]
+
+Tool that combines ijump reports from several files into one summary table
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DIR_REPORT, --dir_report DIR_REPORT
+                        Directory with report files
+  -o OUTPUT, --output OUTPUT
+                        Output table file
+  -g [GFF], --gff [GFF]
+                        Path to gff file
+  -p PREFIX, --prefix PREFIX
+                        If set would be used as prefix
+  -m IJUMP_MODE, --ijump_mode IJUMP_MODE
+                        Variant of iiJump pipeline: "average" or "precise".
+                        Default: "average"
+  --lab_format          If set, output internal laboratory
+  --clonal              If set, runs clonal merging
+  -a [A_SAMPLES], --a_samples [A_SAMPLES]
+                        Path to folder with unevolved population samples. Used
+                        for clonal analysis.
+  --precise_mode PRECISE_MODE
+                        If "dense" mode selected iJump will try to combine and
+                        sum observations based on one edge. For example: If
+                        observation 1 has coordinates 100-105 and other 100-0
+                        (right junction is undefined) the results will be
+                        combined. The options are "dense" and "sparse".
+                        Default: dense
+
 ```

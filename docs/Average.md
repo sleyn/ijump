@@ -7,7 +7,7 @@ In general workflow is following:
 4. Find best hits with >90% identity to the reference with unique highest bitscore. If two ore more hits share the same bit score - the junction considered as ambigious and skipped. Usually this is happening because aligner map reads to several copies of mobile element.
 5. Assess frequency of insertion by simple formula:
 
-$\frac{\frac{R_l + R_r}{2 * ( 1 + B_{min} / a_{Rlen})}}{D_t * ( 1 - m_{match} / a_{Rlen} )}$
+$\frac{\frac{R_l + R_r}{2 * ( 1 + B_{min} / a_{rlen})}}{D_t * ( 1 - m_{match} / a_{rlen} )}$
 
 where
 
@@ -15,12 +15,12 @@ where
 - $R_r$ - number of reads that support junction to the target on the "right" side of mobile element
 - $D_t$ - average depth of caverage of target region
 - $B_{min}$ - minimum length for unaligned parts that were used in the BLAST step
-- $a_{Rlen}$ - average read length
+- $a_{rlen}$ - average read length
 - $m_{match}$ - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *$m_{match}$* is 30).
 
-	$1 + B_{min} / a_{Rlen}$ - correction for reads that were found on the IS element boundary but were not mapped back due to short clipped part.
+	$1 + B_{min} / a_{rlen}$ - correction for reads that were found on the IS element boundary but were not mapped back due to short clipped part.
 	
-	$1 - m_{match} / a_{Rlen}$ - correction for reads that were not mapped to the IS element boundary but present on the insertion side.
+	$1 - m_{match} / a_{rlen}$ - correction for reads that were not mapped to the IS element boundary but present on the insertion side.
 
 ![iJump workflow](../img/ijump_workflow.png)
 
@@ -32,40 +32,40 @@ where
 
 Contains information about junctions for each read. File contains following columns:
 
-* index  
+* *index*  
 	 order number
 
-* ID  
+* *ID*  
 	 unique identifier
 
-* IS name  
+* *IS name*  
 	 mobile element name
 
-* IS pos  
+* *IS pos*  
 	 what part of the read matches mobile element
 
-* IS chrom  
+* *IS chrom*  
 	 name of contig where mobile element is located in the reference
 
-* Read name  
-	 read name where jubction was observed
+* *Read name*
+	 read name where junction was observed
 
-* Chrom  
+* *Chrom*  
 	 name of contig where mobile element jumped
 
-* Position  
-	 posistion of the junction
+* *Position*
+	 position of the junction
 
-* Orientation  
+* *Orientation*  
 	 orientation of mobile element relative to junction
 
-* Note  
+* *Note*  
 	 mark if junction is in other mobile elements - usually indicates false positive hits
 
-* Locus tag  
+* *Locus tag*
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
 
-* Gene  
+* *Gene*  
 	 trivial name of the affected gene
 
 #### ijump_report_by_is_reg.txt
@@ -73,52 +73,44 @@ Contains information about junctions for each read. File contains following colu
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
 File contains following columns:
-* IS Name  
+* *IS Name*  
 	 mobile element name
 
-* Annotation  
+* *Annotation*  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
 
-* Chromosome  
+* *Chromosome*  
 	 name of contig where affected region is located
 
-* Start  
+* *Start*
 	 start coordinate of affected region
 
-* Stop  
+* *Stop*  
 	 end coordinate of affected region
 
-* Frequency  
+* *Frequency*  
 	 estimated frequency of the mobile element jumps into a genomic region
 
-* Depth  
+* *Depth*  
 	 average coverage of the genomic region
-
-If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
-
-```
-python3 combibe_results.py -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
-```
-
-This will merge all results in one table.
 
 #### ijump_sum_by_reg.txt
 
 Wide format of frequency estimation. Table shows raw counts of reads that support junctions instead of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
-* ann  
+* *ann*  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_   
 
-* chrom  
+* *chrom*  
 	 name of contig where affected region is located
 
-* start  
+* *start*
 	 start coordinate of affected region
 
-* stop  
+* *stop*  
 	 end coordinate of affected region
 
-* mobile element names  
+* *mobile element names*  
 	 raw reads that support junctions
 
 #### CIRCOS files
@@ -132,7 +124,7 @@ circos -config ./data/circos.conf
 
 ## Simulation test
 
-To assess accuracy of iJump the defined community was simulated. Simulated data mimics several jumps of one of the copy of IS5 element (has several copies in the genome) in Escherichia coli BW25113 genome. The scripts and auxillary files can be found in the **simulation** folder.
+To assess accuracy of iJump we simulated a defined populatin. Simulated data mimics several jumps of one of the copy of IS5 element (has several copies in the genome) in Escherichia coli BW25113 genome. The scripts and auxillary files can be found in the **simulation** folder.
 
 The setup of this computational experiment is following:
 
