@@ -47,54 +47,54 @@ The algorithm is following:
 
 The main results output. File contains information about insertions. File contains following columns:
 
-* *Position_[l|r]*
-    junction coordinate
+* *Position_[l|r]*<br>
+	junction coordinate
 
-* *Chrom*
-    contig name where junction was found
+* *Chrom*<br>
+    	contig name where junction was found
 
-* *Count_mapped_to_IS_[l|r]*
-    number of reads that support junction to the IS elements
+* *Count_mapped_to_IS_[l|r]*<br>
+    	number of reads that support junction to the IS elements
 
-* *IS_name*
+* *IS_name*<br>
     name of the IS element
   
-* *N_clipped_[l|r]*
+* *N_clipped_[l|r]*<br>
     number of clipped reads supporting junction
   
-* *N_clipped_[l|r]_corrected*
+* *N_clipped_[l|r]_corrected*<br>
     number of clipped reads corrected by loss of reads that were not mapped due to the small clipped part
   
-* *N_clipped_[l|r]_correction*
+* *N_clipped_[l|r]_correction*<br>
     estimated number of clipped reads not mapped to the junction coordinate
   
-* *Depth*
-    average depth at junction coordinates
+* *Depth*<br>
+    average depth at junction coordinates<br>
     If only one coordinate is present - the value is the depth at this coordinate.
 
-* *Dist*
+* *Dist*<br>
     distance between junctions
 
-* *N_overlap_formula_[l|r]*
-    a number of clipped reads that are ovelapped with junction position but have another junction coordinate used for frequency estimation.
+* *N_overlap_formula_[l|r]*<br>
+    a number of clipped reads that are ovelapped with junction position but have another junction coordinate used for frequency estimation.<br>
     Different from *N_overlap_[l|r]* as it is equal *N_overlap_[l|r]_corrected - N_clipped_[l|r]_corrected* *Position_r > x.Position_l* and *N_overlap_[l|r]_corrected* otherwise.
 
-* *N_overlap_[l|r]*
+* *N_overlap_[l|r]*<br>
     a number of clipped reads that are ovelapped with junction position but have another junction coordinate
 
-* *N_overlap_[l|r]_corrected*
+* *N_overlap_[l|r]_corrected*<br>
     *N_overlap_[l|r]* corrected by loss of reads that were not mapped due to the small clipped part
 
-* *N_overlap_[l|r]_correction*
+* *N_overlap_[l|r]_correction*<br>
     estimated number of clipped reads not mapped to the region that would overlap with junction
 
-* *N_unclipped_[l|r]*
+* *N_unclipped_[l|r]*<br>
     number of not clipped reads that overlap with junction 
   
-* *Frequency*
+* *Frequency*<br>
     estimated frequency of insertion
   
-* *Frequency_[l|r]*
+* *Frequency_[l|r]*<br>
     estimated frequency of insertion for each junction
 
 
