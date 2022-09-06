@@ -14,11 +14,12 @@ import sys
 
 
 # Check if junctions exist for IS elements
-def check_junctions_presence(junc_tbl, outdir):
+def check_junctions_presence(junc_tbl, outdir, est_mode):
     if junc_tbl.size:
         # Convert from 0-base to 1-base system
         junc_tbl_copy = junc_tbl.copy()
-        junc_tbl_copy['IS pos'] += 1
+        if est_mode == 'presice':
+            junc_tbl_copy['IS pos'] += 1
         junc_tbl_copy['Position'] += 1
         junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
     else:
@@ -178,7 +179,7 @@ def main():
         is_processing.call_junctions(1)
 
         # Check if any junction is present. If not - stop the workflow.
-        check_junctions_presence(is_processing.junctions, args.outdir)
+        check_junctions_presence(is_processing.junctions, args.outdir, args.estimation_mode)
 
         # Count reads supporting IS elements insertions for each IS element and each GE
         is_processing.sum_by_reg_tbl_init()
@@ -215,7 +216,7 @@ def main():
         is_processing.call_junctions(0)
 
         # Check if any junction is present. If not - stop the workflow.
-        check_junctions_presence(is_processing.junctions, args.outdir)
+        check_junctions_presence(is_processing.junctions, args.outdir, args.estimation_mode)
 
         # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
         is_processing.search_insert_pos()
