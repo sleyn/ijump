@@ -168,7 +168,7 @@ def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
         if l_ann == r_ann:
             return l_ann
         else:
-            return f'{l_ann} <> {r_ann}'
+            return f'{l_ann} ; {r_ann}'
 
 
 # Add GFF annotations.
