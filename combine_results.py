@@ -241,7 +241,11 @@ def main():
         summary_table = summary_table.query('MAX > 0').copy()
 
         # Initiate list for column names.
-        cols = ['Start', 'Stop', 'ID', 'Gene', 'Mutation']
+        if args.ijump_mode == 'precise':
+            cols = ['Start', 'Stop']
+        else:
+            cols = []
+        cols.extend(['ID', 'Gene', 'Mutation'])
 
         if not args.lab_format:
             cols.extend(sample_list)
