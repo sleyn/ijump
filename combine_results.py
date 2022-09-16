@@ -230,7 +230,8 @@ def main():
     # Read all reports and combine them to the summary table
     summary_table = read_reports(report_files, a_sample_files, args.clonal, args.ijump_mode)
     # On precise dense mode summarize reports
-    summary_table = make_dense_table(summary_table)
+    if args.ijump_mode == 'precise':
+        summary_table = make_dense_table(summary_table)
     # Add annotations from GFF file
     summary_table = add_gff_annotations(summary_table, args.gff, args.ijump_mode)
 
