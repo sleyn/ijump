@@ -328,7 +328,7 @@ def main():
             # Write selected (Frequency >= 1%) IS insertions variant table to file.
             out_file_sel_collapsed = '_'.join(
                 [part for part in [args.prefix, 'selected_collapsed', path.basename(out_file)] if part])
-            summary_table_collapsed.query('MAX >= 0.01').to_csv(
+            summary_table_collapsed[cols].query('MAX >= 0.01').to_csv(
                 path.join(path.dirname(out_file), out_file_sel_collapsed),
                 sep='\t',
                 index=False)
