@@ -12,10 +12,11 @@ import subprocess
 import logging
 import sys
 
+
 # Check if any clipped reads are present
-def check_clipped_reads_presence(cl_table):
+def check_data_presence_in_df(cl_table, message):
     if cl_table.size == 0:
-        logging.info('No clipped reads were found')
+        logging.info(message)
         exit(0)
 
 # Check if junctions exist for IS elements
@@ -169,7 +170,7 @@ def main():
     is_processing.collect_clipped_reads()
     is_processing.clipped_reads = pd.DataFrame.from_dict(is_processing.clipped_reads_dict, "index")
     # If clipped reads will not be found -> exit
-    check_clipped_reads_presence(is_processing.clipped_reads)
+    check_data_presence_in_df(is_processing.clipped_reads, 'No clipped reads were found.')
     is_processing.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=False)
 
     # Run BLAST to search insertion positions in Reference.
@@ -230,6 +231,9 @@ def main():
 
         # Filter Junction pairs so at least one of the pair is in the "reference_regions" table.
         is_processing.pairs_df = filter_pairs(is_processing.pairs_df, reference_regions)
+
+        # Check if any pair was produced
+        check_data_presence_in_df(is_processing.pairs_df, 'No pairs were found.')
 
         # Count depth of unclipped reads to have a background depth of coverage
         # Preparation.
