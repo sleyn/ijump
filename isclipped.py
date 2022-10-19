@@ -442,7 +442,13 @@ class ISClipped:
     # direction: 1=>IS->Ref, 0=>Ref->IS. For Ref->IS we don't need to remove duplicates, we need only one of them
     def parseblast(self, blast_out_file, direction):
         logging.info('Collect information from BLAST')
-        blast_out = pd.read_csv(os.path.join(self.workdir, blast_out_file), sep='\t')
+        blast_out_path = os.path.join(self.workdir, blast_out_file)
+        # Check if Blast is not empty
+        if os.path.isfile(blast_out_path) and os.path.getsize(blast_out_path) > 0:
+            blast_out = pd.read_csv(blast_out_path, sep='\t')
+        else:
+            logging.info('No BLAST hits were found.')
+            exit(0)
 
         blast_out.columns = ['qseqid',
                              'sseqid',
