@@ -12,6 +12,11 @@ import subprocess
 import logging
 import sys
 
+# Check if any clipped reads are present
+def check_clipped_reads_presence(cl_table):
+    if cl_table.size == 0:
+        logging.info('No clipped reads were found')
+        exit(0)
 
 # Check if junctions exist for IS elements
 def check_junctions_presence(junc_tbl, outdir, est_mode):
@@ -160,9 +165,11 @@ def main():
     # Set area to search for clipped reads.
     is_processing.set_is_boundaries(args.radius)
 
-    # Collect clipped reads inforamtion.
+    # Collect clipped reads information.
     is_processing.collect_clipped_reads()
     is_processing.clipped_reads = pd.DataFrame.from_dict(is_processing.clipped_reads_dict, "index")
+    # If clipped reads will not be found -> exit
+    check_clipped_reads_presence(is_processing.clipped_reads)
     is_processing.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=False)
 
     # Run BLAST to search insertion positions in Reference.
