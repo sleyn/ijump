@@ -119,7 +119,7 @@ def main():
     root_logger.addHandler(console_handler)
 
     # Print iJump version.
-    version = '1.0'
+    version = '1.0.2'
     logging.info(f'iJump v.{version}\n')
     logging.info(f'author: Semion Leyn')
     logging.info(f'Please ask questions and report issues on GitHub page of the project:')
