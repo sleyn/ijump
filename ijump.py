@@ -119,7 +119,7 @@ def main():
     root_logger.addHandler(console_handler)
 
     # Print iJump version.
-    version = '1.0.2'
+    version = '1.0.3'
     logging.info(f'iJump v.{version}\n')
     logging.info(f'author: Semion Leyn')
     logging.info(f'Please ask questions and report issues on GitHub page of the project:')
@@ -215,6 +215,8 @@ def main():
         is_processing.clipped_reads_bwrd = pd.DataFrame.from_dict(is_processing.clipped_reads_bwrd_dict, "index")
 
         # Run BLAST to search for positions of found reads.
+        check_data_presence_in_df(is_processing.clipped_reads_bwrd, 'No clipped reads were found '
+                                                                    'near estimated insertion sites.')
         is_processing.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
 
         # Collect BLAST results.
