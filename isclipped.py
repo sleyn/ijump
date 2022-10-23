@@ -528,6 +528,10 @@ class ISClipped:
         )
         ref_cl_reads = ref_cl_reads[ref_cl_reads['Note'] == '-']
         ref_cl_reads = ref_cl_reads.drop(columns=['Note'])
+        # If no hits point outside IS elements boudaries there is no insertions to find
+        if ref_cl_reads.size == 0:
+            logging.info("No BLAST hits point oustide IS elements. No significant new insertions could be found.")
+            exit(0)
 
         ref_cl_reads['Cluster'] = ref_cl_reads. \
             sort_values(by=['Chrom', 'Position']). \
@@ -544,7 +548,10 @@ class ISClipped:
         # Extend regions by 5nt if possible
         ref_regions['Position_left'] = ref_regions['Position_left']. \
             apply(lambda x: max(x - 5, 0))
-
+        
+        # !!!!!!!!!!debugging
+        import pdb
+        pdb.set_trace()
         ref_regions['Position_right'] = ref_regions. \
             apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
 
