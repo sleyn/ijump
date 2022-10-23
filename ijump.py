@@ -275,7 +275,7 @@ def main():
         is_processing.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
     # Plot circular diagram of insertions
-    if args.circos is True and args.estimation_mode == 'precise':
+    if args.circos is True and args.estimation_mode == 'average':
         is_processing.create_circos_files()
 
 
