@@ -549,9 +549,6 @@ class ISClipped:
         ref_regions['Position_left'] = ref_regions['Position_left']. \
             apply(lambda x: max(x - 5, 0))
         
-        # !!!!!!!!!!debugging
-        import pdb
-        pdb.set_trace()
         ref_regions['Position_right'] = ref_regions. \
             apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
 
