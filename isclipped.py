@@ -493,6 +493,10 @@ class ISClipped:
         # Check if temp has any entries.
         if temp.size:
             temp['pos_in_ref'] = temp['pos_in_ref'].astype(int)
+        else:
+            logging.info('No significant BLAST hits.')
+            exit(0)
+
         self.blastout_filtered = temp
 
     # Check if position close to the IS element
@@ -548,10 +552,7 @@ class ISClipped:
         # Extend regions by 5nt if possible
         ref_regions['Position_left'] = ref_regions['Position_left']. \
             apply(lambda x: max(x - 5, 0))
-        
-        # !!!!!!!!!!debugging
-        import pdb
-        pdb.set_trace()
+
         ref_regions['Position_right'] = ref_regions. \
             apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
 
