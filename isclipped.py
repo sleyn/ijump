@@ -18,7 +18,7 @@ import logging
 
 # specify class for clipped reads
 class ISClipped:
-    def __init__(self, aln, ref_name, gff_name, workdir):
+    def __init__(self, aln, ref_name, gff_name, workdir='ijump_wd', pairs_df_path='ijump_junction_pairs.txt'):
         # Input files:
         # pysam file
         self.aln = aln
@@ -30,6 +30,9 @@ class ISClipped:
         self.gff = gff.gff(self.gff_name)
         # Work directory directory
         self.workdir = workdir
+        # Path to the output pairs table.
+        # In case of preliminary exit an empty table will be generated.
+        self.pairs_df_path = pairs_df_path
 
         # Tables:
         # Clipped reads from the forward search (IS -> Ref_genome)
@@ -126,6 +129,40 @@ class ISClipped:
              'Count_mapped_to_IS_l': [0],
              'Count_mapped_to_IS_r': [0],
              'Chrom': ['-']
+             }
+        )
+
+    # Generate an empty output table
+    @staticmethod
+    def pairs_table_empty():
+        return pd.DataFrame(
+            {'Position_l': [],
+             'Position_r': [],
+             'Count_mapped_to_IS_l': [],
+             'Count_mapped_to_IS_r': [],
+             'Chrom': [],
+             'IS_name': [],
+             'Dist': [],
+             'N_unclipped_l': [],
+             'N_clipped_l': [],
+             'N_unclipped_r': [],
+             'N_clipped_r': [],
+             'N_overlap_l': [],
+             'N_overlap_r': [],
+             'N_clipped_l_correction': [],
+             'N_clipped_r_correction': [],
+             'N_overlap_l_correction': [],
+             'N_overlap_r_correction': [],
+             'N_clipped_l_corrected': [],
+             'N_overlap_l_corrected': [],
+             'N_clipped_r_corrected': [],
+             'N_overlap_r_corrected': [],
+             'N_overlap_formula_l': [],
+             'N_overlap_formula_r': [],
+             'Frequency_l': [],
+             'Frequency_r': [],
+             'Frequency': [],
+             'Depth': []
              }
         )
 
@@ -448,6 +485,8 @@ class ISClipped:
             blast_out = pd.read_csv(blast_out_path, sep='\t')
         else:
             logging.info('No BLAST hits were found.')
+            pairs_df = self.pairs_table_empty()
+            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
             exit(0)
 
         blast_out.columns = ['qseqid',
@@ -495,6 +534,8 @@ class ISClipped:
             temp['pos_in_ref'] = temp['pos_in_ref'].astype(int)
         else:
             logging.info('No significant BLAST hits.')
+            pairs_df = self.pairs_table_empty()
+            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
             exit(0)
 
         self.blastout_filtered = temp
@@ -535,6 +576,8 @@ class ISClipped:
         # If no hits point outside IS elements boudaries there is no insertions to find
         if ref_cl_reads.size == 0:
             logging.info("No BLAST hits point oustide IS elements. No significant new insertions could be found.")
+            pairs_df = self.pairs_table_empty()
+            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
             exit(0)
 
         ref_cl_reads['Cluster'] = ref_cl_reads. \

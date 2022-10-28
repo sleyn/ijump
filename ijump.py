@@ -6,17 +6,29 @@ import argparse
 import pandas as pd
 import numpy as np
 import pysam
+
 from isclipped import ISClipped
 import re
 import subprocess
 import logging
 import sys
 
+# Define a path to output directory that will be available to all functions.
+# Required to be global as it will be used to generate output in case of preliminary exit
+output_dir = '.'
+
+
+# Output empty pairs table
+def empty_pairs_out():
+    pairs_df = ISClipped.pairs_table_empty()
+    pairs_df.to_csv(os.path.join(output_dir, "ijump_junction_pairs.txt"), sep='\t', index=False)
+    return 0
 
 # Check if any clipped reads are present
 def check_data_presence_in_df(cl_table, message):
     if cl_table.size == 0:
         logging.info(message)
+        empty_pairs_out()
         exit(0)
 
 # Check if junctions exist for IS elements
@@ -30,6 +42,7 @@ def check_junctions_presence(junc_tbl, outdir, est_mode):
         junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
     else:
         logging.info('No junctions was found')
+        empty_pairs_out()
         exit(0)
 
 
@@ -101,16 +114,19 @@ def main():
     parser.add_argument('--version', action='store_true', help='Print iJump version and exit.')
     args = parser.parse_args()
 
+    global output_dir
+    output_dir = args.outdir
+
     # Make output directory if not exists.
-    if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # Initialize logger.
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter("%(levelname)s: %(asctime)s - %(message)s")
 
-    file_handler = logging.FileHandler(os.path.join(args.outdir, 'ijump.log'))
+    file_handler = logging.FileHandler(os.path.join(output_dir, 'ijump.log'))
     file_handler.setFormatter(log_formatter)
     root_logger.addHandler(file_handler)
 
@@ -158,7 +174,7 @@ def main():
 
     # Process alignment to estimate IS elements frequencies.
     # Initialize new instance of ISClipped class object.
-    is_processing = ISClipped(alignment, reference, gff, args.wd)
+    is_processing = ISClipped(alignment, reference, gff, args.wd, os.path.join(output_dir, "ijump_junction_pairs.txt"))
 
     # Collect IS coordinates from IS file.
     is_processing.iscollect(is_file)
@@ -171,7 +187,7 @@ def main():
     is_processing.clipped_reads = pd.DataFrame.from_dict(is_processing.clipped_reads_dict, "index")
     # If clipped reads will not be found -> exit
     check_data_presence_in_df(is_processing.clipped_reads, 'No clipped reads were found.')
-    is_processing.clipped_reads.to_csv(os.path.join(args.outdir, "reads.txt"), sep='\t', index=False)
+    is_processing.clipped_reads.to_csv(os.path.join(output_dir, "reads.txt"), sep='\t', index=False)
 
     # Run BLAST to search insertion positions in Reference.
     # 1 - search in IS->Reference direction.
@@ -187,19 +203,19 @@ def main():
         is_processing.call_junctions(1)
 
         # Check if any junction is present. If not - stop the workflow.
-        check_junctions_presence(is_processing.junctions, args.outdir, args.estimation_mode)
+        check_junctions_presence(is_processing.junctions, output_dir, args.estimation_mode)
 
         # Count reads supporting IS elements insertions for each IS element and each GE
         is_processing.sum_by_reg_tbl_init()
         # Reformat GFF representation
         is_processing.gff.pos_to_ann()
         is_processing.summary_junctions_by_region()
-        is_processing.sum_by_region.to_csv(os.path.join(args.outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
+        is_processing.sum_by_region.to_csv(os.path.join(output_dir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
 
         # Make a report table of assessed insertion frequencies in each GE
         is_processing.report_table_init()
         is_processing.report_average()
-        is_processing.report_table.to_csv(os.path.join(args.outdir, "ijump_report_by_is_reg.txt"), sep='\t',
+        is_processing.report_table.to_csv(os.path.join(output_dir, "ijump_report_by_is_reg.txt"), sep='\t',
                                           index=False)
     elif args.estimation_mode == 'precise':
         # Make table of regions in the reference genome where extract clipped reads for backwards assignment
@@ -226,7 +242,7 @@ def main():
         is_processing.call_junctions(0)
 
         # Check if any junction is present. If not - stop the workflow.
-        check_junctions_presence(is_processing.junctions, args.outdir, args.estimation_mode)
+        check_junctions_presence(is_processing.junctions, output_dir, args.estimation_mode)
 
         # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
         is_processing.search_insert_pos()
@@ -272,7 +288,7 @@ def main():
         # Convert coordinates from 0-base to 1-base
         is_processing.pairs_df['Position_l'] = convert_zero_one_base(is_processing.pairs_df['Position_l'].tolist())
         is_processing.pairs_df['Position_r'] = convert_zero_one_base(is_processing.pairs_df['Position_r'].tolist())
-        is_processing.pairs_df.to_csv(os.path.join(args.outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
+        is_processing.pairs_df.to_csv(os.path.join(output_dir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
     # Plot circular diagram of insertions
     if args.circos is True and args.estimation_mode == 'average':
