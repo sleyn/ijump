@@ -1,10 +1,10 @@
-# iJump -test
+# iJump
 
 <img src="./img/logo/logo1.png" width="100" height="120">
 
 Software for search of Insertion Sequences (IS) rearrangements in evolved population sequencing data.
 *Program is in a development stage, and I will appreciate any feedback.*
-Ss
+
 **iJump** searches for IS elements rearrangements in evolved populations of single organism and estimates what fraction of a population is affected by the rearrangement. iJump uses soft-clipped reads to find evidense for rearrangements. 
 
 **NOTE:** Working with short-read-only assembled genomes is difficult with iJump. The reason is that usually IS elements are repetitive regions which are difficult to resolve for assemblers. This often result in shreading IS elements to several/many sometimes overlapped short contigs. This introduces difficulty either for boundaries determination and for mapping algorithms.
