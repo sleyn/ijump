@@ -129,7 +129,7 @@ def make_dense_table(summary_table):
                     summary_table_result.loc[row[0], 'Stop'] = stop_junctions[start_junctions.index(row[1])]
         elif row[1] == 0 and row[2] > 0:
             if row[2] in stop_junctions:
-                junct_index = start_junctions.index(row[2])
+                junct_index = stop_junctions.index(row[2])
                 if chrom_of_junction[junct_index] == row[3] and is_names_junctions[junct_index] == row[4]:
                     summary_table_result.loc[row[0], 'Start'] = start_junctions[stop_junctions.index(row[2])]
         else:
