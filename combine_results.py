@@ -194,6 +194,26 @@ def add_gff_annotations(summary_table, gff_file_path, mode):
     return summary_table
 
 
+def create_empty_output(samples, a_samples):
+    col_names = ['Start', 'Stop', 'ID', 'Gene','Mutation']
+    if len(samples) > 0:
+        col_names.extend(samples)
+    col_names.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
+    if len(a_samples) > 0:
+        col_names.extend(a_samples)
+        col_names.extend(['A_MAX'])
+    return pd.DataFrame(columns=col_names)
+
+
+def make_selected_outfile(prefix, out_file):
+    return '_'.join(
+        [part for part in [prefix, 'selected_collapsed', path.basename(out_file)] if part])
+
+
+def make_full_outfile(prefix, out_file):
+    return '_'.join([part for part in [prefix, path.basename(out_file)] if part])
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Tool that combines ijump reports from several files into one summary table')
@@ -239,6 +259,26 @@ def main():
         # Add maximum observed frequency.
         summary_table['MAX'] = summary_table[sample_list].apply(max, axis=1)
         summary_table = summary_table.query('MAX > 0').copy()
+        if summary_table.shape[0] == 0:
+            print('No sample has IS elements rearrangement')
+            empty_out = create_empty_output(samples=sample_list, a_samples=a_sample_list)
+            empty_out.to_csv(
+                path.join(
+                    path.dirname(out_file),
+                    make_selected_outfile(args.prefix, out_file)
+                ),
+                sep='\t',
+                index=False)
+
+            empty_out.to_csv(
+                path.join(
+                    path.dirname(out_file),
+                    make_full_outfile(args.prefix, out_file)
+                ),
+                sep='\t',
+                index=False
+            )
+            exit(0)
 
         # Initiate list for column names.
         if args.ijump_mode == 'precise':
@@ -326,19 +366,20 @@ def main():
                     index=False)
 
             # Write selected (Frequency >= 1%) IS insertions variant table to file.
-            out_file_sel_collapsed = '_'.join(
-                [part for part in [args.prefix, 'selected_collapsed', path.basename(out_file)] if part])
             summary_table_collapsed[cols].query('MAX >= 0.01').to_csv(
-                path.join(path.dirname(out_file), out_file_sel_collapsed),
+                path.join(
+                    path.dirname(out_file),
+                    make_selected_outfile(args.prefix, out_file)
+                ),
                 sep='\t',
                 index=False)
 
         # Write full IS insertions variant table to file.
-        out_file_full = '_'.join([part for part in [args.prefix, path.basename(out_file)] if part])
         summary_table[cols].to_csv(
             path.join(
                 path.dirname(out_file),
-                out_file_full),
+                make_full_outfile(args.prefix, out_file)
+            ),
             sep='\t',
             index=False
         )
