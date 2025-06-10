@@ -73,7 +73,9 @@ conda install \
 <a name="docker"></a>
 ### Docker
 
-**----IN DEVELOPMENT----**
+```
+docker push semenleyn/ijump:latest
+```
 
 <a name="usage"></a>
 ## Usage
