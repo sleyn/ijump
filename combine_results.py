@@ -234,6 +234,7 @@ def main():
                                                                 'be combined. The options are "dense" and "sparse". '
                                                                 'Default: dense')
     args = parser.parse_args()
+    a_pop_samples = []
 
     # Check if correct mode was given.
     if args.ijump_mode not in ['average', 'precise']:
