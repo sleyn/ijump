@@ -7,28 +7,29 @@ With the "Precise" workflow iJump tries to find the precise location of IS eleme
 The algorithm is following:
 
 1. Make a forward search of insertions:
-    a. Collect clipped reads near the boundaries of IS elements using provided IS elements coordinates.
-    b. BLAST clipped parts of the reads against reference genome (parts of the reads that are not aligned to the reference).
-    c. Collect positions of junctions from hits if:
+    1. Collect clipped reads near the boundaries of IS elements using provided IS elements coordinates.
+    2. BLAST clipped parts of the reads against reference genome (parts of the reads that are not aligned to the reference).
+    3. Collect positions of junctions from hits if:<br>
         - Hit is a single best (filter out repeat regions).
         - Hit is NOT NEAR any IS elements boundaries.
-2. Make a reverse search:
-    a. Collect clipped reads near found positions of junctions.
-    b. BLAST clipped parts of the reads against reference genome.
-    c. Collect positions of junctions from hits if:
+   
+3. Make a reverse search:
+    1. Collect clipped reads near found positions of junctions.
+    2. BLAST clipped parts of the reads against reference genome.
+    3. Collect positions of junctions from hits if:
         - Hit is a single best (filter out repeat regions).
         - Hit is NEAR any IS elements boundaries.
-    d. Using this information assign IS elements back to the reads. 
-3. For each IS element if it is possible find a pair of junctions positions to the left and right part of the IS element that have:
-    a. Minimal difference in read counts.
-    b. Have distance less than 30bp.
+    4. Using this information assign IS elements back to the reads. 
+4. For each IS element if it is possible find a pair of junctions positions to the left and right part of the IS element that have:
+    1. Minimal difference in read counts.
+    2. Have distance less than 30bp.
     This positions will go to the output.
-4. For junction position take back number of reads supporting it (from the step 2a) and recalculate number of reads that are assigned to IS element using proportional counts.
+5. For junction position take back number of reads supporting it (from the step 2a) and recalculate number of reads that are assigned to IS element using proportional counts.
     For example:
     - 500 reads were found for position 1234.
     - By reverse search 300 reads were assigned to *IS1* and 100 reads to *IS2*.
     - Using proportions: $500 * 300 / (300 + 100) = 375$ reads will be assigned to *IS1* and $500 * 100 / (300 + 100) = 125$ reads will be assigned to *IS2*.
-5. iJump calculates frequency of insertion using average of frequencies of two junctions. For each junction frequency estimation we use several numbers:
+6. iJump calculates frequency of insertion using average of frequencies of two junctions. For each junction frequency estimation we use several numbers:
     - $N_{cl}$ - Number of clipped reads that support junction position for a given IS element.
     - $N_{ov}$ - Number of clipped reads that overlap with junction but are clipped at different coordinate.
     - $N_{ncl}$ - Number of non-clipped reads that overlap with the junction position.
