@@ -37,10 +37,10 @@ The algorithm is following:
         $C_{match} = \frac{1}{1 - m_{match} / a_{rlen}}$
         where:
             - $a_{rlen}$ - average read length
-            - $m_{match}$ - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S *$m_{match}$* is 30).
+            - $m_{match}$ - minimum length of the read part that could be aligned to reference. Accessed as the minimum of longest clipped part of the read (*e.g.* for read with CIGAR string 10S120M30S $m_{match}$ is 30).
       
     The frequency will be calculated by formula:
-    $ Freq = \frac{N_{cl} * C_{match}}{N_{cl} * C_{match} + N_{ov} * C_{match} + N_{ncl} + 0.1}
+    $Freq = \frac{N_{cl} * C_{match}}{N_{cl} * C_{match} + N_{ov} * C_{match} + N_{ncl} + 0.1}$
 
 ### Output
 
