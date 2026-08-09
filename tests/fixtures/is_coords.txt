@@ -1,0 +1,1 @@
+IS1	tiny_contig	900	1000
