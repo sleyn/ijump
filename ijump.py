@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import pysam
 
+from enum import Enum
 from isclipped import ISClipped, NoInsertionsFound
 import re
 import subprocess
@@ -18,6 +19,15 @@ import sys
 output_dir = '.'
 
 
+# Values accepted by --estimation_mode. A str Enum instead of bare string
+# literals so a mistyped comparison raises AttributeError/NameError instead
+# of silently falling through a dead branch (see ijump_junctions.txt 'IS pos'
+# regression fixed alongside this).
+class EstimationMode(str, Enum):
+    AVERAGE = 'average'
+    PRECISE = 'precise'
+
+
 # Write the full set of output files with headers and zero data rows.
 # A run that finds nothing is a successful run, so it writes the same file
 # set a run that finds something would.
@@ -27,7 +37,7 @@ def write_empty_outputs(estimation_mode, outdir, is_processing):
     is_processing.sum_by_reg_tbl_init().to_csv(os.path.join(outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
     ISClipped.report_table_init().to_csv(os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
 
-    if estimation_mode == 'precise':
+    if estimation_mode == EstimationMode.PRECISE:
         ISClipped.pairs_table_empty().to_csv(os.path.join(outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
 
 
@@ -41,7 +51,7 @@ def check_junctions_presence(junc_tbl, outdir, est_mode):
     if junc_tbl.size:
         # Convert from 0-base to 1-base system
         junc_tbl_copy = junc_tbl.copy()
-        if est_mode == 'presice':
+        if est_mode == EstimationMode.PRECISE:
             junc_tbl_copy['IS pos'] += 1
         junc_tbl_copy['Position'] += 1
         junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
@@ -111,7 +121,7 @@ def main():
     parser.add_argument('-w', '--wd', type=str, default='ijump_wd', help="Work directory. Default: ijump_wd (current)")
     parser.add_argument('--radius', type=int, default=200,
                         help="Radius around IS elements boundaries to search soft clipped reads.")
-    parser.add_argument('--estimation_mode', type=str, default='average',
+    parser.add_argument('--estimation_mode', type=str, default=EstimationMode.AVERAGE,
                         help="Specifies how the IS frequency will be esimated. 'average' - by averaging the region coverage"
                              " and number of clipped reads. Or 'precise' - iJump will try to separate each insertion event.")
     parser.add_argument('--version', action='store_true', help='Print iJump version and exit.')
@@ -138,7 +148,7 @@ def main():
     root_logger.addHandler(console_handler)
 
     # Print iJump version.
-    version = '1.0.3'
+    version = '1.0.4'
     logging.info(f'iJump v.{version}\n')
     logging.info(f'author: Semion Leyn')
     logging.info(f'Please ask questions and report issues on GitHub page of the project:')
@@ -202,7 +212,7 @@ def main():
         is_processing.gff.readgff()
 
         # Workflow in "average" mode
-        if args.estimation_mode == 'average':
+        if args.estimation_mode == EstimationMode.AVERAGE:
             # Make a table of observed junction positions
             is_processing.call_junctions(1)
 
@@ -219,7 +229,7 @@ def main():
             is_processing.report_average()
             is_processing.report_table.to_csv(os.path.join(output_dir, "ijump_report_by_is_reg.txt"), sep='\t',
                                               index=False)
-        elif args.estimation_mode == 'precise':
+        elif args.estimation_mode == EstimationMode.PRECISE:
             # Make table of regions in the reference genome where extract clipped reads for backwards assignment
             reference_regions = is_processing.make_gene_side_regions()
             reference_regions.to_csv(os.path.join(args.wd, 'reference_regions.tsv'), sep='\t', index=False)
@@ -297,7 +307,7 @@ def main():
         sys.exit(0)
 
     # Plot circular diagram of insertions
-    if args.circos is True and args.estimation_mode == 'average':
+    if args.circos is True and args.estimation_mode == EstimationMode.AVERAGE:
         is_processing.create_circos_files()
 
 

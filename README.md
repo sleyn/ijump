@@ -9,6 +9,12 @@ Software for search of Insertion Sequences (IS) rearrangements in evolved popula
 
 **NOTE:** Working with short-read-only assembled genomes is difficult with iJump. The reason is that usually IS elements are repetitive regions which are difficult to resolve for assemblers. This often result in shreading IS elements to several/many sometimes overlapped short contigs. This introduces difficulty either for boundaries determination and for mapping algorithms.
 
+**v1.0.4:** Fixed a bug (`--estimation_mode precise` was compared against the misspelled
+`'presice'`) where the `IS pos` column of `ijump_junctions.txt` in precise mode was left
+0-based while `Position` on the same row was already 1-based. `IS pos` is now converted to
+1-based too, so if you compare a new run's `ijump_junctions.txt` against one produced by an
+earlier version, `IS pos` will be shifted by 1.
+
 ## Content
 
 - [Motivation](#motivation)
