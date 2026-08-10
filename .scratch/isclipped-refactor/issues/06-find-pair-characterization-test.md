@@ -64,3 +64,16 @@ is now redundant and misleading (it doesn't exercise the shipped code).
 - `Test/test_find_pair.py` is deleted.
 
 ## Comments
+
+Implemented: added `tests/test_find_pair.py`, importing `ISClipped._find_pair` directly
+from `isclipped.py` and calling it with the fixture from the old
+`Test/test_find_pair.py:165-171`. The golden `pairs_df` was captured by running the real
+implementation once and pinned with `pandas.testing.assert_frame_equal` (columns and
+values), so it does catch the `Count_mapped_to_IS_l`/`Count_l` naming discrepancy noted
+above. `Test/test_find_pair.py` deleted.
+
+Note: this shell's Python environment lacks `pysamstats`, so `isclipped.py` (and therefore
+every test importing it, including the ticket 01/02 suite) fails to collect here — a
+pre-existing environment gap, not introduced by this change. Verified the new test's logic
+by temporarily stubbing `pysamstats`/`Bio.Blast.Applications`/`sklearn.cluster` in
+`sys.modules` for a one-off run against the real `_find_pair`; the stub was not committed.
