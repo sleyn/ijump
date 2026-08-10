@@ -141,6 +141,7 @@ def main():
     parser.add_argument('--radius', type=int, default=200,
                         help="Radius around IS elements boundaries to search soft clipped reads.")
     parser.add_argument('--estimation_mode', type=str, default=EstimationMode.AVERAGE,
+                        choices=list(EstimationMode),
                         help="Specifies how the IS frequency will be esimated. 'average' - by averaging the region coverage"
                              " and number of clipped reads. Or 'precise' - iJump will try to separate each insertion event.")
     parser.add_argument('--version', action='store_true', help='Print iJump version and exit.')
