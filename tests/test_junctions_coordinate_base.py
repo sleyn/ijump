@@ -1,17 +1,18 @@
 """Regression test for ticket 03: 'IS pos' must land on the same coordinate
 base as 'Position' in precise-mode ijump_junctions.txt output.
 
-check_junctions_presence() (ijump.py:40) used to compare est_mode against
-the misspelled literal 'presice', so the 'IS pos' -> 1-base conversion never
-ran. Drives the function directly against a constructed junctions
-DataFrame, since the tiny.bam fixture used elsewhere in this suite produces
-no clipped reads and never reaches junction output (see ticket 01/02
-fixture notes).
+check_junctions_presence() (now isclipped.py, moved there by ticket 07) used
+to compare est_mode against the misspelled literal 'presice', so the
+'IS pos' -> 1-base conversion never ran. Drives the function directly
+against a constructed junctions DataFrame, since the tiny.bam fixture used
+elsewhere in this suite produces no clipped reads and never reaches
+junction output (see ticket 01/02 fixture notes).
 """
 import pandas as pd
 import pytest
 
-from ijump import EstimationMode, check_junctions_presence
+from ijump import EstimationMode
+from isclipped import check_junctions_presence
 
 
 def _junctions_df():

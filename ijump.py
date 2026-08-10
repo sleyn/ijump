@@ -3,12 +3,9 @@
 import os
 import glob
 import argparse
-import pandas as pd
-import numpy as np
 import pysam
 
-from enum import Enum
-from isclipped import ISClipped, NoInsertionsFound
+from isclipped import ISClipped, EstimationMode
 import re
 import subprocess
 import logging
@@ -17,46 +14,6 @@ import sys
 # Define a path to output directory that will be available to all functions.
 # Required to be global as it will be used to generate output in case of preliminary exit
 output_dir = '.'
-
-
-# Values accepted by --estimation_mode. A str Enum instead of bare string
-# literals so a mistyped comparison raises AttributeError/NameError instead
-# of silently falling through a dead branch (see ijump_junctions.txt 'IS pos'
-# regression fixed alongside this).
-class EstimationMode(str, Enum):
-    AVERAGE = 'average'
-    PRECISE = 'precise'
-
-
-# Write the full set of output files with headers and zero data rows.
-# A run that finds nothing is a successful run, so it writes the same file
-# set a run that finds something would.
-def write_empty_outputs(estimation_mode, outdir, is_processing):
-    ISClipped._cltbl_init().to_csv(os.path.join(outdir, "reads.txt"), sep='\t', index=False)
-    ISClipped._jtbl_init().to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
-    is_processing.sum_by_reg_tbl_init().to_csv(os.path.join(outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
-    ISClipped.report_table_init().to_csv(os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
-
-    if estimation_mode == EstimationMode.PRECISE:
-        ISClipped.pairs_table_empty().to_csv(os.path.join(outdir, "ijump_junction_pairs.txt"), sep='\t', index=False)
-
-
-# Check if any clipped reads are present
-def check_data_presence_in_df(cl_table, message):
-    if cl_table.size == 0:
-        raise NoInsertionsFound(message)
-
-# Check if junctions exist for IS elements
-def check_junctions_presence(junc_tbl, outdir, est_mode):
-    if junc_tbl.size:
-        # Convert from 0-base to 1-base system
-        junc_tbl_copy = junc_tbl.copy()
-        if est_mode == EstimationMode.PRECISE:
-            junc_tbl_copy['IS pos'] += 1
-        junc_tbl_copy['Position'] += 1
-        junc_tbl_copy.to_csv(os.path.join(outdir, "ijump_junctions.txt"), sep='\t', index=False)
-    else:
-        raise NoInsertionsFound('No junctions was found')
 
 
 # Build the makeblastdb command as an argv list, kept separate from execution
@@ -85,44 +42,6 @@ def check_blast_ref(ref_name, ref_file):
             raise
         if not os.path.isfile(ref_name + '.nsq'):
             raise RuntimeError(f'makeblastdb reported success but {ref_name}.nsq was not created')
-
-
-# Claculate distance between insertion positions.
-def interpos_distance(pos_l, pos_r):
-    if pos_l == 0:
-        return 5
-    elif pos_r == 0:
-        return 5
-    else:
-        return abs(pos_r - pos_l) + 5
-
-
-# Assign Keep status to one pair
-def keep_pair(pair, region_starts, region_ends):
-    for position in pair:
-        compare_starts = region_starts <= position
-        compare_ends = region_ends >= position
-        if np.any(np.all([compare_starts, compare_ends], axis=0)):
-            return True
-    return False
-
-
-# Filter pairs. Keep a pair if at least one position in pair is in the region interval.
-def filter_pairs(pairs_tbl, region_tbl):
-    logging.info('Filter pairs that do not belong to the regions of interest.')
-    regions_starts = region_tbl['Position_left'].to_numpy()
-    regions_ends = region_tbl['Position_right'].to_numpy()
-    pairs_tbl_return = pairs_tbl.copy()
-    pairs_tbl_return['Keep'] = pairs_tbl_return[['Position_l', 'Position_r']].apply(
-        lambda pos_pair: keep_pair(pos_pair.to_list(), regions_starts, regions_ends),
-        axis=1
-    )
-    return pairs_tbl_return[pairs_tbl_return['Keep']].drop(columns=['Keep'])
-
-
-# Convert coordinate system of a list from 0-base to 1-base
-def convert_zero_one_base(coordinates_column):
-    return list(map(lambda x: x + 1 if x > 0 else 0, coordinates_column))
 
 
 def main():
@@ -215,115 +134,10 @@ def main():
     # Set area to search for clipped reads.
     is_processing.set_is_boundaries(args.radius)
 
-    try:
-        # Collect clipped reads information.
-        is_processing.collect_clipped_reads()
-        is_processing.clipped_reads = pd.DataFrame.from_dict(is_processing.clipped_reads_dict, "index")
-        # If clipped reads will not be found -> stop the workflow.
-        check_data_presence_in_df(is_processing.clipped_reads, 'No clipped reads were found.')
-        is_processing.clipped_reads.to_csv(os.path.join(output_dir, "reads.txt"), sep='\t', index=False)
-
-        # Run BLAST to search insertion positions in Reference.
-        # 1 - search in IS->Reference direction.
-        is_processing.runblast('cl.fasta', 'cl_blast.out', 1)
-        is_processing.parseblast('cl_blast.out', 1)
-
-        # Read GFF file.
-        is_processing.gff.readgff()
-
-        # Workflow in "average" mode
-        if args.estimation_mode == EstimationMode.AVERAGE:
-            # Make a table of observed junction positions
-            is_processing.call_junctions(1)
-
-            # Check if any junction is present. If not - stop the workflow.
-            check_junctions_presence(is_processing.junctions, output_dir, args.estimation_mode)
-
-            # Count reads supporting IS elements insertions for each IS element and each GE
-            # Reformat GFF representation
-            is_processing.gff.pos_to_ann()
-            is_processing.summary_junctions_by_region()
-            is_processing.sum_by_region.to_csv(os.path.join(output_dir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
-
-            # Make a report table of assessed insertion frequencies in each GE
-            is_processing.report_average()
-            is_processing.report_table.to_csv(os.path.join(output_dir, "ijump_report_by_is_reg.txt"), sep='\t',
-                                              index=False)
-        elif args.estimation_mode == EstimationMode.PRECISE:
-            # Make table of regions in the reference genome where extract clipped reads for backwards assignment
-            reference_regions = is_processing.make_gene_side_regions()
-            reference_regions.to_csv(os.path.join(args.wd, 'reference_regions.tsv'), sep='\t', index=False)
-
-            # We will need average read length to extend region boundaries
-            is_processing.av_read_len = is_processing.read_lengths / is_processing.n_reads_analyzed
-
-            # Collect clipped reads at the insertion positions
-            # found during forward (IS->Reference) search.
-            is_processing.crtable_bwds(reference_regions)
-            is_processing.clipped_reads_bwrd = pd.DataFrame.from_dict(is_processing.clipped_reads_bwrd_dict, "index")
-
-            # Run BLAST to search for positions of found reads.
-            check_data_presence_in_df(is_processing.clipped_reads_bwrd, 'No clipped reads were found '
-                                                                        'near estimated insertion sites.')
-            is_processing.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
-
-            # Collect BLAST results.
-            is_processing.parseblast('cl_blast_bwds.out', 0)
-
-            # Format results as junction table to attribute reads and their junction positions to the IS elements.
-            is_processing.call_junctions(0)
-
-            # Check if any junction is present. If not - stop the workflow.
-            check_junctions_presence(is_processing.junctions, output_dir, args.estimation_mode)
-
-            # Find pairs of junctions that should indicate insertion positions of both edges of IS element.
-            is_processing.search_insert_pos()
-
-            # Filter Junction pairs so at least one of the pair is in the "reference_regions" table.
-            is_processing.pairs_df = filter_pairs(is_processing.pairs_df, reference_regions)
-
-            # Check if any pair was produced
-            check_data_presence_in_df(is_processing.pairs_df, 'No pairs were found.')
-
-            # Count depth of unclipped reads to have a background depth of coverage
-            # Preparation.
-            is_processing.pairs_df['Dist'] = is_processing.pairs_df[['Position_l', 'Position_r']].\
-                apply(
-                    lambda clustered_pos: interpos_distance(clustered_pos.Position_l, clustered_pos.Position_r),
-                    axis=1
-                )
-
-            positions = pd.concat(
-                [
-                    is_processing.pairs_df[['Position_l', 'Chrom', 'Dist']].
-                        rename(columns={'Position_l': 'Position'}),
-                    is_processing.pairs_df[['Position_r', 'Chrom', 'Dist']].
-                        rename(columns={'Position_r': 'Position'})
-                ],
-                axis=0
-            ).drop_duplicates()
-
-            # The depth count itself
-            is_processing.count_depth_unclipped(positions)
-            is_processing.pairs_df.drop(columns='Dist')
-
-            # Make an estimate of insertion frequency
-            is_processing.assess_isel_freq()
-
-            # Test if number of clipped reads expected
-            # logging.info('Perform Fisher test to find unexpected clipped reads counts.')
-            # is_processing.pairs_df['Expected_clr_fisher_pvalue'] = is_processing.pairs_df.apply(
-            #     lambda observation: is_processing.fisher_test_clr_number(observation),
-            #     axis=1
-            # )
-
-            # Convert coordinates from 0-base to 1-base
-            is_processing.pairs_df['Position_l'] = convert_zero_one_base(is_processing.pairs_df['Position_l'].tolist())
-            is_processing.pairs_df['Position_r'] = convert_zero_one_base(is_processing.pairs_df['Position_r'].tolist())
-            is_processing.pairs_df.to_csv(os.path.join(output_dir, "ijump_junction_pairs.txt"), sep='\t', index=False)
-    except NoInsertionsFound as e:
-        logging.info(str(e))
-        write_empty_outputs(args.estimation_mode, output_dir, is_processing)
+    # Run the average/precise pipeline and write its output files.
+    result = is_processing.run(args.estimation_mode)
+    if not result.insertions_found:
+        logging.info(result.message)
         sys.exit(0)
 
     # Plot circular diagram of insertions
