@@ -1,13 +1,13 @@
-"""Characterization test for ticket 06: ``ISClipped._find_pair``.
+"""Characterization test for ticket 06: ``junction_pairing.find_pairs``.
 
 Test/test_find_pair.py (gitignored, not run by anything) pasted its own copy
 of _find_pair rather than importing the shipped one, and had already drifted
 from it -- the copy builds 'Count_l'/'Count_r' columns while the real
-function at isclipped.py:672-675 uses 'Count_mapped_to_IS_l'/'_r'. It also
+function in junction_pairing.py uses 'Count_mapped_to_IS_l'/'_r'. It also
 had no assertions: it called the function, bound the result to a variable,
 and printed 'OK' unconditionally.
 
-This test imports the real static method and pins its output on the same
+This test imports the real function and pins its output on the same
 fixture (captured from actual data) as a golden value. It is characterization,
 not specification -- it documents today's behaviour, not whether that
 behaviour is correct.
@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from isclipped import ISClipped
+from junction_pairing import find_pairs
 
 POS_L = np.array([311753, 311755, 311759, 311773, 311788, 992367, 3352696, 3790412])
 POS_L_COUNT = np.array([1, 190, 1, 1, 1, 1, 1, 1])
@@ -28,7 +28,7 @@ CHROM = 'NODE_1_length_3909467_cov_533.478_ID_22129'
 
 
 def test_find_pair_matches_pinned_golden_output():
-    pairs_df = ISClipped._find_pair(
+    pairs_df = find_pairs(
         POS_L.copy(), POS_R.copy(), POS_L_COUNT.copy(), POS_R_COUNT.copy(),
         CHROM_LEN, MAX_IS_DUP_LEN, CHROM,
     )
