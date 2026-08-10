@@ -16,6 +16,10 @@ from sklearn.cluster import AgglomerativeClustering
 import logging
 
 
+class NoInsertionsFound(Exception):
+    """The analysis ran correctly and there is nothing to report."""
+
+
 # specify class for clipped reads
 class ISClipped:
     def __init__(self, aln, ref_name, gff_name, workdir='ijump_wd', pairs_df_path='ijump_junction_pairs.txt'):
@@ -485,9 +489,7 @@ class ISClipped:
             blast_out = pd.read_csv(blast_out_path, sep='\t')
         else:
             logging.info('No BLAST hits were found.')
-            pairs_df = self.pairs_table_empty()
-            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
-            exit(0)
+            raise NoInsertionsFound('No BLAST hits were found.')
 
         blast_out.columns = ['qseqid',
                              'sseqid',
@@ -534,9 +536,7 @@ class ISClipped:
             temp['pos_in_ref'] = temp['pos_in_ref'].astype(int)
         else:
             logging.info('No significant BLAST hits.')
-            pairs_df = self.pairs_table_empty()
-            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
-            exit(0)
+            raise NoInsertionsFound('No significant BLAST hits.')
 
         self.blastout_filtered = temp
 
@@ -576,9 +576,9 @@ class ISClipped:
         # If no hits point outside IS elements boudaries there is no insertions to find
         if ref_cl_reads.size == 0:
             logging.info("No BLAST hits point oustide IS elements. No significant new insertions could be found.")
-            pairs_df = self.pairs_table_empty()
-            pairs_df.to_csv(self.pairs_df_path, sep='\t', index=False)
-            exit(0)
+            raise NoInsertionsFound(
+                "No BLAST hits point oustide IS elements. No significant new insertions could be found."
+            )
 
         ref_cl_reads['Cluster'] = ref_cl_reads. \
             sort_values(by=['Chrom', 'Position']). \
@@ -888,8 +888,7 @@ class ISClipped:
             pos_df = pairs_df.query('Position_r > 0').copy()
             pos_df = pos_df.rename(columns={'Position_r': 'Position', 'Count_mapped_to_IS_r': 'Count'})
         else:
-            logging.error('Error: the parameter should be "left" or "right"')
-            exit(1)
+            raise ValueError('the parameter should be "left" or "right"')
 
         # Dictionary to translate positions (Contig name/Coordinate) to matrix row indeces.
         pos = {}

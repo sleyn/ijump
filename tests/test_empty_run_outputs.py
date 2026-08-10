@@ -1,18 +1,27 @@
-"""Characterization test: pins what iJump does today when no clipped reads
-are found, in both estimation modes. This is not a spec of correct
-behaviour — see .scratch/isclipped-refactor/issues/02-*.md, which inverts the
-three "does not exist" assertions below once the empty-clipped-reads exit
-path is fixed to still produce the downstream report files.
+"""End-to-end test for the empty-run file-set invariant (ticket 02): a run
+that finds nothing writes the same files as a run that finds something,
+with headers and zero data rows, in both estimation modes.
 
 With the tiny.bam fixture (reads that align but are never soft-clipped),
-execution reaches check_data_presence_in_df (ijump.py:28, called at
-ijump.py:189) and exits 0 after writing only ijump_junction_pairs.txt via
-empty_pairs_out() (ijump.py:22), before runblast (ijump.py:194) ever runs.
-Because tiny.nsq is committed, check_blast_ref (ijump.py:50) short-circuits
-and never shells out to makeblastdb, so this test needs no BLAST+ install.
+execution raises NoInsertionsFound at check_data_presence_in_df
+(ijump.py:35, called at ijump.py:193), before runblast (ijump.py:198) ever
+runs. Because tiny.nsq is committed, check_blast_ref (ijump.py:53)
+short-circuits and never shells out to makeblastdb, so this test needs no
+BLAST+ install.
+
+Before ticket 02, this exit path wrote only ijump_junction_pairs.txt and
+skipped the downstream report files, silently dropping the sample out of
+combine_results.py (see the ticket's "Why"). See git history for the prior
+version of this test, which pinned that behaviour.
 """
 import pandas as pd
 import pytest
+
+FILES_BY_MODE = {
+    "average": ["reads.txt", "ijump_junctions.txt", "ijump_sum_by_reg.txt", "ijump_report_by_is_reg.txt"],
+    "precise": ["reads.txt", "ijump_junctions.txt", "ijump_sum_by_reg.txt", "ijump_report_by_is_reg.txt",
+                "ijump_junction_pairs.txt"],
+}
 
 
 @pytest.mark.parametrize("estimation_mode", ["average", "precise"])
@@ -23,23 +32,12 @@ def test_empty_run_exits_cleanly(run_ijump, estimation_mode):
 
 
 @pytest.mark.parametrize("estimation_mode", ["average", "precise"])
-def test_empty_run_writes_only_pairs_file_with_no_rows(run_ijump, estimation_mode):
+def test_empty_run_writes_full_file_set_with_no_rows(run_ijump, estimation_mode):
     result, outdir = run_ijump(estimation_mode)
     assert result.returncode == 0, result.stderr
 
-    pairs_file = outdir / "ijump_junction_pairs.txt"
-    assert pairs_file.exists()
-    pairs_df = pd.read_csv(pairs_file, sep="\t")
-    assert len(pairs_df) == 0
-
-
-@pytest.mark.parametrize("estimation_mode", ["average", "precise"])
-def test_empty_run_does_not_write_downstream_reports(run_ijump, estimation_mode):
-    """Pins current, INCORRECT behaviour: these files are silently skipped
-    instead of being written empty. Ticket 02 inverts these assertions."""
-    result, outdir = run_ijump(estimation_mode)
-    assert result.returncode == 0, result.stderr
-
-    assert not (outdir / "ijump_report_by_is_reg.txt").exists()
-    assert not (outdir / "ijump_sum_by_reg.txt").exists()
-    assert not (outdir / "ijump_junctions.txt").exists()
+    for filename in FILES_BY_MODE[estimation_mode]:
+        file_path = outdir / filename
+        assert file_path.exists(), f"{filename} was not written"
+        table = pd.read_csv(file_path, sep="\t")
+        assert len(table) == 0, f"{filename} has data rows"
