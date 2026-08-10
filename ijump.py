@@ -59,13 +59,32 @@ def check_junctions_presence(junc_tbl, outdir, est_mode):
         raise NoInsertionsFound('No junctions was found')
 
 
+# Build the makeblastdb command as an argv list, kept separate from execution
+# so the construction can be unit-tested without invoking BLAST+.
+def makeblastdb_command(ref_name, ref_file):
+    return ['makeblastdb', '-in', ref_file, '-dbtype', 'nucl', '-out', ref_name]
+
+
 # Check if BLAST database file exists for reference genome. If not -create it.
 def check_blast_ref(ref_name, ref_file):
     if os.path.isfile(ref_name + '.nsq'):  # if blast database exists pass or make it for reference
         pass
     else:
-        makeblastdb_command = f'makeblastdb -in {ref_file} -dbtype nucl -out {ref_name}'
-        makeblastdb = subprocess.Popen(makeblastdb_command.split(), stdout=subprocess.PIPE)
+        try:
+            subprocess.run(
+                makeblastdb_command(ref_name, ref_file),
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            logging.error('makeblastdb not found. Is BLAST+ installed and on PATH?')
+            raise
+        except subprocess.CalledProcessError as e:
+            logging.error(f'makeblastdb failed (exit {e.returncode}): {e.stderr.decode(errors="replace")}')
+            raise
+        if not os.path.isfile(ref_name + '.nsq'):
+            raise RuntimeError(f'makeblastdb reported success but {ref_name}.nsq was not created')
 
 
 # Claculate distance between insertion positions.
