@@ -3,12 +3,12 @@
 import string
 import pandas as pd
 import numpy as np
-from scipy.stats import fisher_exact
 from Bio.Blast.Applications import NcbiblastnCommandline
 import random
 import re
 import os
 import gff
+import frequency_estimation
 from junction_pairing import find_pairs
 from dataclasses import dataclass
 from enum import Enum
@@ -790,69 +790,6 @@ class ISClipped:
         # Concatenate all pair tables into one table.
         self.pairs_df = pd.concat(is_pairs_collection, ignore_index=True)
 
-    # Calculate frequency of IS insertion based on frequencies of boundaries junctions.
-    @staticmethod
-    def _calc_freq_precise(freq_l, freq_r):
-        if freq_l == 0:
-            return freq_r
-        elif freq_r == 0:
-            return freq_l
-        else:
-            return (freq_l + freq_r) / 2
-
-    # Make read count matrices.
-    @staticmethod
-    def _read_count_mtx(pairs_df, orientation):
-        if orientation == 'left':
-            pos_df = pairs_df.query('Position_l > 0').copy()
-            pos_df = pos_df.rename(columns={'Position_l': 'Position', 'Count_mapped_to_IS_l': 'Count'})
-        elif orientation == 'right':
-            pos_df = pairs_df.query('Position_r > 0').copy()
-            pos_df = pos_df.rename(columns={'Position_r': 'Position', 'Count_mapped_to_IS_r': 'Count'})
-        else:
-            raise ValueError('the parameter should be "left" or "right"')
-
-        # Dictionary to translate positions (Contig name/Coordinate) to matrix row indeces.
-        pos = {}
-        for chrom in pos_df.Chrom.unique():
-            pos[chrom] = {}
-
-        i = 0
-
-        for pos_row in pos_df[['Position', 'Chrom']].drop_duplicates().itertuples():
-            pos[pos_row.Chrom][pos_row.Position] = i
-            i += 1
-
-        # Dictionary to translate IS names to matrix row indeces.
-        is_names = dict(
-            zip(
-                pos_df['IS_name'].unique().tolist(),
-                [i for i in range(pos_df['IS_name'].unique().size)]
-            )
-        )
-
-        counts = np.zeros((
-            len(pos_df[['Position', 'Chrom']].drop_duplicates()),
-            len(is_names)
-        ))
-
-        for row in pos_df.itertuples():
-            counts[pos[row.Chrom][row.Position], is_names[row.IS_name]] = row.Count
-
-        return pos, is_names, counts
-
-    # Translate matrix of read count proportions to the original read counts.
-    # (calculated from the second pass of clipped reads collection)
-    @staticmethod
-    def _resore_orig_counts(counts_mtx, original_rc_counts, pos_dict):
-        counts_mtx /= counts_mtx.sum(1).reshape(-1, 1)
-
-        for chr in pos_dict.keys():
-            for junct_pos in pos_dict[chr].keys():
-                counts_mtx[pos_dict[chr][junct_pos]] *= original_rc_counts[chr].get(junct_pos, 0)
-
-        return counts_mtx
-
     # Count depth at the position using only unclipped reads.
     # Input is a data frame with columns 'Position' and 'Chrom'.
     def count_depth_unclipped(self, position_tbl):
@@ -877,196 +814,6 @@ class ISClipped:
                     if np.min(np.abs(pos - read_edges)) > ins_pos_distance:
                         self.unclipped_depth[chrom][pos] = \
                             self.unclipped_depth[chrom].get(pos, 0) + 1
-
-    def _add_total_depth(self, depth_l, depth_r):
-        if depth_l == 0:
-            return depth_r
-        elif depth_r == 0:
-            return depth_l
-        else:
-            return (depth_l + depth_r) / 2
-
-    # Add test of excessive reads count that were not mapped to IS elements.
-    # The expected difference between N_clipped_l + N_clipped_r (clipped reads collected at junction)
-    # and Count_mapped_to_IS_l + Count_mapped_to_IS_r (clipped reads collected at junction that were able
-    # to be mapped to IS elements) should be drawn from the uniform distribution and equal
-    # P(X <= min_match) = (N_clipped_l + N_clipped_r) * min_match/av_read_len
-    # We can compare observed and expected differences with Fisher exact test.
-    def fisher_test_clr_number(self, observation):
-        sum_clr_mapped_to_is = observation.Count_mapped_to_IS_l + observation.Count_mapped_to_IS_r
-        sum_clr_count_at_jnc = observation.N_clipped_l + observation.N_clipped_r
-
-        # We do not expect number of reads mapped to the IS element exceed
-        # total number of reads found at the region.
-        if sum_clr_count_at_jnc - sum_clr_mapped_to_is < 0:
-            return 0
-
-        # Contingency table:
-        # [[(a), (c)]
-        #  [(b), (d)]]
-        # (a) Number of clipped reads mapped to the IS element
-        # (b) Number of clipped reads that were not mapped to IS element but found at insertion position
-        # (c) Estimated number of reads mapped to the IS element
-        # (d) Estimated number of reads not mapped to the IS element
-        # As we test if indels account to the significant portion of clipped reads we expect
-        # (a) to be smaller than expected
-        contingency_table = np.array(
-            [
-                [sum_clr_mapped_to_is, sum_clr_count_at_jnc * (1 - self.min_match / self.av_read_len)],
-                [sum_clr_count_at_jnc - sum_clr_mapped_to_is, sum_clr_count_at_jnc * self.min_match / self.av_read_len]
-            ]
-        )
-        contingency_table.round(0).astype(int)
-        _, pvalue = fisher_exact(contingency_table)
-        return pvalue
-
-    # Assess frequency of the insertion in population.
-    def assess_isel_freq(self):
-        # Setup calculation of number of reads supporting each position count
-        # for each IS element.
-        # 1: Count reads for right and left positions that came directly from positions.
-        # Caveat - they do not have information about corresponding IS elements.
-        logging.info('Estimate insertion frequencies.')
-        original_rc_l_df = self.clipped_reads_bwrd. \
-            query('clip_position == "left"'). \
-            groupby(['junction_in_read', 'IS_chrom'], as_index=False)['Read name']. \
-            count(). \
-            rename(columns={'Read name': 'Count', 'IS_chrom': 'Chrom'})
-
-        original_rc_l = {}
-        for chrom in self.ref_len.keys():
-            original_rc_l[chrom] = {}
-
-        for rc_row_l in original_rc_l_df.itertuples():
-            original_rc_l[rc_row_l.Chrom][rc_row_l.junction_in_read] = rc_row_l.Count
-
-        original_rc_r_df = self.clipped_reads_bwrd. \
-            query('clip_position == "right"'). \
-            groupby(['junction_in_read', 'IS_chrom'], as_index=False)['Read name']. \
-            count(). \
-            rename(columns={'Read name': 'Count', 'IS_chrom': 'Chrom'})
-
-        original_rc_r = {}
-        for chrom in self.ref_len.keys():
-            original_rc_r[chrom] = {}
-
-        for rc_row_r in original_rc_r_df.itertuples():
-            original_rc_r[rc_row_r.Chrom][rc_row_r.junction_in_read] = rc_row_r.Count
-
-        # 2: Make matrix for left positions.
-        pos_l, is_names_l, counts_l = self._read_count_mtx(self.pairs_df, 'left')
-
-        # 3: Make matrix for right positions.
-        pos_r, is_names_r, counts_r = self._read_count_mtx(self.pairs_df, 'right')
-
-        # Calculate proportions of reads for each IS for each conflicting position
-        # and split reads supporting position from the clipped_reads_bwrd table.
-        # 1: left matrix
-        counts_l = self._resore_orig_counts(counts_l, original_rc_l, pos_l)
-
-        # 2: right matrix
-        counts_r = self._resore_orig_counts(counts_r, original_rc_r, pos_r)
-
-        # Collect numbers of reads at positions for left junctions.
-        self.pairs_df['N_unclipped_l'] = self.pairs_df.apply(
-            lambda pos: self.unclipped_depth[pos.Chrom].get(pos.Position_l, 0),
-            axis=1
-        )
-        self.pairs_df['N_clipped_l'] = self.pairs_df.apply(
-            lambda pair: counts_l[
-                pos_l[pair.Chrom][pair.Position_l], is_names_l[pair.IS_name]] if pair.Position_l > 0 else 0,
-            axis=1
-        )
-
-        # Collect numbers of reads at positions for right junctions.
-        self.pairs_df['N_unclipped_r'] = self.pairs_df.apply(
-            lambda pos: self.unclipped_depth[pos.Chrom].get(pos.Position_r, 0),
-            axis=1
-        )
-        self.pairs_df['N_clipped_r'] = self.pairs_df.apply(
-            lambda pair: counts_r[
-                pos_r[pair.Chrom][pair.Position_r], is_names_r[pair.IS_name]
-            ] if pair.Position_r > 0 else 0,
-            axis=1
-        )
-
-        # Add coverage from clipped reads that overlap with junction.
-        self.pairs_df['N_overlap_l'] = self.pairs_df[['Position_l', 'Chrom']]. \
-            apply(lambda x: self.cl_read_cov_overlap[x.Chrom].get(x.Position_l, 0), axis=1)
-        self.pairs_df['N_overlap_r'] = self.pairs_df[['Position_r', 'Chrom']]. \
-            apply(lambda x: self.cl_read_cov_overlap[x.Chrom].get(x.Position_r, 0), axis=1)
-
-        # Metrics for corrections and tests
-        self.min_match = min(self.match_lengths)
-        self.av_read_len = self.read_lengths / self.n_reads_analyzed
-
-        # Add corrections for clipped reads.
-        self.pairs_df['N_clipped_l_correction'] = self.pairs_df['N_clipped_l'] / \
-                                                  (1 - self.min_match / self.av_read_len) - \
-                                                  self.pairs_df['N_clipped_l']
-
-        self.pairs_df['N_clipped_r_correction'] = self.pairs_df['N_clipped_r'] / \
-                                                  (1 - self.min_match / self.av_read_len) - \
-                                                  self.pairs_df['N_clipped_r']
-
-        self.pairs_df['N_overlap_l_correction'] = self.pairs_df['N_overlap_l'] / \
-                                                  (1 - self.min_match / self.av_read_len) - \
-                                                  self.pairs_df['N_overlap_l']
-
-        self.pairs_df['N_overlap_r_correction'] = self.pairs_df['N_overlap_r'] / \
-                                                  (1 - self.min_match / self.av_read_len) - \
-                                                  self.pairs_df['N_overlap_r']
-
-        self.pairs_df['N_clipped_l_corrected'] = self.pairs_df['N_clipped_l'] + self.pairs_df['N_clipped_l_correction']
-        self.pairs_df['N_overlap_l_corrected'] = self.pairs_df['N_overlap_l'] + self.pairs_df['N_overlap_l_correction']
-        self.pairs_df['N_clipped_r_corrected'] = self.pairs_df['N_clipped_r'] + self.pairs_df['N_clipped_r_correction']
-        self.pairs_df['N_overlap_r_corrected'] = self.pairs_df['N_overlap_r'] + self.pairs_df['N_overlap_r_correction']
-
-        self.pairs_df['N_overlap_formula_l'] = self.pairs_df[
-            ['N_overlap_l_corrected', 'N_clipped_r_corrected', 'Position_l', 'Position_r']
-        ]. \
-            apply(lambda x: x.N_overlap_l_corrected - x.N_clipped_r_corrected
-                            if x.Position_r > x.Position_l > 0
-                            else x.N_overlap_l_corrected,
-                  axis=1)
-
-        self.pairs_df['N_overlap_formula_r'] = self.pairs_df[
-            ['N_overlap_r_corrected', 'N_clipped_l_corrected', 'Position_l', 'Position_r']
-        ]. \
-            apply(lambda x: x.N_overlap_r_corrected - x.N_clipped_l_corrected
-                            if x.Position_r > x.Position_l > 0
-                            else x.N_overlap_r_corrected,
-                  axis=1)
-
-        # Calculate frequency as average between left and right boundaries if present.
-        # If not - just by one boundary.
-        # 0.1 pseudocount keeps from div/0 error.
-        self.pairs_df['Frequency_l'] = self.pairs_df['N_clipped_l_corrected'] / \
-                                       (self.pairs_df['N_unclipped_l'] +
-                                        self.pairs_df['N_overlap_formula_l'] +
-                                        self.pairs_df['N_clipped_l_corrected'] +
-                                        0.1
-                                        )
-        self.pairs_df['Frequency_r'] = self.pairs_df['N_clipped_r_corrected'] / \
-                                       (self.pairs_df['N_unclipped_r'] +
-                                        self.pairs_df['N_overlap_formula_r'] +
-                                        self.pairs_df['N_clipped_r_corrected'] +
-                                        0.1
-                                        )
-
-        self.pairs_df['Frequency'] = self.pairs_df[['Frequency_l', 'Frequency_r']]. \
-            apply(lambda x: self._calc_freq_precise(x[0], x[1]), axis=1)
-
-        # Add total depth column.
-        self.pairs_df['Depth'] = self.pairs_df. \
-            apply(
-            lambda event:
-            self._add_total_depth(
-                event.N_unclipped_l + event.N_overlap_formula_l + event.N_clipped_l_corrected,
-                event.N_unclipped_r + event.N_overlap_formula_r + event.N_clipped_r_corrected
-            ),
-            axis=1
-        )
 
     # Write the full set of output files with headers and zero data rows.
     # A run that finds nothing is a successful run, so it writes the same
@@ -1173,7 +920,11 @@ class ISClipped:
                 self.pairs_df.drop(columns='Dist')
 
                 # Make an estimate of insertion frequency
-                self.assess_isel_freq()
+                logging.info('Estimate insertion frequencies.')
+                self.pairs_df = frequency_estimation.estimate_frequencies(
+                    self.pairs_df, self.clipped_reads_bwrd, self.unclipped_depth,
+                    self.cl_read_cov_overlap, self.match_lengths, self.read_lengths, self.n_reads_analyzed,
+                )
 
                 # Convert coordinates from 0-base to 1-base
                 self.pairs_df['Position_l'] = convert_zero_one_base(self.pairs_df['Position_l'].tolist())
