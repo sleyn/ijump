@@ -147,7 +147,7 @@ def main():
             is_processing.report_table, is_processing.sum_by_region,
             is_processing.is_coords, is_processing.ref_len,
             is_processing.data_folder, is_processing.cutoff,
-            is_processing._av_depth, is_processing.gff.ann_pos,
+            is_processing.average_depth, is_processing.gff.ann_pos,
         )
 
 

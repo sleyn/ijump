@@ -665,7 +665,7 @@ class ISClipped:
 
     # Calculate average depth of the region.
     @lru_cache(maxsize=128)
-    def _av_depth(self, chrom, start, stop):
+    def average_depth(self, chrom, start, stop):
         # aln_depth = self.aln.count_coverage(chrom, start, stop)
         # depth = sum(map(sum, aln_depth))
         # return depth / len(aln_depth[0])  # average depth of the region
@@ -693,7 +693,7 @@ class ISClipped:
 
         # Add depth.
         self.report_table['Depth'] = self.report_table.apply(
-            lambda x: self._av_depth(x['chrom'], x['start'], x['stop']),
+            lambda x: self.average_depth(x['chrom'], x['start'], x['stop']),
             axis=1
         )
 
