@@ -1,9 +1,7 @@
 # Implement resolve position conflict function when two IS elements are inserted at the same position.
 
-import string
 import pandas as pd
 import numpy as np
-import random
 import re
 import os
 import gff
@@ -175,23 +173,8 @@ class ISClipped:
         # Maximum expected length of duplication created from the insertion event
         self.max_is_dup_len = 20
 
-        # Circos parameters and helper structures:
-        # Colors used for IS elements and contig representation
-        self._cirocs_colors = ('green',
-                               'red',
-                               'blue',
-                               'purple',
-                               'orange',
-                               'yellow',
-                               'grey')
-        # Colors assigned to each chromosome
-        self._ref_colours = dict()
-        # Colours assigned to each IS element
-        self._is_colours = dict()
         # Data folder for circos files
         self.data_folder = './ijump_data/'
-        # Id of the session (used in a data folder and config names)
-        self.session_id = ''
 
     # Initialize a pairs table.
     # Used in a precise mode to collect information of insertion coordinates in reference.
@@ -650,12 +633,6 @@ class ISClipped:
 
         return RunResult(insertions_found=True)
 
-    # Generate random string.
-    # Was used for Circos.
-    @staticmethod
-    def _rand_str(n, chars=string.ascii_uppercase + string.digits):
-        return ''.join(random.choice(chars) for _ in range(n))
-
     # make summary table
     def summary_junctions_by_region(self):
         logging.info('Create summary table by region')
@@ -728,109 +705,3 @@ class ISClipped:
 
         self.report_table = self.report_table[['IS Name', 'ann', 'chrom', 'start', 'stop', 'Frequency', 'Depth']]
         self.report_table.columns = ['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop', 'Frequency', 'Depth']
-
-    # Create Circos files.
-    def create_circos_files(self):
-        logging.info('Create CIRCOS files')
-        while not os.path.exists(self.data_folder):
-            os.makedirs(self.data_folder)
-
-        # Karyotype file
-        with open(os.path.join(self.data_folder, 'karyotype.txt'), 'w') as karyotype:
-            col_ind = 0
-            for contig in self.ref_len.keys():
-                karyotype.write('chr - ' + contig + ' ' + contig + ' 0 ' + str(self.ref_len[contig]) + ' ' +
-                                self._cirocs_colors[col_ind % len(self._cirocs_colors)] + '\n')
-                self._ref_colours[contig] = self._cirocs_colors[col_ind % len(self._cirocs_colors)]
-                col_ind += 1
-
-        # Text file
-        with open(os.path.join(self.data_folder, 'text.txt'), 'w') as text:
-            col_ind = 0
-            for is_name in self.is_coords.keys():
-                text.write(self.is_coords[is_name][0] + ' ' + self.is_coords[is_name][1] + ' ' +
-                           self.is_coords[is_name][1] + ' ' + is_name +
-                           ' color=vvd' + self._cirocs_colors[col_ind % len(self._cirocs_colors)] + '\n')
-                self._is_colours[is_name] = self._cirocs_colors[col_ind % len(self._cirocs_colors)]
-                col_ind += 1
-
-            # List to remove duplicates
-            text_regions = list()
-
-            # Add regions information.
-            for i in range(len(self.report_table)):
-                # Draw only lines with cutoff more than specified.
-                if self.report_table.iloc[i]['Frequency'] >= self.cutoff:
-                    chrom = self.report_table.iloc[i]['Chromosome']
-                    pos = self.report_table.iloc[i]['Start']
-                    ann = self.report_table.iloc[i]['Annotation']
-                    for a in ann.split('<>'):
-                        if a in text_regions:
-                            continue
-                        text_regions.append(a)
-                        text.write(chrom + ' ' + str(pos) + ' ' + str(pos) + ' ' + a + '\n')
-
-        # links
-        with open(self.data_folder + 'links.txt', 'w') as links:
-            for i in range(len(self.report_table)):
-                # Draw only lines with cutoff more than specified
-                if self.report_table.iloc[i]['Frequency'] >= self.cutoff:
-                    is_name = self.report_table.iloc[i]['IS Name']
-                    is_chrom, is_start, is_stop = self.is_coords[is_name]
-                    j_chrom = self.report_table.iloc[i]['Chromosome']
-                    j_pos = str(self.report_table.iloc[i]['Start'])
-                    colour = 'l' + self._is_colours[is_name]
-                    links.write(is_chrom + ' ' + is_start + ' ' + is_stop + ' ' + j_chrom + ' ' + j_pos + ' ' +
-                                j_pos + ' color=' + colour + '\n')
-
-        # Histogram file
-        with open(self.data_folder + 'histogram.txt', 'w') as histogram:
-            for i in range(len(self.sum_by_region)):
-                # Calculate average depth of the region.
-                depth = self._av_depth(self.sum_by_region.iloc[i]['chrom'],
-                                       self.sum_by_region.iloc[i]['start'],
-                                       self.sum_by_region.iloc[i]['stop'], )
-
-                # Recalculate junction counts to depth.
-                h_columns = ['chrom', 'start', 'stop']
-                h_columns_is = [x for x in self.is_coords.keys()]
-
-                for h in h_columns_is:
-                    if depth > 0:
-                        if self.sum_by_region.iloc[i][h] / depth / 2 >= self.cutoff:
-                            histogram.write(' '.join(self.sum_by_region.iloc[i][h_columns].apply(str)) + ' ' +
-                                            ','.join(self.sum_by_region.iloc[i][h_columns_is].apply(
-                                                lambda x: round(((x / depth / 2) * 100), 2)).apply(str)) + '\n')
-                            break
-
-        # Depth histogram
-        with open(self.data_folder + 'depth.txt', 'w') as depth_hist:
-            for contig in self.gff.ann_pos:
-                for ann_id, ann in self.gff.ann_pos[contig].items():
-                    if ann[3] - ann[2] <= 0:
-                        continue
-                    depth = self._av_depth(ann[1], ann[2], ann[3])
-                    depth_hist.write(' '.join([str(x) for x in ann[1:]]) + ' ' + str(depth) + '\n')
-
-        # Write config.
-        config_name = os.path.join(self.data_folder, 'circos.conf')
-        with open(config_name, 'w') as config:
-            script_folder = os.path.dirname(os.path.realpath(__file__))
-            logging.info(script_folder)
-            conf_template = open(script_folder + '/circos.conf', 'r')
-            conf = conf_template.read()
-            conf = re.sub('karyotype = XXX', 'karyotype = ' + self.data_folder + 'karyotype.txt', conf)
-            conf = re.sub('XXX		#text', self.data_folder + 'text.txt', conf)
-            conf = re.sub('XXX		#links', self.data_folder + 'links.txt', conf)
-            conf = re.sub('XXX		#histogram', self.data_folder + 'histogram.txt', conf)
-            conf = re.sub('XXX		#depth', self.data_folder + 'depth.txt', conf)
-
-            # Make fill_color string for a histogram.
-            hist_colors = ''
-            for is_name in self.is_coords.keys():
-                hist_colors += self._is_colours[is_name] + ', '
-            hist_colors = hist_colors[:-2]
-
-            conf = re.sub('XXX		#stacked_colors', hist_colors, conf)
-
-            config.write(conf)
