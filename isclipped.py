@@ -3,12 +3,13 @@
 import string
 import pandas as pd
 import numpy as np
-from Bio.Blast.Applications import NcbiblastnCommandline
 import random
 import re
 import os
 import gff
 import frequency_estimation
+import clipped_read_search
+from clipped_read_search import NoInsertionsFound
 from junction_pairing import find_pairs
 from dataclasses import dataclass
 from enum import Enum
@@ -17,10 +18,6 @@ import pysamstats
 from statistics import mean
 from sklearn.cluster import AgglomerativeClustering
 import logging
-
-
-class NoInsertionsFound(Exception):
-    """The analysis ran correctly and there is nothing to report."""
 
 
 # Values accepted by --estimation_mode. A str Enum instead of bare string
@@ -118,13 +115,9 @@ class ISClipped:
 
         # Tables:
         # Clipped reads from the forward search (IS -> Ref_genome)
-        # Dictionary is used for speed purposes.
         self.clipped_reads = self._cltbl_init()
-        self.clipped_reads_dict = {}
         # Clipped reads from the backward search for precise pipeline (Ref_genome -> IS)
-        # Dictionary is used for speed purposes.
         self.clipped_reads_bwrd = self._cltbl_init()
-        self.clipped_reads_bwrd_dict = {}
         # Filtered BLAST output from search juction location for unaligned part of clipped reads
         self.blastout_filtered = self._blastout_filtered_init()
         # Junction positions table
@@ -141,14 +134,14 @@ class ISClipped:
         # Helper structures:
         # Length of reference contigs
         self.ref_len = dict()
-        # Keep track an unique indeces of the reads
-        self._index = 0
         # Dictionary of depth attriduted to unclipped reads in given positions
         # unclipped reads do not contain "S" in CIGAR string
         self.unclipped_depth = {}
         # Depth of coverage from clipped reads on the position of junctions.
         # Only clipped reads that DO NOT have junction in the position of interest are count.
         # Required to separate close insertions of IS elements.
+        # Populated by clipped_read_search.search's backward (direction=0)
+        # call -- see SearchResult.cl_read_cov_overlap.
         self.cl_read_cov_overlap = {}
         # Boundaries of clipped reads
         self.boundaries = list()
@@ -156,13 +149,13 @@ class ISClipped:
         self.is_coords = dict()
         # List of lengths for matched segments
         # Used to calculate correction coefficients
+        # Populated by clipped_read_search.search's forward (direction=1) call.
         self.match_lengths = list()
 
         # Initialize nested dictionaries as for each dictionary we need contig->position id.
         for contig_i in range(len(self.aln.references)):
             self.ref_len[self.aln.references[contig_i]] = self.aln.lengths[contig_i]
             self.unclipped_depth[self.aln.references[contig_i]] = {}
-            self.cl_read_cov_overlap[self.aln.references[contig_i]] = {}
 
         # Parameters:
         # Show junctions only with this frequency or more
@@ -172,15 +165,15 @@ class ISClipped:
         # Average read length
         self.av_read_len = 150
         # Total length of reads
+        # Populated by clipped_read_search.search's forward (direction=1) call.
         self.read_lengths = 0
         # Number of analyzed reads
+        # Populated by clipped_read_search.search's forward (direction=1) call.
         self.n_reads_analyzed = 0
         # Minimum length of clipped part to use in BLAST
         self.blast_min = 10
         # Maximum expected length of duplication created from the insertion event
         self.max_is_dup_len = 20
-        # Minimum identity of clipped read BLAST hit to accept it
-        self.blast_min_ident = 75
 
         # Circos parameters and helper structures:
         # Colors used for IS elements and contig representation
@@ -321,57 +314,6 @@ class ISClipped:
                                      'Gene'],
                             index=[i for i in range(n_rows)])
 
-    # For a clipped segment return left, right positions, junction side, coordinate of adjacent non-clipped nucleotide.
-    @staticmethod
-    def _clboundaries(read):
-        positions = read.get_reference_positions(full_length=True)
-        clipped_segments = list()
-        # Start of clipped segments
-        start_clipped_segment = 0
-        # Is previous position clipped?
-        is_cl_prev = False
-        # Is this clipped segment left or right?
-        # The segment is "left" if unmapped part of the read is not aligned at current position.
-        is_left = None
-        # Which part of the read is clipped?
-        clipped_part = ''
-        # Position of a junction in an aligned part of a read
-        junction_pos = 0
-
-        # Collect all clipped segments in a read.
-        # Sometimes there are more than one clipped segment (e.g. CIGAR: 30S90M30S).
-        for pos_index in range(len(positions)):
-            # Check if the position is a start pf a clipped part
-            if positions[pos_index] is None and is_cl_prev is False:
-                if pos_index == 0:
-                    is_left = True
-                else:
-                    is_left = False
-                    clipped_part = 'right'
-                    junction_pos = positions[pos_index - 1]
-                start_clipped_segment = pos_index + 1
-                is_cl_prev = True
-            # If current position is (1a) in aligned part of the read or (1b) it is an end of the read
-            # and (2) previous position was in unaligned part of the read then (3) assign this position as the end of
-            # the clipped part.
-            elif (isinstance(positions[pos_index], int) or (pos_index + 1) == len(positions)) and is_cl_prev is True:
-                # End of a clipped segment
-                end_clipped_segment = pos_index
-                if (pos_index + 1) == len(positions):
-                    end_clipped_segment = pos_index + 1
-                is_cl_prev = False
-                if is_left is True:
-                    junction_pos = positions[pos_index]
-                    clipped_part = 'left'
-
-                clipped_segments.append([start_clipped_segment, end_clipped_segment, clipped_part, junction_pos])
-        return clipped_segments
-
-    # return clipped portion of a read
-    @staticmethod
-    def _clipped_seq(read, left, right):
-        return read.query_sequence[(left - 1):right]
-
     # For each IS element set boundaries where to search clipped reads.
     def set_is_boundaries(self, radius):
         logging.info('Set area near IS elements boundaries to search clipped reads.')
@@ -404,221 +346,6 @@ class ISClipped:
                 self.boundaries.append([0, stop + radius, "stop", is_name, chrom])
             else:
                 self.boundaries.append([stop - radius, stop + radius, "stop", is_name, chrom])
-
-    # Collect clipped reads and check if IS elements are on boundaries of contigs.
-    def collect_clipped_reads(self):
-        for b in self.boundaries:
-            logging.info('Collect clipped reads: ' + ' '.join(str(x) for x in b))
-
-            # Set parameters for clipped reads search
-            chrom = b[4]
-            start_collection = b[0]
-            stop_collection = b[1]
-            edge_of_is = b[2]
-            name_of_is = b[3]
-
-            # Collect clipped reads
-            self._crtable_ungapped(chrom,
-                                   start_collection,
-                                   stop_collection,
-                                   edge_of_is,
-                                   name_of_is,
-                                   1)
-
-        self.clipped_reads = pd.DataFrame.from_dict(self.clipped_reads_dict, "index")
-
-    # Collect information about coverage that comes from clipped reads outside junction position
-    def _cl_read_cov_overlap(self, aln_pairs, chrom):
-        if len(aln_pairs) < 3:
-            return 0
-
-        read_pos = [a_pair[0] for a_pair in aln_pairs]
-        ref_pos = [a_pair[1] for a_pair in aln_pairs]
-
-        for i in read_pos[1:-1]:
-            # If nucleotide is not aligned - skip it
-            if i is None:
-                continue
-            else:
-                # If the position is junction - skip it
-                if ref_pos[i - 1] is None or ref_pos[i + 1] is None:
-                    continue
-                else:
-                    self.cl_read_cov_overlap[chrom][ref_pos[i]] = self.cl_read_cov_overlap[chrom].get(ref_pos[i], 0) + 1
-
-    # Collect clipped reads from the intervals that do not cross boundaries of a contig.
-    # The more correct way to collect junction positions would be to find another part of the
-    # clipped read in the alignment and take its coordinates. CIGAR strings for both parts could
-    # be not mirrored due to some short repeats (1+nt size) near junction positions.
-    # direction: 1 => IS->Ref, 0 => Ref->IS (in precise pipeline)
-    def _crtable_ungapped(self, chrom, start, stop, edge, is_name, direction):  # generate clipped read table
-        # One is added to convert from 0-based to 1-based system
-        for read in self.aln.fetch(chrom, start + 1, stop + 1):
-            # Add read length to collection of lengths.
-            if direction:
-                if read.infer_read_length():
-                    self.read_lengths += read.infer_read_length()
-                    self.n_reads_analyzed += 1
-
-            # Skip unmapped read
-            if read.is_unmapped:
-                continue
-
-            # Skip if the read is not clipped
-            if 'S' not in read.cigarstring:
-                continue
-
-            if direction:
-                # Collect lengths of read segments that match reference to calculate correction coefficient.
-                m_len = [int(x) for x in re.findall(r'(\d+)M', read.cigarstring)]
-                # Leave only the longest match from read.
-                m_len = max(m_len)
-                # Add lengths to collection.
-                self.match_lengths.append(m_len)
-            else:
-                # If it is Ref->IS direction of search:
-                # Add coverage from aligned positions of clipped reads that are not junctions.
-                self._cl_read_cov_overlap(read.aligned_pairs, read.reference_name)
-
-            # Get clipped segments coordinates from the read
-            boundaries = self._clboundaries(read)
-            for cl_seg in boundaries:
-                # On the IS->Ref search check if read was collected on the correct side of the IS element
-                if direction and \
-                        not ((cl_seg[2] == "left" and edge == "start") or (cl_seg[2] == "right" and edge == "stop")):
-                    continue
-
-                clip_temp = {
-                    # Unique read ID
-                    'ID': self._index,
-                    # IS name
-                    'IS name': is_name if direction else '-',
-                    # Contig where IS element is located for IS->Ref search and clipped read of Ref->IS
-                    'IS_chrom': chrom,
-                    'Read name': read.query_name,
-                    # Coordinate of clipped segment start
-                    'left pos': cl_seg[0],
-                    # Coordinate of clipped segment end
-                    'right pos': cl_seg[1],
-                    # IS clipped segment on "left" from alignment or on "right"
-                    'clip_position': cl_seg[2],
-                    # Coordinate of junction nucleotide on contig.
-                    # At IS side for IS->Ref search and for contig for Ref->IS search
-                    'junction_in_read': cl_seg[3],
-                    # Is read forward or reverse
-                    'reverse': True if read.is_reverse else False,
-                    # Sequence of clipped segment
-                    'sequence': self._clipped_seq(read, cl_seg[0], cl_seg[1])
-                }
-
-                # Add clipped read information to dictionary to build DataFrame.
-                # It is faster than append segments-by-segments to the existing DataFrame.
-                # As we don't know number of clipped segments we could not create and empty DataFrame of required size.
-                if direction:
-                    self.clipped_reads_dict[self._index] = clip_temp
-                else:
-                    self.clipped_reads_bwrd_dict[self._index] = clip_temp
-
-                self._index = self._index + 1
-
-    # Write clipped parts of reads to FASTA file. Use only parts > min_length.
-    # direction: 1 => IS->Ref, 0 => Ref->IS
-    def _write_cl_fasta(self, cl_fasta_name, min_len, direction):
-        if direction:
-            cl_table = self.clipped_reads
-        else:
-            cl_table = self.clipped_reads_bwrd
-
-        with open(cl_fasta_name, 'w') as fasta_file:
-            cl_table.index = cl_table['ID']
-            for index in cl_table.index:
-                if len(cl_table.at[index, 'sequence']) >= min_len:
-                    fasta_file.write('>' + str(cl_table.at[index, 'ID']) + '\n')
-                    fasta_file.write(str(cl_table.at[index, 'sequence']) + '\n')
-                    fasta_file.write('\n')
-
-    # run blast and write output to xml
-    # direction: 1 => IS->Ref, 0 => Ref->IS
-    def runblast(self, in_file, out_file, direction):
-        logging.info('Run BLAST for clipped parts of the reads')
-        fasta_file = os.path.join(self.workdir, in_file)
-        blast_out_file = os.path.join(self.workdir, out_file)
-        self._write_cl_fasta(fasta_file, self.blast_min, direction)
-
-        # Run BLAST
-        blastn_cl = NcbiblastnCommandline(query=fasta_file, db=self.ref_name, evalue=0.001, out=blast_out_file,
-                                          outfmt=6, word_size=10)
-        blastn_cl()
-
-    # Choose left or right coordinate as a clipped junction and orientation relative to junction.
-    @staticmethod
-    def _choosecoord(qleft, qright, lr):
-        qcoord = [qleft, qright]
-        qorientation = ['left', 'right']
-        coord = int(qcoord[lr == 'left'])
-        orientation = qorientation[not (qcoord[1] > qcoord[0]) ^ (lr == 'left')]
-        return coord, orientation
-
-    # Parse BALST output.
-    # direction: 1=>IS->Ref, 0=>Ref->IS. For Ref->IS we don't need to remove duplicates, we need only one of them
-    def parseblast(self, blast_out_file, direction):
-        logging.info('Collect information from BLAST')
-        blast_out_path = os.path.join(self.workdir, blast_out_file)
-        # Check if Blast is not empty
-        if os.path.isfile(blast_out_path) and os.path.getsize(blast_out_path) > 0:
-            blast_out = pd.read_csv(blast_out_path, sep='\t')
-        else:
-            logging.info('No BLAST hits were found.')
-            raise NoInsertionsFound('No BLAST hits were found.')
-
-        blast_out.columns = ['qseqid',
-                             'sseqid',
-                             'pident',
-                             'length',
-                             'mismatch',
-                             'gapopen',
-                             'qstart',
-                             'qend',
-                             'sstart',
-                             'send',
-                             'evalue',
-                             'bitscore']
-
-        # Filter only hits with identity [self.blast_min_ident]% or higher. Default: 75%.
-        blast_out = blast_out[blast_out['pident'] >= self.blast_min_ident]
-
-        idx_max = blast_out.groupby('qseqid')['bitscore'].transform(max) == blast_out['bitscore']
-        # Temporary dataframe for filtering with only best hits by bitscore.
-        temp = blast_out[idx_max].copy()
-
-        if direction:
-            temp['count'] = temp.groupby('qseqid')['qseqid'].transform('count')
-            # Leave only hits with one best hit.
-            temp = temp[temp['count'] == 1]
-            temp = temp.drop(columns=['count'])
-            cl_table = self.clipped_reads
-        else:
-            temp['rank'] = temp.groupby('qseqid')['bitscore'].rank(method="first", ascending=True)
-            # Leave only first best hit.
-            temp = temp[temp['rank'] == 1]
-            temp = temp.drop(columns=['rank'])
-            cl_table = self.clipped_reads_bwrd
-
-        for index in temp.index:
-            pos, orient = self._choosecoord(temp.at[index, 'sstart'],
-                                            temp.at[index, 'send'],
-                                            cl_table.at[temp.at[index, 'qseqid'], 'clip_position'])
-            temp.at[index, 'pos_in_ref'] = pos
-            temp.at[index, 'orientation'] = orient
-
-        # Check if temp has any entries.
-        if temp.size:
-            temp['pos_in_ref'] = temp['pos_in_ref'].astype(int)
-        else:
-            logging.info('No significant BLAST hits.')
-            raise NoInsertionsFound('No significant BLAST hits.')
-
-        self.blastout_filtered = temp
 
     # Check if position close to the IS element
     def _check_is_boundary_proximity(self, chrom, position):
@@ -680,22 +407,6 @@ class ISClipped:
             apply(lambda x: min(x['Position_right'] + 5, self.ref_len[x['Chrom']]), axis=1)
 
         return ref_regions
-
-    # Collect reads from reference regions (backwards mapping of clipped reads to their IS elements).
-    def crtable_bwds(self, ref_regions):
-        logging.info('Collect clipped reads from the reference location')
-        ref_regions.apply(
-            lambda x: self._crtable_ungapped(
-                x['Chrom'],
-                x['Position_left'],
-                x['Position_right'],
-                '-',
-                '-',
-                0
-            ),
-            axis=1)
-
-        self.clipped_reads_bwrd = pd.DataFrame.from_dict(self.clipped_reads_bwrd_dict, "index")
 
     # Create table for description of junctions.
     # direction: 1=>IS->Ref, 0=>Ref->IS.
@@ -835,16 +546,15 @@ class ISClipped:
         outdir = os.path.dirname(self.pairs_df_path)
 
         try:
-            # Collect clipped reads information.
-            self.collect_clipped_reads()
-            # If clipped reads will not be found -> stop the workflow.
-            check_data_presence_in_df(self.clipped_reads, 'No clipped reads were found.')
-            self.clipped_reads.to_csv(os.path.join(outdir, "reads.txt"), sep='\t', index=False)
-
-            # Run BLAST to search insertion positions in Reference.
+            # Collect clipped reads and search insertion positions in Reference.
             # 1 - search in IS->Reference direction.
-            self.runblast('cl.fasta', 'cl_blast.out', 1)
-            self.parseblast('cl_blast.out', 1)
+            result = clipped_read_search.search(self.aln, self.boundaries, self.ref_name, self.workdir, direction=1)
+            self.clipped_reads = result.clipped_reads
+            self.blastout_filtered = result.blast_hits
+            self.match_lengths = result.match_lengths
+            self.read_lengths = result.read_lengths
+            self.n_reads_analyzed = result.n_reads_analyzed
+            self.clipped_reads.to_csv(os.path.join(outdir, "reads.txt"), sep='\t', index=False)
 
             # Read GFF file.
             self.gff.readgff()
@@ -870,17 +580,19 @@ class ISClipped:
                 reference_regions = self.make_gene_side_regions()
                 reference_regions.to_csv(os.path.join(self.workdir, 'reference_regions.tsv'), sep='\t', index=False)
 
-                # Collect clipped reads at the insertion positions
-                # found during forward (IS->Reference) search.
-                self.crtable_bwds(reference_regions)
-
-                # Run BLAST to search for positions of found reads.
-                check_data_presence_in_df(self.clipped_reads_bwrd, 'No clipped reads were found '
-                                                                    'near estimated insertion sites.')
-                self.runblast('cl_bwrd.fasta', 'cl_blast_bwds.out', 0)
-
-                # Collect BLAST results.
-                self.parseblast('cl_blast_bwds.out', 0)
+                # Collect clipped reads at the insertion positions found during
+                # forward (IS->Reference) search, then search for their
+                # positions in the reference (Reference->IS direction).
+                backward_boundaries = [
+                    [row.Position_left, row.Position_right, '-', '-', row.Chrom]
+                    for row in reference_regions.itertuples()
+                ]
+                result = clipped_read_search.search(
+                    self.aln, backward_boundaries, self.ref_name, self.workdir, direction=0,
+                )
+                self.clipped_reads_bwrd = result.clipped_reads
+                self.blastout_filtered = result.blast_hits
+                self.cl_read_cov_overlap = result.cl_read_cov_overlap
 
                 # Format results as junction table to attribute reads and their junction positions to the IS elements.
                 self.call_junctions(0)
