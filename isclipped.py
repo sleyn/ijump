@@ -7,6 +7,7 @@ import os
 import gff
 import frequency_estimation
 import clipped_read_search
+import region_summary
 from clipped_read_search import NoInsertionsFound
 from junction_pairing import find_pairs
 from dataclasses import dataclass
@@ -552,11 +553,16 @@ class ISClipped:
                 # Count reads supporting IS elements insertions for each IS element and each GE
                 # Reformat GFF representation
                 self.gff.pos_to_ann()
-                self.summary_junctions_by_region()
+                self.sum_by_region = region_summary.summarize_by_region(
+                    self.junctions, self.is_coords, self.gff.ann_pos
+                )
                 self.sum_by_region.to_csv(os.path.join(outdir, "ijump_sum_by_reg.txt"), sep='\t', index=False)
 
                 # Make a report table of assessed insertion frequencies in each GE
-                self.report_average()
+                self.report_table = region_summary.report_average(
+                    self.sum_by_region, self.match_lengths, self.read_lengths, self.n_reads_analyzed,
+                    self.blast_min, self.min_match, self.average_depth,
+                )
                 self.report_table.to_csv(os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep='\t', index=False)
             elif mode == EstimationMode.PRECISE:
                 # Make table of regions in the reference genome where extract clipped reads for backwards assignment
@@ -633,36 +639,6 @@ class ISClipped:
 
         return RunResult(insertions_found=True)
 
-    # make summary table
-    def summary_junctions_by_region(self):
-        logging.info('Create summary table by region')
-        junc_temp = self.junctions.loc[self.junctions['Note'] != 'IS element']
-        f_columns = ['ann', 'chrom', 'start', 'stop']
-        f_columns.extend(list(self.is_coords.keys()))
-        for i in range(len(junc_temp)):
-            pos = junc_temp.iloc[i]['Position']
-            chrom = junc_temp.iloc[i]['Chrom']
-            for ann_id, item in self.gff.ann_pos[chrom].items():  #
-                if item[2] <= pos <= item[3]:
-                    if ann_id not in self.sum_by_region.index:
-                        columns = ['ann_id', 'ann', 'chrom', 'start', 'stop']
-                        columns.extend(list(self.is_coords.keys()))
-                        temp = self.sum_by_reg_tbl_init()
-                        temp.at[0, 'ann_id'] = ann_id
-                        temp.at[0, 'ann'] = item[0]
-                        temp.at[0, 'chrom'] = item[1]
-                        temp.at[0, 'start'] = item[2]
-                        temp.at[0, 'stop'] = item[3]
-                        temp.at[0, self.is_coords.keys()] = 0
-                        temp.at[0, junc_temp.iloc[i]['IS name']] = 1
-                        temp = temp.set_index('ann_id')
-                        self.sum_by_region = self.sum_by_region.append(temp, sort=True)
-                    else:
-                        is_name = junc_temp.iloc[i]['IS name']
-                        self.sum_by_region.loc[ann_id, is_name] += 1
-                    break
-        self.sum_by_region = self.sum_by_region[f_columns]
-
     # Calculate average depth of the region.
     @lru_cache(maxsize=128)
     def average_depth(self, chrom, start, stop):
@@ -671,37 +647,3 @@ class ISClipped:
         # return depth / len(aln_depth[0])  # average depth of the region
         c = pysamstats.load_coverage(self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000)
         return mean(c.reads_all)
-
-    # Create report by IS and region.
-    def report_average(self):
-        logging.info("Create report table")
-        self.min_match = min(self.match_lengths)  # find minimum match length
-        self.av_read_len = self.read_lengths / self.n_reads_analyzed  # find average read length
-        self.report_table = pd.melt(
-            self.sum_by_region,
-            id_vars=('ann', 'chrom', 'start', 'stop'),
-            var_name='IS Name',
-            value_name='count'
-        )
-
-        # Drop zero intervals.
-        self.report_table['drop'] = self.report_table.apply(lambda x: 0 if x['stop'] - x['start'] > 0 else 1, axis=1)
-        self.report_table = self.report_table[self.report_table['drop'] == 0]
-        self.report_table.drop(columns='drop', inplace=True)
-        self.report_table.sort_values(by=['start', 'stop'], inplace=True)
-        self.report_table = self.report_table[self.report_table['count'] > 0]
-
-        # Add depth.
-        self.report_table['Depth'] = self.report_table.apply(
-            lambda x: self.average_depth(x['chrom'], x['start'], x['stop']),
-            axis=1
-        )
-
-        self.report_table['Frequency'] = self.report_table.apply(
-            lambda x: round((x['count'] / 2 * (1 + self.blast_min / self.av_read_len)) / (
-                    x['Depth'] * (1 - self.min_match / self.av_read_len)), 4),
-            axis=1
-        )
-
-        self.report_table = self.report_table[['IS Name', 'ann', 'chrom', 'start', 'stop', 'Frequency', 'Depth']]
-        self.report_table.columns = ['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop', 'Frequency', 'Depth']
