@@ -22,8 +22,11 @@ def run_ijump(tmp_path):
     leave anything behind in the repo.
     """
     def _run(estimation_mode, extra_args=()):
-        outdir = tmp_path / f"out_{estimation_mode}"
-        workdir = tmp_path / f"wd_{estimation_mode}"
+        """estimation_mode=None omits --estimation_mode entirely, exercising
+        the CLI's default rather than an explicitly-passed value."""
+        label = estimation_mode if estimation_mode is not None else "default"
+        outdir = tmp_path / f"out_{label}"
+        workdir = tmp_path / f"wd_{label}"
         args = [
             sys.executable,
             str(REPO_ROOT / "ijump.py"),
@@ -33,7 +36,7 @@ def run_ijump(tmp_path):
             "--isel", str(FIXTURES_DIR / "is_coords.txt"),
             "--outdir", str(outdir),
             "--wd", str(workdir),
-            "--estimation_mode", estimation_mode,
+            *(["--estimation_mode", estimation_mode] if estimation_mode is not None else []),
             *extra_args,
         ]
         result = subprocess.run(

@@ -45,7 +45,7 @@ def check_blast_ref(ref_name, ref_file):
             raise RuntimeError(f'makeblastdb reported success but {ref_name}.nsq was not created')
 
 
-def main():
+def build_arg_parser():
     # Command line arguments
     parser = argparse.ArgumentParser(
         description="iJump searches for small frequency IS elements rearrangements in evolved populations")
@@ -60,12 +60,38 @@ def main():
     parser.add_argument('-w', '--wd', type=str, default='ijump_wd', help="Work directory. Default: ijump_wd (current)")
     parser.add_argument('--radius', type=int, default=200,
                         help="Radius around IS elements boundaries to search soft clipped reads.")
-    parser.add_argument('--estimation_mode', type=str, default=EstimationMode.AVERAGE,
+    # default=EstimationMode.AVERAGE.value (the plain string "average"), not
+    # EstimationMode.AVERAGE itself: argparse runs `type` over the default
+    # whenever it is a str instance, and EstimationMode members are str
+    # instances too (str, Enum), so a default of EstimationMode.AVERAGE would
+    # go through type=str and become str(EstimationMode.AVERAGE) ==
+    # "EstimationMode.AVERAGE" -- a value that matches neither
+    # EstimationMode.AVERAGE nor EstimationMode.PRECISE and silently no-ops
+    # ISClipped.run()'s mode dispatch. Using the plain value string sidesteps
+    # that: type=str leaves it unchanged. parse_args() below converts the
+    # resulting plain string (default or explicitly typed) into the real
+    # EstimationMode member, uniformly for both paths.
+    parser.add_argument('--estimation_mode', type=str, default=EstimationMode.AVERAGE.value,
                         choices=list(EstimationMode),
                         help="Specifies how the IS frequency will be esimated. 'average' - by averaging the region coverage"
                              " and number of clipped reads. Or 'precise' - iJump will try to separate each insertion event.")
     parser.add_argument('--version', action='store_true', help='Print iJump version and exit.')
-    args = parser.parse_args()
+    return parser
+
+
+def parse_args(argv=None):
+    args = build_arg_parser().parse_args(argv)
+    # Normalize to a genuine EstimationMode member: argparse's choices check
+    # above ran against the plain string (so an invalid value still reports
+    # "invalid choice"), and args.estimation_mode is a plain str at this
+    # point regardless of whether it came from the default or an explicit
+    # --estimation_mode flag.
+    args.estimation_mode = EstimationMode(args.estimation_mode)
+    return args
+
+
+def main():
+    args = parse_args()
 
     global output_dir
     output_dir = args.outdir
