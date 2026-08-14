@@ -1,0 +1,24 @@
+id: identity-compare-literal
+language: python
+severity: warning
+message: "`is` compares identity, not value — use == for literals"
+note: |
+  CPython interns small ints and some strings, so `x is '+'` can appear to
+  work and then silently stop working. A stale copy of gff.py compared strand
+  with `is '+'`; this rule pins that class of bug so it cannot come back.
+
+  The `constraints:` form is load-bearing. Python's `comparison_operator` node
+  has no `left`/`right` fields — its children are positional — so the natural
+  `has: {field: right, ...}` silently matches nothing. Confirmed with
+  `ast-grep run -l python -p '$A is $B' --debug-query=cst --stdin`.
+
+  Constraining $B to literals is what keeps `x is None` and `a is b` out of
+  the results, which are correct uses of `is`.
+rule:
+  pattern: $A is $B
+constraints:
+  B:
+    any:
+      - kind: string
+      - kind: integer
+      - kind: float

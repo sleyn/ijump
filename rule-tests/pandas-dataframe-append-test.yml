@@ -1,0 +1,8 @@
+id: pandas-dataframe-append
+valid:
+  - self.boundaries.append([0, start, "start"])
+  - text_regions.append(a)
+  - df = pd.concat([df, temp], sort=True)
+invalid:
+  - self.sum_by_region = self.sum_by_region.append(temp, sort=True)
+  - df = df.append(row)

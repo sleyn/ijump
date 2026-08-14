@@ -1,0 +1,8 @@
+id: identity-compare-literal
+valid:
+  - x is None
+  - a is b
+  - direction == '+'
+invalid:
+  - direction is '+'
+  - n is 5
