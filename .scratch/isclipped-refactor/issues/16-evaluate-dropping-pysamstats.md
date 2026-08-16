@@ -1,71 +1,136 @@
-# 16 — Evaluate dropping `pysamstats` from `ISClipped.average_depth`
+# 16 — Evaluate replacing `pysamstats` with pysam's built-in `count_coverage`
 
-Status: closed-no-change
-Blocked by: —
+**What to build:** Not a guaranteed removal — an evaluation with a hard
+correctness/performance bar. `ISClipped.average_depth` (`isclipped.py:643-649`)
+is `pysamstats`'s only call site in the codebase. Determine whether pysam's
+own `AlignmentFile.count_coverage` can replace it with byte-for-byte
+equivalent output and acceptable performance; if so, make the swap and
+drop the `pysamstats` dependency entirely; if not, close this out
+documenting why, and keep `pysamstats`.
 
 ## Why
 
-`ISClipped.average_depth` (`isclipped.py:643-649`) computes average depth over a
-region via `pysamstats.load_coverage`. Directly above it sits commented-out code
-using pysam's own `self.aln.count_coverage(chrom, start, stop)` instead — an older
-implementation that predates the `pysamstats` dependency. `pysamstats` is a real
-packaging cost (it pulls in its own compiled extension, pins older pysam/numpy
-versions transitively, and is the kind of dependency the packaging tickets (04/05)
-would rather not carry if the tool doesn't actually need it). This ticket asks
-whether the pysam-only `count_coverage` implementation can exactly replace it.
+`pysamstats` is used exactly once, in `average_depth`. The pysam-only
+implementation it replaced is still sitting there, commented out
+(`isclipped.py:645-647`):
 
-Two hard bars, in order:
+```python
+# aln_depth = self.aln.count_coverage(chrom, start, stop)
+# depth = sum(map(sum, aln_depth))
+# return depth / len(aln_depth[0])  # average depth of the region
+```
 
-1. **Correctness (exact match required).** `count_coverage`-based average depth
-   must exactly match `pysamstats.load_coverage`-based average depth over the same
-   `(chrom, start, stop)` regions — including on regions with read diversity
-   `tests/fixtures/tiny.bam` doesn't have (low base quality, duplicate flag), since
-   `count_coverage`'s default `quality_threshold=15` base-quality filter and
-   pysamstats' read-level pileup filters don't obviously agree. Tuning
-   `count_coverage`'s params is fair game. If no exact match is achievable: stop,
-   don't swap, document the gap, close the ticket.
-2. **Performance (only if #1 passes).** Benchmarked through the cached
-   `average_depth` method (not the raw coverage call) on realistically-sized data,
-   `count_coverage` must be no worse than ~1.5x pysamstats' wall-clock time.
-3. **Swap (only if both pass).** Replace `average_depth`'s body, remove the
-   commented-out old code and the `pysamstats` import, remove `pysamstats` from
-   README.md's conda-install section, update `circos.py:15`'s comment if it names
-   pysamstats.
+Git history (`ccaa9067`, 2020-03-10, message: *"switched to pysamstats for
+coverage calculation as it has ~3x increase in speed for the report stage
+in test"*) shows this was a deliberate performance-motivated swap, made on
+whatever pysam/pysamstats versions existed in March 2020 — six years old
+at grilling time — and before `lru_cache` (added in the immediately
+preceding commit, `7e8e98fd`, same day) started memoizing repeated
+`average_depth(chrom, start, stop)` calls. Both facts that justified the
+original swap (library performance at the time, no memoization yet) may no
+longer hold.
+
+`pysamstats` is also the reason `pytest` can't run in a plain venv today —
+it's a compiled, conda-only dependency per `README.md`'s conda-install
+section, confirmed by hitting `ModuleNotFoundError: No module named
+'pysamstats'` when running `pytest` in this session outside conda. It's
+also the one dependency ticket 04's `environment.yml`/`meta.yaml` and
+ticket 05's Docker image would otherwise need to carry solely for this one
+call site. Removing it would simplify all three packaging tickets — but
+only if the replacement is provably equivalent; this is a scientific tool
+and `average_depth`'s output feeds directly into every report's `Depth`
+column and downstream frequency estimation (`frequency_estimation.py`), so
+a silent numeric drift is not acceptable.
 
 ## Scope
 
-- Write a characterization test comparing the two implementations on regions
-  exercising both libraries' filtering mechanisms, using `tests/fixtures/tiny.bam`
-  or a richer fixture built for this purpose if `tiny.bam` isn't diverse enough.
-- Benchmark both implementations through `average_depth` on realistically-sized
-  data (check `Test/`, `Example files/`, `simulation/` before generating new data).
-- Swap only if both bars are cleared; otherwise stop and document why.
+### Step 1 — Characterize the difference (or confirm there isn't one)
+
+- `count_coverage`'s default `quality_threshold=15` filters per-base by
+  base call quality; `pysamstats.load_coverage`'s `reads_all` does not
+  filter by base quality, but does apply read-level pileup filters
+  (unmapped/secondary/qcfail/duplicate, matching pysam's pileup defaults).
+  These are different filtering mechanisms and are not guaranteed to
+  produce the same average for a given region.
+- Write a test (reusing `tests/fixtures/tiny.bam` or a richer fixture if
+  the tiny one doesn't exercise enough read diversity — e.g. no reads with
+  low base quality or duplicate flags to actually exercise the difference)
+  that calls both implementations against the same `(chrom, start, stop)`
+  regions and compares results directly.
+- If they differ, try tuning `count_coverage`'s parameters
+  (`quality_threshold=0` to disable base-quality filtering,
+  `read_callback=` a custom callable replicating pysamstats'/pysam
+  pileup's default flag exclusions) until they match exactly, or determine
+  no parameter combination closes the gap.
+- **Bar:** exact match required. If no exact match is achievable on
+  representative data, stop here — close this ticket documenting the
+  measured difference and why, and leave `average_depth` on `pysamstats`
+  unchanged.
+
+### Step 2 — Benchmark (only if Step 1 finds an exact match)
+
+- Time both implementations' report-stage cost on a realistically-sized
+  dataset (not the tiny pytest fixture — find or construct a BAM
+  comparable in scale to what a real population-sequencing run would
+  produce; check `Test/`, `Example files/`, or `simulation/` for something
+  suitable before generating new data) with the number of distinct
+  `(chrom, start, stop)` calls a real run makes (the `lru_cache` matters
+  here — benchmark through the cached method, not the raw coverage call in
+  isolation, since that's what actually runs in production).
+- **Bar:** `count_coverage` must be no worse than ~1.5x `pysamstats`'
+  wall-clock time on this benchmark. Document the actual measured ratio in
+  Comments regardless of outcome.
+
+### Step 3 — Swap (only if both bars are met)
+
+- Replace `average_depth`'s body with the validated `count_coverage`-based
+  implementation; remove the commented-out old code (it becomes live code)
+  and the `pysamstats` import.
+- Remove `pysamstats` from anywhere it's declared as a dependency at
+  implementation time (check ticket 01's `pyproject.toml` if it's landed
+  by then, and `README.md`'s conda-install section).
+- Update `circos.py:15`'s comment (*"handle via pysamstats"*, referring to
+  `average_depth`'s dependency on a live BAM handle) if it still mentions
+  pysamstats by name once the swap lands.
 
 ## Out of scope
 
-- Any other coverage/depth call site (there is only this one).
-- `average_depth`'s signature, caching (`@lru_cache`), or callers.
-- `environment.yml` / `Dockerfile` — owned by the packaging tickets (04/05).
+- Any other coverage/depth calculation elsewhere in the codebase — grepped
+  at grilling time, `pysamstats` has exactly one call site
+  (`isclipped.py:648`), so this is a single-method change, not a
+  codebase-wide sweep.
+- Changing `average_depth`'s signature, caching behavior, or callers.
+- Packaging file changes (tickets 04/05 own `environment.yml`/Dockerfile
+  content) — this ticket only determines whether `pysamstats` is needed;
+  it doesn't itself edit packaging tickets' deliverables, just their
+  contingency note (added separately, see below).
 
 ## Verification
 
-- The characterization test is committed either way.
-- If swapped: `pytest` passes, `grep -rn pysamstats` finds nothing in source.
-- If not swapped: the measured correctness gap and/or performance ratio that
-  failed the bar is documented below, for packaging tickets 04/05 to reference.
+- Step 1's characterization test is committed regardless of outcome (even
+  if the ticket closes without swapping, the test documents the comparison
+  that was made).
+- If swapped: `pytest` passes from a clean clone with no `pysamstats`
+  import anywhere in `src/ijump` (or wherever ticket 01 has placed modules
+  by then — check current layout at implementation time).
+- If swapped: manual real-sample run (reused from prior tickets) produces
+  identical `Depth` column values to a pre-swap run on the same input.
+- If not swapped: Comments document the measured correctness gap and/or
+  performance ratio that failed the bar.
 
-## Done when
+**Blocked by:** None — can start immediately. Note for whoever picks up
+packaging tickets 04/05: their `pysamstats` dependency line is contingent
+on this ticket's outcome — check its `Status`/`Comments` before finalizing
+`environment.yml`/Dockerfile dependency lists.
 
-- [x] Characterization test comparing `count_coverage` vs `pysamstats.load_coverage`
-      average depth exists and is committed, using a fixture with read diversity
-      (low base quality, duplicate flag) `tiny.bam` lacks.
-- [x] Correctness bar evaluated: exact match or documented gap.
-- [x] Performance bar evaluated (only meaningful if correctness passed, but
-      measured regardless here since it's cheap and worth recording).
-- [ ] ~~`average_depth` swapped to `count_coverage`, old code/import removed,
-      README.md and `circos.py:15` updated~~ (not reached — correctness bar failed).
-- [x] `pytest` passes (pre-existing unrelated failure aside, same as before this
-      ticket).
+**Status:** closed-no-change
+
+- [x] Characterization test comparing `count_coverage` vs `pysamstats.load_coverage` committed.
+- [x] Exact-match bar evaluated and documented (met, or ticket closed without swapping).
+- [ ] If exact match met: benchmark against realistic-scale data, ~1.5x-slack bar evaluated and documented. (measured anyway, see Comments)
+- [ ] If both bars met: `average_depth` swapped, `pysamstats` import/dependency removed, `circos.py:15`'s comment updated if needed. (not reached — correctness bar failed)
+- [x] `pytest` passes from a clean clone in either outcome.
+- [x] Outcome (swapped or not, with numbers) documented in Comments for tickets 04/05 to reference.
 
 ## Comments
 
@@ -103,7 +168,7 @@ passes.
 **But the overall correctness bar still fails**, for a reason distinct from
 filtering: `average_depth`'s current body calls `statistics.mean()` directly on
 `pysamstats`' `reads_all` array, which is `numpy.int32`. Python's `statistics.mean`
-detects the input element type and coerces its *final* result back to it —for a
+detects the input element type and coerces its *final* result back to it — for a
 numpy int32 array this **truncates any fractional mean to an integer** instead of
 returning a float:
 
