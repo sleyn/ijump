@@ -10,17 +10,13 @@ written). test_empty_run_writes_full_file_set_with_no_rows below is the
 end-to-end counterpart: it drives the CLI without --estimation_mode and
 asserts the full average-mode file set is written.
 """
-import sys
-
 import pandas as pd
 import pytest
 
 from conftest import REPO_ROOT
 
-sys.path.insert(0, str(REPO_ROOT))
-
-from ijump import parse_args
-from isclipped import EstimationMode
+from ijump.ijump import parse_args
+from ijump.isclipped import EstimationMode
 
 
 def test_omitted_estimation_mode_resolves_to_average_member():

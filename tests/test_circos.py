@@ -21,7 +21,7 @@ import os
 
 import pandas as pd
 
-import circos
+import ijump.circos as circos
 
 
 REF_LEN = {'contig_1': 10000, 'contig_2': 5000}

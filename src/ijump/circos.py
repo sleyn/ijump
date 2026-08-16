@@ -115,9 +115,11 @@ def write_files(report_table, sum_by_region, is_coords, ref_len, data_folder, cu
     # Write config.
     config_name = os.path.join(data_folder, 'circos.conf')
     with open(config_name, 'w') as config:
-        script_folder = os.path.dirname(os.path.realpath(__file__))
-        logging.info(script_folder)
-        conf_template = open(script_folder + '/circos.conf', 'r')
+        # circos.conf lives at the repo root; this module lives two levels
+        # below it at src/ijump/circos.py.
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        logging.info(repo_root)
+        conf_template = open(repo_root + '/circos.conf', 'r')
         conf = conf_template.read()
         conf = re.sub('karyotype = XXX', 'karyotype = ' + data_folder + 'karyotype.txt', conf)
         conf = re.sub('XXX		#text', data_folder + 'text.txt', conf)

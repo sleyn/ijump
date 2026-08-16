@@ -5,8 +5,8 @@ import glob
 import argparse
 import pysam
 
-from isclipped import ISClipped, EstimationMode
-import circos
+from ijump.isclipped import ISClipped, EstimationMode
+from ijump import circos
 import re
 import subprocess
 import logging

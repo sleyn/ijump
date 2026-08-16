@@ -11,7 +11,7 @@ behaviour, not whether that behaviour is correct.
 import pandas as pd
 import pandas.testing as pdt
 
-from frequency_estimation import estimate_frequencies
+from ijump.frequency_estimation import estimate_frequencies
 
 PAIRS_DF = pd.DataFrame({
     'Position_l': [100, 150, 0],

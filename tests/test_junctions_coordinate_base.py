@@ -11,8 +11,7 @@ junction output (see ticket 01/02 fixture notes).
 import pandas as pd
 import pytest
 
-from ijump import EstimationMode
-from isclipped import check_junctions_presence
+from ijump.isclipped import EstimationMode, check_junctions_presence
 
 
 def _junctions_df():

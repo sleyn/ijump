@@ -83,6 +83,24 @@ conda install \
 docker push semenleyn/ijump:latest
 ```
 
+<a name="dev-setup"></a>
+### Development setup
+
+iJump's Python code lives under `src/ijump/` and is packaged as a normal
+`ijump` distribution (`pyproject.toml`, PEP 621, setuptools src-layout
+backend). To work on it, or to run the test suite, install it in editable
+mode into your environment (conda or venv):
+
+```
+pip install -e .
+```
+
+This makes `import ijump`, `from ijump.isclipped import ...`, etc. resolve
+from anywhere without any manual `PYTHONPATH`/`sys.path` fiddling, and is
+what `pytest` (run from the repo root) relies on to import the package
+under test. The tests additionally require `pysam` and `pysamstats`, which
+are conda-only packages on most platforms.
+
 <a name="usage"></a>
 ## Usage
 
@@ -125,14 +143,14 @@ blastn -query <Genome> -db <BLASTn database from IS.fna> -out <Output file> -out
 
 Parse the output table with **isfinder_db_parcer.py** script:
 ```
-python3 isfinder_db_parcer.py -b <BLAST output in outfmt 6 format> -o <Output directory>
+python3 -m ijump.isfinder_db_parcer -b <BLAST output in outfmt 6 format> -o <Output directory>
 ```
 
 2) Find them from ISFinder website using their [BLAST](https://isfinder.biotoul.fr/blast.php) against your reference contigs.
 
 It will return you  html page of hits that you can download and parse with **isfinder_parser.py**:
 ```
-python3 isfinder_parse.py -i <ISfinder BLAST HTML page>
+python3 -m ijump.isfinder_parser -i <ISfinder BLAST HTML page>
 ```
 
 Both parsers will find non-overlapping hits with empirical E-value threshold 1E-30.
@@ -196,7 +214,7 @@ iJump has two workflows:
 
 Example of "Average" workflow:
 ```
-python3 ijump.py \
+python3 -m ijump.ijump \
     -a Sample.bam \
     -r Escherichia_coli_BW25113.fna \
     -g Escherichia_coli_BW25113.gff \
@@ -206,7 +224,7 @@ python3 ijump.py \
 
 Example of "Precise" workflow:
 ```
-python3 ijump.py \
+python3 -m ijump.ijump \
     -a Sample.bam \
     -r Escherichia_coli_BW25113.fna \
     -g Escherichia_coli_BW25113.gff \
@@ -250,7 +268,7 @@ optional arguments:
 If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
 
 ```
-python3 combibe_results.py -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
+python3 -m ijump.combine_results -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
 ```
 
 This will merge all results in one table.
@@ -258,7 +276,7 @@ This will merge all results in one table.
 Available parameters:
 
 ```
-python3  combine_results.py -h
+python3 -m ijump.combine_results -h
 usage: combine_results.py [-h] [-d DIR_REPORT] [-o OUTPUT] [-g [GFF]]
                           [-p PREFIX] [-m IJUMP_MODE] [--lab_format]
                           [--clonal] [-a [A_SAMPLES]]

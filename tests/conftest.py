@@ -29,7 +29,7 @@ def run_ijump(tmp_path):
         workdir = tmp_path / f"wd_{label}"
         args = [
             sys.executable,
-            str(REPO_ROOT / "ijump.py"),
+            "-m", "ijump.ijump",
             "--aln", str(FIXTURES_DIR / "tiny.bam"),
             "--ref", str(FIXTURES_DIR / "tiny.fna"),
             "--gff", str(FIXTURES_DIR / "tiny.gff"),

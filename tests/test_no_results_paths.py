@@ -14,9 +14,9 @@ for the same function lives in tests/test_clipped_read_search.py.)
 import pandas as pd
 import pytest
 
-from isclipped import ISClipped, NoInsertionsFound
+from ijump.isclipped import ISClipped, NoInsertionsFound
 from fake_alignment import FakeAlignment
-from clipped_read_search import _parseblast
+from ijump.clipped_read_search import _parseblast
 
 
 def test_missing_blast_output_signals_no_insertions(tmp_path):

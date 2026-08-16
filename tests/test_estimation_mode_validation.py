@@ -14,7 +14,7 @@ from conftest import REPO_ROOT
 
 def test_invalid_estimation_mode_rejected_at_parse_time():
     result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "ijump.py"), "--estimation_mode", "bogus"],
+        [sys.executable, "-m", "ijump.ijump", "--estimation_mode", "bogus"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

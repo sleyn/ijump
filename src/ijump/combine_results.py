@@ -4,7 +4,7 @@ import glob
 import argparse
 import pandas as pd
 import re
-import gff
+from ijump import gff
 from os import path
 from functools import reduce
 

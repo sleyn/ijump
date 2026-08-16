@@ -45,7 +45,7 @@ import pysam
 import pysamstats
 from statistics import mean
 
-from isclipped import ISClipped
+from ijump.isclipped import ISClipped
 
 HEADER_TEMPLATE = {"HD": {"VN": "1.6", "SO": "coordinate"}}
 

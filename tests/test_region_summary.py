@@ -16,7 +16,7 @@ exercises that path today), so it asserts against the new
 import pandas as pd
 import pandas.testing as pdt
 
-from region_summary import summarize_by_region, report_average
+from ijump.region_summary import summarize_by_region, report_average
 
 IS_COORDS = {'IS1': ['tiny_contig', '1', '10'], 'IS2': ['tiny_contig', '1', '10']}
 

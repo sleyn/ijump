@@ -4,12 +4,12 @@ import pandas as pd
 import numpy as np
 import re
 import os
-import gff
-import frequency_estimation
-import clipped_read_search
-import region_summary
-from clipped_read_search import NoInsertionsFound
-from junction_pairing import find_pairs
+from ijump import gff
+from ijump import frequency_estimation
+from ijump import clipped_read_search
+from ijump import region_summary
+from ijump.clipped_read_search import NoInsertionsFound
+from ijump.junction_pairing import find_pairs
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache

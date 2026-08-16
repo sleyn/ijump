@@ -31,8 +31,8 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-import clipped_read_search
-from clipped_read_search import NoInsertionsFound, search, SearchResult
+import ijump.clipped_read_search as clipped_read_search
+from ijump.clipped_read_search import NoInsertionsFound, search, SearchResult
 from fake_clipped_read import FakeRead, FakeAlignmentFetch
 
 READ_LEFT = FakeRead(

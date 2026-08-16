@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from junction_pairing import find_pairs
+from ijump.junction_pairing import find_pairs
 
 POS_L = np.array([311753, 311755, 311759, 311773, 311788, 992367, 3352696, 3790412])
 POS_L_COUNT = np.array([1, 190, 1, 1, 1, 1, 1, 1])

@@ -11,7 +11,7 @@ import subprocess
 
 import pytest
 
-import ijump
+import ijump.ijump as ijump
 
 
 def test_makeblastdb_command_builds_expected_argv():

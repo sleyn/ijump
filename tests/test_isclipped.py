@@ -9,7 +9,7 @@ call. The expected mean was cross-checked independently with
 """
 import pysam
 
-from isclipped import ISClipped
+from ijump.isclipped import ISClipped
 
 
 def test_average_depth_returns_mean_coverage_for_region(fixtures_dir):
