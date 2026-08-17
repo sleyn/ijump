@@ -1,5 +1,4 @@
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -28,8 +27,7 @@ def run_ijump(tmp_path):
         outdir = tmp_path / f"out_{label}"
         workdir = tmp_path / f"wd_{label}"
         args = [
-            sys.executable,
-            "-m", "ijump.ijump",
+            "ijump", "run",
             "--aln", str(FIXTURES_DIR / "tiny.bam"),
             "--ref", str(FIXTURES_DIR / "tiny.fna"),
             "--gff", str(FIXTURES_DIR / "tiny.gff"),

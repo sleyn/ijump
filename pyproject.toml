@@ -17,5 +17,8 @@ dependencies = [
     "scikit-learn",
 ]
 
+[project.scripts]
+ijump = "ijump.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

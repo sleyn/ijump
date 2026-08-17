@@ -141,16 +141,16 @@ Do BLASTn search:
 blastn -query <Genome> -db <BLASTn database from IS.fna> -out <Output file> -outfmt 6
 ```
 
-Parse the output table with **isfinder_db_parcer.py** script:
+Parse the output table with the **isfinder-db-parse** subcommand:
 ```
-python3 -m ijump.isfinder_db_parcer -b <BLAST output in outfmt 6 format> -o <Output directory>
+ijump isfinder-db-parse -b <BLAST output in outfmt 6 format> -o <Output directory>
 ```
 
 2) Find them from ISFinder website using their [BLAST](https://isfinder.biotoul.fr/blast.php) against your reference contigs.
 
-It will return you  html page of hits that you can download and parse with **isfinder_parser.py**:
+It will return you  html page of hits that you can download and parse with the **isfinder-parse** subcommand:
 ```
-python3 -m ijump.isfinder_parser -i <ISfinder BLAST HTML page>
+ijump isfinder-parse -i <ISfinder BLAST HTML page>
 ```
 
 Both parsers will find non-overlapping hits with empirical E-value threshold 1E-30.
@@ -214,7 +214,7 @@ iJump has two workflows:
 
 Example of "Average" workflow:
 ```
-python3 -m ijump.ijump \
+ijump run \
     -a Sample.bam \
     -r Escherichia_coli_BW25113.fna \
     -g Escherichia_coli_BW25113.gff \
@@ -224,7 +224,7 @@ python3 -m ijump.ijump \
 
 Example of "Precise" workflow:
 ```
-python3 -m ijump.ijump \
+ijump run \
     -a Sample.bam \
     -r Escherichia_coli_BW25113.fna \
     -g Escherichia_coli_BW25113.gff \
@@ -235,9 +235,9 @@ python3 -m ijump.ijump \
 
 Available parameters:
 ```
-usage: ijump.py [-h] [-a ALN] [-r REF] [-g GFF] [-i ISEL] [-c] [-o OUTDIR]
-                [-w WD] [--radius RADIUS] [--estimation_mode ESTIMATION_MODE]
-                [--version]
+usage: ijump run [-h] [-a ALN] [-r REF] [-g GFF] [-i ISEL] [-c] [-o OUTDIR]
+                 [-w WD] [--radius RADIUS] [--estimation_mode ESTIMATION_MODE]
+                 [--version]
 
 iJump searches for small frequency IS elements rearrangements in evolved
 populations
@@ -268,7 +268,7 @@ optional arguments:
 If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:
 
 ```
-python3 -m ijump.combine_results -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
+ijump combine-results -d [Folder with ijump report files] -o [Output file with the combined table] -g [GFF file. If provided will add functional annotation of the region]
 ```
 
 This will merge all results in one table.
@@ -276,11 +276,11 @@ This will merge all results in one table.
 Available parameters:
 
 ```
-python3 -m ijump.combine_results -h
-usage: combine_results.py [-h] [-d DIR_REPORT] [-o OUTPUT] [-g [GFF]]
-                          [-p PREFIX] [-m IJUMP_MODE] [--lab_format]
-                          [--clonal] [-a [A_SAMPLES]]
-                          [--precise_mode PRECISE_MODE]
+ijump combine-results -h
+usage: ijump combine-results [-h] [-d DIR_REPORT] [-o OUTPUT] [-g [GFF]]
+                             [-p PREFIX] [-m IJUMP_MODE] [--lab_format]
+                             [--clonal] [-a [A_SAMPLES]]
+                             [--precise_mode PRECISE_MODE]
 
 Tool that combines ijump reports from several files into one summary table
 

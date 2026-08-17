@@ -7,14 +7,13 @@ validates choices for an option as soon as it's parsed, before checking
 that other (unrelated) arguments were supplied at all.
 """
 import subprocess
-import sys
 
 from conftest import REPO_ROOT
 
 
 def test_invalid_estimation_mode_rejected_at_parse_time():
     result = subprocess.run(
-        [sys.executable, "-m", "ijump.ijump", "--estimation_mode", "bogus"],
+        ["ijump", "run", "--estimation_mode", "bogus"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
