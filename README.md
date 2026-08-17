@@ -124,6 +124,29 @@ uv run pytest           # run the test suite inside that venv (replaces bare `py
 uv run ijump --help     # run the console script from a checkout (replaces an installed `ijump`)
 ```
 
+#### Lint / pre-commit
+
+`ruff` (lint + format) and `mypy` (type checking) are configured in
+`pyproject.toml`'s `[tool.ruff]` / `[tool.mypy]` sections, scoped to
+`src/ijump/`, and enforced both locally via `pre-commit` and in CI via
+`.github/workflows/lint.yml`. Install the git hook once per clone so lint
+issues are caught before they're committed rather than only in CI:
+
+```
+uv run pre-commit install
+```
+
+(if `uv sync` isn't usable yet on your machine because of the
+`pysam`/`pysamstats` limitation above, `pip install pre-commit &&
+pre-commit install` works the same way — `pre-commit` itself has no
+dependency on the project's runtime deps.) After that, `git commit` runs
+`ruff check --fix`, `ruff format`, and `mypy src/ijump` automatically; run
+them over the whole repo at any time with:
+
+```
+pre-commit run --all-files
+```
+
 **Known limitation, verified on this machine (macOS/arm64, Python 3.13,
 `uv 0.11.8`): `uv sync` / `uv lock` (and therefore `uv run` against a
 project venv) currently fail outright, before installing anything, and

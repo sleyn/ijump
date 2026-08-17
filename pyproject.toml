@@ -17,6 +17,9 @@ dependencies = [
     "scikit-learn",
 ]
 
+[project.optional-dependencies]
+lint = ["ruff==0.16.3", "mypy==2.3.1"]
+
 [project.scripts]
 ijump = "ijump.cli:main"
 

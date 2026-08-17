@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff
+        name: ruff check
+        args: [--fix]
+        # Ticket 06 established a clean ruff/mypy baseline for src/ijump/
+        # only (tests/ and other non-package directories were explicitly
+        # out of scope there and are not yet clean). Scope both hooks to
+        # src/ijump/ to match that baseline rather than fail on
+        # pre-existing, out-of-scope findings elsewhere.
+        files: ^src/ijump/
+      - id: ruff-format
+        name: ruff format
+        files: ^src/ijump/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.1
+    hooks:
+      - id: mypy
+        name: mypy
+        args: [src/ijump]
+        files: ^src/ijump/
+        pass_filenames: false
+        additional_dependencies: []
