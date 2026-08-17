@@ -90,9 +90,84 @@ conda install --use-local ijump
 <a name="docker"></a>
 ### Docker
 
+A `Dockerfile` at the repo root builds a self-contained image from this
+checkout -- no prior PyPI publish needed. BLAST+ (`blastn`, `makeblastdb`)
+comes from `apt-get install ncbi-blast+` and the `ijump` package itself is
+installed with [`uv`](https://docs.astral.sh/uv/):
+
 ```
-docker push semenleyn/ijump:latest
+docker build --platform linux/amd64 -t ijump .
+docker run --rm ijump --help
 ```
+
+(`--platform linux/amd64` is required when building on an Apple
+Silicon/arm64 host -- see the tradeoff note below for why.)
+
+`ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`,
+`isfinder-parse`) are the image's `ENTRYPOINT`, so any flags after the
+image name go straight to the console script. Input files (BAM, reference
+FASTA, GFF, mobile-elements coordinates file) are user-supplied at runtime,
+not baked into the image -- mount them (and an output directory) as
+volumes:
+
+```
+docker run --rm \
+    -v "$(pwd)/Example files":/data:ro \
+    -v "$(pwd)/out":/out \
+    ijump run \
+        --aln /data/sample.bam \
+        --ref /data/reference.fasta \
+        --gff /data/reference.gff \
+        --isel /data/mobile_elements.txt \
+        --outdir /out
+```
+
+See [Usage](#usage) below for what each of `--aln`/`--ref`/`--gff`/`--isel`
+expects, and `docker run --rm ijump run --help` for the full flag list
+(including `--wd` for the intermediate work directory, which defaults to
+`ijump_wd` under the current directory and should usually be mounted or
+redirected too if you want to keep it after the container exits).
+
+**Known tradeoff, verified end-to-end with a live `docker build
+--platform linux/amd64 .` and `docker run` (`blastn -version`,
+`makeblastdb -version`, `import pysam, pysamstats`, and a full `ijump run`
+against `tests/fixtures/tiny.bam`/`.fna`/`.gff` mounted as volumes, all
+succeeded and produced the expected output files):** the image pins
+Python **3.8**, not `environment.yml`'s 3.11. Reason: `pysamstats` 1.1.2
+(see the [uv](#uv) section above for the full writeup) hard-pins
+`pysam<0.16`, and `pysam==0.15.4`'s last PyPI wheel lineage only goes up
+to `cp38` (`manylinux2010_{x86_64,i686}` plus a macOS Intel wheel; no
+arm64 wheel at any Python version) -- confirmed directly against PyPI's
+file listing for that release. Anything newer forces a from-source
+`pysam` build that's independently confirmed broken on current toolchains
+(see the `uv` section). Pinning the image to Python 3.8 (still satisfies
+`pyproject.toml`'s `requires-python = ">=3.7"`) is what makes
+`pysam==0.15.4` install from a prebuilt wheel instead of building from
+source, which in turn makes `pysamstats`' bundled precompiled `opt.c`
+buildable against matching pysam headers with just a C compiler and zlib
+headers (`build-essential` + `zlib1g-dev`, installed via apt in the
+image). No `uv.lock` is committed (same reason -- see the `uv` section),
+so the Dockerfile does not use `uv sync --frozen`; instead it runs `uv
+pip install --system` for the resolvable dependencies, then installs
+`pysam==0.15.4` and `pysamstats==1.1.2 --no-deps` as a deliberate
+two-step workaround for the metadata pin conflict, then installs `ijump`
+itself with `--no-deps` (every dependency it declares has already been
+installed explicitly).
+
+Because there's no arm64 wheel for `pysam==0.15.4`, `docker build .` on
+an Apple Silicon (or other arm64) host **must** pass `--platform
+linux/amd64`, or the build falls back to building `pysam` from source and
+fails (no cython, no precompiled `.c` in the sdist -- the same failure
+already documented in the `uv` section above). `import pysam,
+pysamstats` also prints a benign `PileupColumn size changed, may indicate
+binary incompatibility` `RuntimeWarning` at runtime (pysamstats' compiled
+`opt.c` was built against pysam 0.15.4's exact struct layout, which
+differs slightly from later ABI expectations at the Python-object level);
+it does not affect correctness -- confirmed by calling
+`pysamstats.load_coverage` directly against `tests/fixtures/tiny.bam` and
+getting real, correct coverage numbers back. Reconciling the apt-sourced
+BLAST+ version against `environment.yml`'s pin is left as follow-up work
+(explicitly out of scope for this ticket).
 
 <a name="dev-setup"></a>
 ### Development setup
@@ -112,6 +187,7 @@ what `pytest` (run from the repo root) relies on to import the package
 under test. The tests additionally require `pysam` and `pysamstats`, which
 are conda-only packages on most platforms.
 
+<a name="uv"></a>
 #### uv
 
 [`uv`](https://docs.astral.sh/uv/) is the intended tool for local dev
