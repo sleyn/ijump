@@ -7,7 +7,10 @@ import pandas as pd
 
 
 # Create an empty summary-by-region dataframe with one column per IS element.
-def _sum_by_reg_tbl_init(is_coords):
+# Shared by the no-results path (ISClipped._write_empty_outputs, via
+# ISClipped.sum_by_reg_tbl_init) and the populated path (summarize_by_region
+# below), so the two output files can never disagree on shape.
+def sum_by_reg_tbl_init(is_coords):
     sbrcolumns = ["ann", "chrom", "start", "stop"]
     sbrcolumns.extend(list(is_coords.keys()))
     return pd.DataFrame(columns=sbrcolumns)
@@ -29,7 +32,7 @@ def summarize_by_region(junctions, is_coords, gff_ann_pos) -> pd.DataFrame:
                 if ann_id not in sum_by_region.index:
                     columns = ["ann_id", "ann", "chrom", "start", "stop"]
                     columns.extend(list(is_coords.keys()))
-                    temp = _sum_by_reg_tbl_init(is_coords)
+                    temp = sum_by_reg_tbl_init(is_coords)
                     temp.at[0, "ann_id"] = ann_id
                     temp.at[0, "ann"] = item[0]
                     temp.at[0, "chrom"] = item[1]
