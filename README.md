@@ -63,19 +63,28 @@ But it is dependent on several Python libraries:
 <a name="'conda"></a>
 ### Conda
 
-The dependences could be installed in Conda environment:
+`environment.yml` at the repo root is the single source of truth for the
+conda environment (Python version, `blast`, `pysam`, `pysamstats=1.1.2`,
+and the rest of the runtime deps from `pyproject.toml`, from the `bioconda`
+and `conda-forge` channels). It only installs the dependencies — install
+`ijump` itself into the resulting environment (editable mode, for local
+dev) to get a working `ijump` command:
+
 ```
-conda install \
-    -c anaconda \
-    -c bioconda \
-    -c conda-forge \
-       biopython=1.79 \
-       pandas=1.3.5 \
-       numpy=1.21.0 \
-       scikit-learn=0.24.2 \
-       pysam=0.15.3 \
-       pysamstats=1.1.2 \
-       scipy=1.4.1
+conda env create -f environment.yml
+conda activate ijump
+pip install -e . --no-deps
+ijump --help
+```
+
+For a locally-built, non-editable conda package instead (installs `ijump`
+as a normal package rather than `pip install -e .`), use the `meta.yaml`
+conda-build recipe also at the repo root:
+
+```
+conda install -n base conda-build   # one-time, if not already installed
+conda build .
+conda install --use-local ijump
 ```
 
 <a name="docker"></a>

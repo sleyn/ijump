@@ -35,7 +35,7 @@ def summarize_by_region(junctions, is_coords, gff_ann_pos) -> pd.DataFrame:
                     temp.at[0, 'chrom'] = item[1]
                     temp.at[0, 'start'] = item[2]
                     temp.at[0, 'stop'] = item[3]
-                    temp.at[0, is_coords.keys()] = 0
+                    temp.loc[0, list(is_coords.keys())] = 0
                     temp.at[0, junc_temp.iloc[i]['IS name']] = 1
                     temp = temp.set_index('ann_id')
                     sum_by_region = pd.concat([sum_by_region, temp], sort=True)

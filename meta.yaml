@@ -1,0 +1,46 @@
+{% set version = "1.0.4" %}
+
+package:
+  name: ijump
+  version: "{{ version }}"
+
+source:
+  path: .
+
+build:
+  number: 0
+  noarch: python
+  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
+  entry_points:
+    - ijump = ijump.cli:main
+
+requirements:
+  host:
+    # Pinned to match environment.yml: an unconstrained python here let the
+    # solver pick bleeding-edge releases with no bioconda builds yet for the
+    # run-section pins (blast/pysam/pysamstats), causing multi-minute
+    # backtracking before failing to converge.
+    - python=3.11
+    - pip
+    - setuptools>=61.0
+  run:
+    - python=3.11
+    - blast=2.16.0
+    - pysam
+    - pysamstats=1.1.2
+    # Pinned <1.80: Bio.Blast.Applications (used by src/ijump/clipped_read_search.py)
+    # was deprecated in Biopython 1.80 and removed in later releases.
+    - biopython=1.79
+    - pandas<3
+    - numpy<2
+    - scikit-learn
+
+test:
+  commands:
+    - ijump --help
+
+about:
+  home: https://github.com/sleyn/ijump
+  license: GPL-3.0-only
+  license_file: LICENSE
+  summary: Search for Insertion Sequence (IS) rearrangements in evolved population sequencing data.
