@@ -1,0 +1,26 @@
+.git/
+Test/
+.scratch/
+__pycache__/
+.pytest_cache/
+program.prof
+
+# Other large example-data / build-artifact directories not needed at
+# image build/runtime -- user-supplied BAM/reference/GFF files are mounted
+# in at `docker run` time instead (see README's Docker section).
+Example files/
+simulation/
+tests/
+ijump_data/
+img/
+
+.venv/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.idea/
+env/
+ijump_wd/
+*.pyc
