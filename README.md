@@ -21,6 +21,8 @@ earlier version, `IS pos` will be shifted by 1.
 - [Installation](#installation)
   - [Conda](#conda)
   - [Docker](#docker)
+  - [Development setup](#dev-setup)
+    - [Releasing to PyPI](#releasing)
 - [Usage](#usage)	
   - [Input](#input)
     - [Mobile elements coordinates file](#mecf)
@@ -100,6 +102,89 @@ from anywhere without any manual `PYTHONPATH`/`sys.path` fiddling, and is
 what `pytest` (run from the repo root) relies on to import the package
 under test. The tests additionally require `pysam` and `pysamstats`, which
 are conda-only packages on most platforms.
+
+#### uv
+
+[`uv`](https://docs.astral.sh/uv/) is the intended tool for local dev
+(venv + dependency sync), running tests, and building/publishing the
+package:
+
+```
+uv sync                 # create .venv/ and install project + dependencies
+uv run pytest           # run the test suite inside that venv (replaces bare `pytest`)
+uv run ijump --help     # run the console script from a checkout (replaces an installed `ijump`)
+```
+
+**Known limitation, verified on this machine (macOS/arm64, Python 3.13,
+`uv 0.11.8`): `uv sync` / `uv lock` (and therefore `uv run` against a
+project venv) currently fail outright, before installing anything, and
+this is not a `uv`-specific bug.** The chain of causes:
+
+1. `pysamstats` 1.1.2 — the newest release on PyPI, last published in
+   2018 — hard-pins `pysam<0.16` in its own `install_requires`, so any
+   resolver (`uv`, or plain `pip`) is forced onto `pysam==0.15.4`
+   regardless of what `ijump`'s own `pyproject.toml` asks for.
+2. `pysam==0.15.4` has no prebuilt wheels for modern Python/platform
+   combinations, so it has to build from its sdist. That build fails in a
+   PEP 517 isolated environment with a plain `ModuleNotFoundError: No
+   module named 'pkg_resources'` (its bundled build script assumes
+   `pkg_resources` is present).
+3. Supplying `pkg_resources`/an older `setuptools` gets one step further,
+   then hits a second, deeper failure: `pysam`'s sdist has no
+   precompiled `.c` sources checked in for this Cython/Python
+   combination, so it needs `cython` installed too — and even with
+   `cython` and `setuptools<81` pre-installed and `--no-build-isolation`,
+   the native build still fails during `setup.py egg_info`/build (this
+   was verified directly with plain `pip install --no-build-isolation
+   pysam==0.15.4`, independent of `uv` entirely, to confirm this isn't a
+   `uv`-only problem).
+
+In short: `pysamstats` 1.1.2 is an unmaintained package pinned to an
+equally old, no-longer-buildable `pysam` release, and no combination of
+`uv`/`pip` flags gets a plain PyPI source resolve working for it on a
+current Python. Because of this, `uv.lock` cannot honestly be generated
+for this project's real dependency set right now, and none is committed —
+generating one by loosening/removing the `pysam`/`pysamstats`
+requirement would just hide the problem rather than fix it. This is
+exactly the gap ticket 04 (conda packaging) exists to close: conda
+provides prebuilt `pysam`/`pysamstats` binaries and sidesteps the source
+build entirely.
+
+What *does* work with `uv` today, verified on this machine:
+
+* `uv build` — produces a wheel and sdist without touching runtime
+  dependency resolution at all (the `setuptools.build_meta` backend from
+  ticket 01 needs no changes; it works as-is under `uv build`).
+* Anything that doesn't require `uv` to sync a project venv first.
+
+Until `pysam`/`pysamstats` are available as installable wheels (or ticket
+04's conda environment is the one providing them), keep using the
+existing conda-based install above for actually running/testing iJump
+locally (`conda install ...` + `pip install -e .`); treat `uv sync`/`uv
+run pytest`/`uv run ijump` as the target workflow this project is moving
+towards, not yet as something that works end-to-end from a clean clone.
+
+<a name="releasing"></a>
+#### Releasing to PyPI
+
+Cutting a release is a `uv build` + `uv publish` away once maintainers
+decide to actually do it (this is documentation for that future action,
+not something done as part of routine dev work):
+
+```
+uv build                                   # writes dist/*.whl and dist/*.tar.gz
+uv publish --token <PyPI API token>        # uploads dist/* to PyPI
+```
+
+`uv build` only needs the `[build-system]` section of `pyproject.toml`
+(currently `setuptools.build_meta`, unchanged) and does not require
+`pysam`/`pysamstats` to resolve or install — it was verified to succeed
+on this machine even while `uv sync`/`uv lock` cannot (see above). The
+`ijump` name was confirmed available on PyPI (`pypi.org/pypi/ijump/json`
+returned 404) as of ticket 03's grilling session; re-check before
+actually publishing in case it's been claimed since. `uv publish` needs a
+PyPI API token (`--token` or the `UV_PUBLISH_TOKEN` env var) — no token
+was used and nothing was published as part of this work.
 
 <a name="usage"></a>
 ## Usage
