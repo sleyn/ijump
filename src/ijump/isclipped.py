@@ -122,7 +122,7 @@ class ISClipped:
         self.blastout_filtered = self._blastout_filtered_init()
         # Junction positions table
         self.junctions = self._jtbl_init()
-        # Table with genetic element (GE) centic representation: for each GE number of
+        # Table with Region-centric representation: for each Region number of
         # supporting reads for each IS is shown
         self.sum_by_region = pd.DataFrame()
         # Table of each insertion event
@@ -600,7 +600,7 @@ class ISClipped:
                 # Check if any junction is present. If not - stop the workflow.
                 check_junctions_presence(self.junctions, outdir, mode)
 
-                # Count reads supporting IS elements insertions for each IS element and each GE
+                # Count reads supporting IS elements insertions for each IS element and each Region
                 # Reformat GFF representation
                 self.gff.pos_to_ann()
                 self.sum_by_region = region_summary.summarize_by_region(
@@ -610,7 +610,7 @@ class ISClipped:
                     os.path.join(outdir, "ijump_sum_by_reg.txt"), sep="\t", index=False
                 )
 
-                # Make a report table of assessed insertion frequencies in each GE
+                # Make a report table of assessed insertion frequencies in each Region
                 self.report_table = region_summary.report_average(
                     self.sum_by_region,
                     self.match_lengths,

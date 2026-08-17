@@ -56,7 +56,7 @@ def _read_count_mtx(pairs_df, orientation):
 
 # Translate matrix of read count proportions to the original read counts.
 # (calculated from the second pass of clipped reads collection)
-def _resore_orig_counts(counts_mtx, original_rc_counts, pos_dict):
+def _restore_orig_counts(counts_mtx, original_rc_counts, pos_dict):
     counts_mtx /= counts_mtx.sum(1).reshape(-1, 1)
 
     for chr in pos_dict.keys():
@@ -99,7 +99,7 @@ def estimate_frequencies(
     )
 
     # Pre-populate one dict entry per chrom seen in pairs_df so that every chrom
-    # _resore_orig_counts will look up is guaranteed present, even with zero
+    # _restore_orig_counts will look up is guaranteed present, even with zero
     # clipped reads recorded here. Originally pre-populated from ISClipped.ref_len
     # (the full reference chrom set); pairs_df's own chroms are a subset of that
     # and are the only ones ever looked up, so this is behaviorally equivalent
@@ -128,10 +128,10 @@ def estimate_frequencies(
     # Calculate proportions of reads for each IS for each conflicting position
     # and split reads supporting position from the clipped_reads_bwrd table.
     # 1: left matrix
-    counts_l = _resore_orig_counts(counts_l, original_rc_l, pos_l)
+    counts_l = _restore_orig_counts(counts_l, original_rc_l, pos_l)
 
     # 2: right matrix
-    counts_r = _resore_orig_counts(counts_r, original_rc_r, pos_r)
+    counts_r = _restore_orig_counts(counts_r, original_rc_r, pos_r)
 
     # Collect numbers of reads at positions for left junctions.
     pairs_df["N_unclipped_l"] = pairs_df.apply(
