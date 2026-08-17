@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-import glob
 import argparse
-import pandas as pd
+import glob
 import re
-from ijump import gff
-from os import path
 from functools import reduce
+from os import path
+
+import pandas as pd
+
+from ijump import gff
 
 
 # Read and ijump report tables
@@ -15,30 +17,33 @@ def collect_reports(report_path, a_samples_path, clonal_workflow=False):
     a_sample_files = []
 
     if clonal_workflow:
-        if a_samples_path == '-':
-            print('No unevolved samples are provided')
+        if a_samples_path == "-":
+            print("No unevolved samples are provided")
         else:
-            a_sample_files = glob.glob(path.join(a_samples_path, '*.txt'))
+            a_sample_files = glob.glob(path.join(a_samples_path, "*.txt"))
 
     # Collect paths to report tables for samples.
-    report_files = glob.glob(path.join(report_path, 'ijump_*'))
+    report_files = glob.glob(path.join(report_path, "ijump_*"))
 
     # Test if there are iJump report files in the directory
     if not report_files:
-        print('No iJump report files were found. Report files are required to have "ijump_" prefix.')
+        print(
+            'No iJump report files were found. Report files are required to have "ijump_" prefix.'
+        )
         exit(1)
 
     # List of samples from reports
-    sample_list = [re.search('ijump_(.+)\.txt', report).group(1) for report in
-                   [path.basename(file) for file in report_files]
-                   ]
+    sample_list = [
+        re.search(r"ijump_(.+)\.txt", report).group(1)
+        for report in [path.basename(file) for file in report_files]
+    ]
     sample_list.sort()
 
     a_sample_list = []
 
     # List of unevolved samples
     if clonal_workflow:
-        a_sample_list = [re.search('(\dA)\.txt', report).group(1) for report in a_sample_files]
+        a_sample_list = [re.search(r"(\dA)\.txt", report).group(1) for report in a_sample_files]
 
     return report_files, a_sample_files, sample_list, a_sample_list
 
@@ -48,65 +53,72 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
     report_dfs = []
 
     for report in report_files:
-        sample_name = re.search('ijump_(.+)\.txt', path.basename(report)).group(1)
-        print(f'Reading {report}')
-        if mode == 'average':
+        sample_name = re.search(r"ijump_(.+)\.txt", path.basename(report)).group(1)
+        print(f"Reading {report}")
+        if mode == "average":
             report_dfs.append(
-                pd.read_csv(report, sep='\t').
-                    query('Depth > 10').
-                    drop(columns='Depth').
-                    rename(columns={'Frequency': sample_name})
+                pd.read_csv(report, sep="\t")
+                .query("Depth > 10")
+                .drop(columns="Depth")
+                .rename(columns={"Frequency": sample_name})
             )
-        elif mode == 'precise':
+        elif mode == "precise":
             report_dfs.append(
-                pd.read_csv(report, sep='\t')[
-                    ['Position_l', 'Position_r', 'Chrom', 'IS_name', 'Depth', 'Frequency']].
-                    query('Depth > 10').
-                    drop(columns=['Depth']).
-                    rename(
-                        columns={
-                            'Frequency': sample_name,
-                            'Position_l': 'Start',
-                            'Position_r': 'Stop',
-                            'IS_name': 'IS Name',
-                            'Chrom': 'Chromosome'
-                        }
-                    )
+                pd.read_csv(report, sep="\t")[
+                    ["Position_l", "Position_r", "Chrom", "IS_name", "Depth", "Frequency"]
+                ]
+                .query("Depth > 10")
+                .drop(columns=["Depth"])
+                .rename(
+                    columns={
+                        "Frequency": sample_name,
+                        "Position_l": "Start",
+                        "Position_r": "Stop",
+                        "IS_name": "IS Name",
+                        "Chrom": "Chromosome",
+                    }
+                )
             )
 
     # Read unevolved samples if provided (only for clonal data)
     if clonal_workflow:
         for a_sample in a_sample_files:
-            sample_name = re.search(r'(\dA)\.txt', path.basename(a_sample)).group(1)
-            print(f'Reading {a_sample}')
-            if mode == 'average':
-                report_dfs.append(pd.read_csv(a_sample, sep='\t').query('Depth > 10').drop(columns='Depth').rename(
-                    columns={'Frequency': sample_name}))
-            elif mode == 'precise':
-                report_dfs.append(pd.read_csv(a_sample, sep='\t')[
-                    ['Position_l', 'Position_r', 'Chrom', 'IS_name', 'Depth', 'Frequency']].
-                    query('Depth > 10').
-                    drop(columns='Depth').
-                    rename(
+            sample_name = re.search(r"(\dA)\.txt", path.basename(a_sample)).group(1)
+            print(f"Reading {a_sample}")
+            if mode == "average":
+                report_dfs.append(
+                    pd.read_csv(a_sample, sep="\t")
+                    .query("Depth > 10")
+                    .drop(columns="Depth")
+                    .rename(columns={"Frequency": sample_name})
+                )
+            elif mode == "precise":
+                report_dfs.append(
+                    pd.read_csv(a_sample, sep="\t")[
+                        ["Position_l", "Position_r", "Chrom", "IS_name", "Depth", "Frequency"]
+                    ]
+                    .query("Depth > 10")
+                    .drop(columns="Depth")
+                    .rename(
                         columns={
-                            'Frequency': sample_name,
-                            'Position_l': 'Start',
-                            'Position_r': 'Stop',
-                            'IS_name': 'IS Name',
-                            'Chrom': 'Chromosome'
+                            "Frequency": sample_name,
+                            "Position_l": "Start",
+                            "Position_r": "Stop",
+                            "IS_name": "IS Name",
+                            "Chrom": "Chromosome",
                         }
                     )
                 )
 
     # Merge all data frames to one comparative table
-    if mode == 'average':
-        id_columns = ['IS Name', 'Annotation', 'Chromosome', 'Start', 'Stop']
-    elif mode == 'precise':
-        id_columns = ['IS Name', 'Chromosome', 'Start', 'Stop']
+    if mode == "average":
+        id_columns = ["IS Name", "Annotation", "Chromosome", "Start", "Stop"]
+    elif mode == "precise":
+        id_columns = ["IS Name", "Chromosome", "Start", "Stop"]
 
     summary_table = reduce(
-        lambda df1, df2: pd.merge(df1, df2, how='outer', on=id_columns),
-        report_dfs)
+        lambda df1, df2: pd.merge(df1, df2, how="outer", on=id_columns), report_dfs
+    )
     summary_table = summary_table.fillna(0)
     return summary_table
 
@@ -115,48 +127,54 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
 def make_dense_table(summary_table):
     summary_table_result = summary_table.copy()
     # Take observations with both junctions defined
-    complete_juctions = summary_table_result[['Start', 'Stop', 'Chromosome', 'IS Name']].query('Start > 0 & Stop > 0')
-    start_junctions = complete_juctions['Start'].to_list()
-    stop_junctions = complete_juctions['Stop'].to_list()
-    chrom_of_junction = complete_juctions['Chromosome'].to_list()
-    is_names_junctions = complete_juctions['IS Name'].to_list()
+    complete_juctions = summary_table_result[["Start", "Stop", "Chromosome", "IS Name"]].query(
+        "Start > 0 & Stop > 0"
+    )
+    start_junctions = complete_juctions["Start"].to_list()
+    stop_junctions = complete_juctions["Stop"].to_list()
+    chrom_of_junction = complete_juctions["Chromosome"].to_list()
+    is_names_junctions = complete_juctions["IS Name"].to_list()
 
     for row in summary_table_result.itertuples():
         if row[1] > 0 and row[2] == 0:
             if row[1] in start_junctions:
                 junct_index = start_junctions.index(row[1])
-                if chrom_of_junction[junct_index] == row[3] and is_names_junctions[junct_index] == row[4]:
-                    summary_table_result.loc[row[0], 'Stop'] = stop_junctions[start_junctions.index(row[1])]
+                if (
+                    chrom_of_junction[junct_index] == row[3]
+                    and is_names_junctions[junct_index] == row[4]
+                ):
+                    summary_table_result.loc[row[0], "Stop"] = stop_junctions[
+                        start_junctions.index(row[1])
+                    ]
         elif row[1] == 0 and row[2] > 0:
             if row[2] in stop_junctions:
                 junct_index = stop_junctions.index(row[2])
-                if chrom_of_junction[junct_index] == row[3] and is_names_junctions[junct_index] == row[4]:
-                    summary_table_result.loc[row[0], 'Start'] = start_junctions[stop_junctions.index(row[2])]
+                if (
+                    chrom_of_junction[junct_index] == row[3]
+                    and is_names_junctions[junct_index] == row[4]
+                ):
+                    summary_table_result.loc[row[0], "Start"] = start_junctions[
+                        stop_junctions.index(row[2])
+                    ]
         else:
             pass
 
-    summary_table_result = summary_table_result. \
-        groupby(['Start', 'Stop', 'Chromosome', 'IS Name'], as_index=False). \
-        sum()
+    summary_table_result = summary_table_result.groupby(
+        ["Start", "Stop", "Chromosome", "IS Name"], as_index=False
+    ).sum()
 
     return summary_table_result
 
 
-
 # Annotate junctions
 def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
-    annotation_fields = {
-        'Locus Tag': 0,
-        'Gene': 1,
-        'ID': 2,
-        'Annotation': 3
-    }
+    annotation_fields = {"Locus Tag": 0, "Gene": 1, "ID": 2, "Annotation": 3}
 
     field_ix = annotation_fields[field]
 
-    if mode == 'average':
+    if mode == "average":
         return gff_file.gff_pos[chrom][int((int(pos_1) + int(pos_2)) / 2)][field_ix]
-    elif mode == 'precise':
+    elif mode == "precise":
         l_ann = gff_file.gff_pos[chrom][int(pos_1)][field_ix]
         r_ann = gff_file.gff_pos[chrom][int(pos_2)][field_ix]
         if pos_1 == 0 and pos_2 > 0:
@@ -168,76 +186,96 @@ def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
         if l_ann == r_ann:
             return l_ann
         else:
-            return f'{l_ann} ; {r_ann}'
+            return f"{l_ann} ; {r_ann}"
 
 
 # Add GFF annotations.
 def add_gff_annotations(summary_table, gff_file_path, mode):
     # If no gff file was provided just put '-' in all annotation fields.
-    if gff_file_path == '-':
+    if gff_file_path == "-":
         n_variants = len(summary_table)
-        summary_table['Locus Tag'] = ['-'] * n_variants
-        summary_table['Gene'] = ['-'] * n_variants
-        summary_table['ID'] = ['-'] * n_variants
-        summary_table['Annotation'] = ['-'] * n_variants
+        summary_table["Locus Tag"] = ["-"] * n_variants
+        summary_table["Gene"] = ["-"] * n_variants
+        summary_table["ID"] = ["-"] * n_variants
+        summary_table["Annotation"] = ["-"] * n_variants
     else:
         # Read GFF file.
         gff_file = gff.gff(gff_file_path)
         gff_file.readgff()
 
         # Add annotations.
-        for field in ['Locus Tag', 'Gene', 'ID', 'Annotation']:
+        for field in ["Locus Tag", "Gene", "ID", "Annotation"]:
             summary_table[field] = summary_table.apply(
-                lambda x: annotate_feild(gff_file, x['Chromosome'], x['Start'], x['Stop'], field, mode),
-                axis=1)
+                lambda x, field=field: annotate_feild(
+                    gff_file, x["Chromosome"], x["Start"], x["Stop"], field, mode
+                ),
+                axis=1,
+            )
 
     return summary_table
 
 
 def create_empty_output(samples, a_samples):
-    col_names = ['Start', 'Stop', 'ID', 'Gene','Mutation']
+    col_names = ["Start", "Stop", "ID", "Gene", "Mutation"]
     if len(samples) > 0:
         col_names.extend(samples)
-    col_names.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
+    col_names.extend(["MAX", "Annotation", "Category", "Effect", "Locus Tag", "Chromosome"])
     if len(a_samples) > 0:
         col_names.extend(a_samples)
-        col_names.extend(['A_MAX'])
+        col_names.extend(["A_MAX"])
     return pd.DataFrame(columns=col_names)
 
 
 def make_selected_outfile(prefix, out_file):
-    return '_'.join(
-        [part for part in [prefix, 'selected_collapsed', path.basename(out_file)] if part])
+    return "_".join(
+        [part for part in [prefix, "selected_collapsed", path.basename(out_file)] if part]
+    )
 
 
 def make_full_outfile(prefix, out_file):
-    return '_'.join([part for part in [prefix, path.basename(out_file)] if part])
+    return "_".join([part for part in [prefix, path.basename(out_file)] if part])
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Tool that combines ijump reports from several files into one summary table')
-    parser.add_argument('-d', '--dir_report', help='Directory with report files')
-    parser.add_argument('-o', '--output', help='Output table file')
-    parser.add_argument('-g', '--gff', nargs='?', default='-', help='Path to gff file')
-    parser.add_argument('-p', '--prefix', default='', help='If set would be used as prefix')
-    parser.add_argument('-m', '--ijump_mode', default='average', help='Variant of iiJump pipeline: "average" or'
-                                                                      ' "precise". Default: "average"')
-    parser.add_argument('--lab_format', action='store_true', help='If set, output internal laboratory')
-    parser.add_argument('--clonal', action='store_true', help='If set, runs clonal merging')
-    parser.add_argument('-a', '--a_samples', nargs='?', default='-',
-                        help='Path to folder with unevolved population samples. Used for clonal analysis.')
-    parser.add_argument('--precise_mode', default='dense', help='If "dense" mode selected iJump will try to combine '
-                                                                'and sum observations based on one edge. For example: '
-                                                                'If observation 1 has coordinates 100-105 and other '
-                                                                '100-0 (right junction is undefined) the results will '
-                                                                'be combined. The options are "dense" and "sparse". '
-                                                                'Default: dense')
+        description="Tool that combines ijump reports from several files into one summary table"
+    )
+    parser.add_argument("-d", "--dir_report", help="Directory with report files")
+    parser.add_argument("-o", "--output", help="Output table file")
+    parser.add_argument("-g", "--gff", nargs="?", default="-", help="Path to gff file")
+    parser.add_argument("-p", "--prefix", default="", help="If set would be used as prefix")
+    parser.add_argument(
+        "-m",
+        "--ijump_mode",
+        default="average",
+        help='Variant of iiJump pipeline: "average" or "precise". Default: "average"',
+    )
+    parser.add_argument(
+        "--lab_format", action="store_true", help="If set, output internal laboratory"
+    )
+    parser.add_argument("--clonal", action="store_true", help="If set, runs clonal merging")
+    parser.add_argument(
+        "-a",
+        "--a_samples",
+        nargs="?",
+        default="-",
+        help="Path to folder with unevolved population samples. Used for clonal analysis.",
+    )
+    parser.add_argument(
+        "--precise_mode",
+        default="dense",
+        help='If "dense" mode selected iJump will try to combine '
+        "and sum observations based on one edge. For example: "
+        "If observation 1 has coordinates 100-105 and other "
+        "100-0 (right junction is undefined) the results will "
+        'be combined. The options are "dense" and "sparse". '
+        "Default: dense",
+    )
     args = parser.parse_args()
     a_pop_samples = []
 
     # Check if correct mode was given.
-    if args.ijump_mode not in ['average', 'precise']:
+    if args.ijump_mode not in ["average", "precise"]:
         print('Wrong iJump mode. Choose "average" or "precise".')
         exit(0)
 
@@ -247,142 +285,143 @@ def main():
     out_file = args.output
 
     # Collect report files for evolved and unevolved samples.
-    report_files, a_sample_files, sample_list, a_sample_list = collect_reports(report_dir, args.a_samples, args.clonal)
+    report_files, a_sample_files, sample_list, a_sample_list = collect_reports(
+        report_dir, args.a_samples, args.clonal
+    )
     # Read all reports and combine them to the summary table
     summary_table = read_reports(report_files, a_sample_files, args.clonal, args.ijump_mode)
     # On precise dense mode summarize reports
-    if args.ijump_mode == 'precise':
+    if args.ijump_mode == "precise":
         summary_table = make_dense_table(summary_table)
     # Add annotations from GFF file
     summary_table = add_gff_annotations(summary_table, args.gff, args.ijump_mode)
 
-    if args.gff != '-':
+    if args.gff != "-":
         # Add maximum observed frequency.
-        summary_table['MAX'] = summary_table[sample_list].apply(max, axis=1)
-        summary_table = summary_table.query('MAX > 0').copy()
+        summary_table["MAX"] = summary_table[sample_list].apply(max, axis=1)
+        summary_table = summary_table.query("MAX > 0").copy()
         if summary_table.shape[0] == 0:
-            print('No sample has IS elements rearrangement')
+            print("No sample has IS elements rearrangement")
             empty_out = create_empty_output(samples=sample_list, a_samples=a_sample_list)
             empty_out.to_csv(
-                path.join(
-                    path.dirname(out_file),
-                    make_selected_outfile(args.prefix, out_file)
-                ),
-                sep='\t',
-                index=False)
+                path.join(path.dirname(out_file), make_selected_outfile(args.prefix, out_file)),
+                sep="\t",
+                index=False,
+            )
 
             empty_out.to_csv(
-                path.join(
-                    path.dirname(out_file),
-                    make_full_outfile(args.prefix, out_file)
-                ),
-                sep='\t',
-                index=False
+                path.join(path.dirname(out_file), make_full_outfile(args.prefix, out_file)),
+                sep="\t",
+                index=False,
             )
             exit(0)
 
         # Initiate list for column names.
-        if args.ijump_mode == 'precise':
-            cols = ['Start', 'Stop']
+        if args.ijump_mode == "precise":
+            cols = ["Start", "Stop"]
         else:
             cols = []
-        cols.extend(['ID', 'Gene', 'Mutation'])
+        cols.extend(["ID", "Gene", "Mutation"])
 
         if not args.lab_format:
             cols.extend(sample_list)
-            cols.extend(['MAX', 'Annotation', 'Locus Tag', 'Chromosome'])
+            cols.extend(["MAX", "Annotation", "Locus Tag", "Chromosome"])
         else:
             # Generate short format names.
-            sample_list_rename = [re.search('_([^_]+)$', sample).group(1) for sample in sample_list]
+            sample_list_rename = [re.search("_([^_]+)$", sample).group(1) for sample in sample_list]
             cols.extend(sample_list_rename)
-            cols.extend(['MAX', 'Annotation', 'Category', 'Effect', 'Locus Tag', 'Chromosome'])
+            cols.extend(["MAX", "Annotation", "Category", "Effect", "Locus Tag", "Chromosome"])
 
             if args.clonal:
                 # Calculate maximum in unevolved population samples if they are provided
-                if args.a_samples != '-':
-                    summary_table['A_MAX'] = summary_table[a_sample_list].apply(max, axis=1)
-                    summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
-                                                 summary_table['A_MAX'].to_list()]
+                if args.a_samples != "-":
+                    summary_table["A_MAX"] = summary_table[a_sample_list].apply(max, axis=1)
+                    summary_table["Category"] = [
+                        "P" if max_a > 0 else "A" for max_a in summary_table["A_MAX"].to_list()
+                    ]
                 else:
-                    summary_table['A_MAX'] = '?'
-                    summary_table['Category'] = '?'
-                summary_table['Effect'] = 'IS_insertion'
-                summary_table['Mutation'] = summary_table['IS Name']
+                    summary_table["A_MAX"] = "?"
+                    summary_table["Category"] = "?"
+                summary_table["Effect"] = "IS_insertion"
+                summary_table["Mutation"] = summary_table["IS Name"]
             else:
                 # Process population unevolved samples
-                a_pop_samples = [a_sample for a_sample in sample_list if a_sample[-1] == 'A']
+                a_pop_samples = [a_sample for a_sample in sample_list if a_sample[-1] == "A"]
                 # If unevolved population samples are provided calculate max frequency in unevolved
                 if len(a_pop_samples) > 0:
-                    summary_table['A_MAX'] = summary_table[a_pop_samples].apply(max, axis=1)
-                    summary_table['Category'] = ['P' if max_a > 0 else 'A' for max_a in
-                                                 summary_table['A_MAX'].to_list()]
+                    summary_table["A_MAX"] = summary_table[a_pop_samples].apply(max, axis=1)
+                    summary_table["Category"] = [
+                        "P" if max_a > 0 else "A" for max_a in summary_table["A_MAX"].to_list()
+                    ]
                 else:
-                    summary_table['A_MAX'] = '?'
-                    summary_table['Category'] = '?'
+                    summary_table["A_MAX"] = "?"
+                    summary_table["Category"] = "?"
 
-                summary_table['Effect'] = 'IS_insertion'
-                summary_table['Mutation'] = summary_table['IS Name']
+                summary_table["Effect"] = "IS_insertion"
+                summary_table["Mutation"] = summary_table["IS Name"]
 
             # Rename samples to short format
-            summary_table = summary_table.rename(
-                columns=dict(zip(sample_list, sample_list_rename))
-            )
+            summary_table = summary_table.rename(columns=dict(zip(sample_list, sample_list_rename)))
 
-            if args.clonal and args.a_samples != '-':
-                a_sample_list_rename = [re.search('_?([^_]+)$', sample).group(1) for sample in a_sample_list]
+            if args.clonal and args.a_samples != "-":
+                a_sample_list_rename = [
+                    re.search("_?([^_]+)$", sample).group(1) for sample in a_sample_list
+                ]
                 summary_table = summary_table.rename(
                     columns=dict(zip(a_sample_list, a_sample_list_rename))
                 )
                 # Add columns for A-samples to the final table
                 cols.extend(a_sample_list)
 
-            cols.extend(['A_MAX'])
+            cols.extend(["A_MAX"])
 
             # Sum IS elements with the same name
             summary_table_collapsed = summary_table.copy()
-            if args.ijump_mode == 'average':
-                summary_table_collapsed['Mutation'] = [re.match(r'^(.+?)_?\d*$', is_ele).group(1) for
-                                                       is_ele in summary_table_collapsed['IS Name'].tolist()]
-                summary_table_collapsed = summary_table_collapsed.drop(columns=['IS Name', 'Start', 'Stop'])
+            if args.ijump_mode == "average":
+                summary_table_collapsed["Mutation"] = [
+                    re.match(r"^(.+?)_?\d*$", is_ele).group(1)
+                    for is_ele in summary_table_collapsed["IS Name"].tolist()
+                ]
+                summary_table_collapsed = summary_table_collapsed.drop(
+                    columns=["IS Name", "Start", "Stop"]
+                )
                 summary_table_collapsed = summary_table_collapsed.groupby(
-                    ['ID', 'Gene', 'Mutation', 'Annotation', 'Effect', 'Locus Tag', 'Chromosome'],
-                    as_index=False
-                ).agg('sum')
+                    ["ID", "Gene", "Mutation", "Annotation", "Effect", "Locus Tag", "Chromosome"],
+                    as_index=False,
+                ).agg("sum")
 
-                if args.a_samples != '-' or len(a_pop_samples) > 0:
-                    summary_table_collapsed['Category'] = ['P' if max_a > 0 else 'A' for max_a in
-                                                           summary_table_collapsed['A_MAX'].to_list()]
+                if args.a_samples != "-" or len(a_pop_samples) > 0:
+                    summary_table_collapsed["Category"] = [
+                        "P" if max_a > 0 else "A"
+                        for max_a in summary_table_collapsed["A_MAX"].to_list()
+                    ]
                 else:
-                    summary_table_collapsed['Category'] = '?'
-                    summary_table_collapsed['A_MAX'] = '?'
+                    summary_table_collapsed["Category"] = "?"
+                    summary_table_collapsed["A_MAX"] = "?"
 
                 summary_table_collapsed = summary_table_collapsed[cols]
 
-                # Write collapsed table. All ISname_"[digit]" frequences will be sum to one ISname field frequency.
-                out_file_collapsed = '_'.join(
-                    [part for part in [args.prefix, 'collapsed', path.basename(out_file)] if part])
+                # Write collapsed table. All ISname_"[digit]" frequences will be sum to
+                # one ISname field frequency.
+                out_file_collapsed = "_".join(
+                    [part for part in [args.prefix, "collapsed", path.basename(out_file)] if part]
+                )
                 summary_table_collapsed.to_csv(
-                    path.join(path.dirname(out_file), out_file_collapsed),
-                    sep='\t',
-                    index=False)
+                    path.join(path.dirname(out_file), out_file_collapsed), sep="\t", index=False
+                )
 
             # Write selected (Frequency >= 1%) IS insertions variant table to file.
-            summary_table_collapsed[cols].query('MAX >= 0.01').to_csv(
-                path.join(
-                    path.dirname(out_file),
-                    make_selected_outfile(args.prefix, out_file)
-                ),
-                sep='\t',
-                index=False)
+            summary_table_collapsed[cols].query("MAX >= 0.01").to_csv(
+                path.join(path.dirname(out_file), make_selected_outfile(args.prefix, out_file)),
+                sep="\t",
+                index=False,
+            )
 
         # Write full IS insertions variant table to file.
         summary_table[cols].to_csv(
-            path.join(
-                path.dirname(out_file),
-                make_full_outfile(args.prefix, out_file)
-            ),
-            sep='\t',
-            index=False
+            path.join(path.dirname(out_file), make_full_outfile(args.prefix, out_file)),
+            sep="\t",
+            index=False,
         )
 
 

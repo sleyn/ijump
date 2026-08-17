@@ -17,3 +17,6 @@ skills-lock.json
 *.egg-info/
 build/
 dist/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

@@ -21,6 +21,7 @@ handed to the target as ``sys.argv[1:]`` (with ``sys.argv[0]`` set to a
 friendly ``ijump <subcommand>`` label for usage/help text), then restored
 once the target returns.
 """
+
 import argparse
 import importlib
 import sys
@@ -37,7 +38,9 @@ _SUBCOMMAND_MODULES = {
 _SUBCOMMAND_HELP = {
     "run": "Run the main iJump pipeline to detect IS element rearrangements.",
     "combine-results": "Combine per-sample iJump report tables into one summary table.",
-    "isfinder-db-parse": "Parse a BLAST (outfmt 6) search of a genome against the ISFinder database.",
+    "isfinder-db-parse": (
+        "Parse a BLAST (outfmt 6) search of a genome against the ISFinder database."
+    ),
     "isfinder-parse": "Parse an ISFinder BLAST HTML results page.",
 }
 
@@ -55,7 +58,7 @@ def build_arg_parser():
     parser = argparse.ArgumentParser(
         prog="ijump",
         description="iJump: search for Insertion Sequence (IS) element rearrangements "
-                     "in evolved population sequencing data.",
+        "in evolved population sequencing data.",
     )
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 

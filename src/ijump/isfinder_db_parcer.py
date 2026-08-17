@@ -1,37 +1,50 @@
 #!/usr/bin/env python3
 
 import argparse
-import pandas as pd
 from os.path import join as join_path
+
+import pandas as pd
 
 
 def main():
     parser = argparse.ArgumentParser(description="Parse BLAST output Genome vs ISFinder.")
-    parser.add_argument('-b', '--blast_out', type=str, action='store', help='BLAST output for parsing. Require outfmt 6.')
-    # parser.add_argument('-c', '--csv', type=str, action='store', help='CSV description of IS Finder'
-    #                                                                   'database mobile elements.')
-    parser.add_argument('-o', '--outdir', type=str, default='.', help="Output directory")
+    parser.add_argument(
+        "-b",
+        "--blast_out",
+        type=str,
+        action="store",
+        help="BLAST output for parsing. Require outfmt 6.",
+    )
+    # parser.add_argument('-c', '--csv', type=str, action='store',
+    #                      help='CSV description of IS Finder database mobile elements.')
+    parser.add_argument("-o", "--outdir", type=str, default=".", help="Output directory")
     args = parser.parse_args()
 
     # Outfmt 6 BLAST output
-    blast_out = pd.read_csv(args.blast_out, sep='\t', names=['qseqid',
-                                                             'sseqid',
-                                                             'pident',
-                                                             'length',
-                                                             'mismatch',
-                                                             'gapopen',
-                                                             'qstart',
-                                                             'qend',
-                                                             'sstart',
-                                                             'send',
-                                                             'evalue',
-                                                             'bitscore'])
+    blast_out = pd.read_csv(
+        args.blast_out,
+        sep="\t",
+        names=[
+            "qseqid",
+            "sseqid",
+            "pident",
+            "length",
+            "mismatch",
+            "gapopen",
+            "qstart",
+            "qend",
+            "sstart",
+            "send",
+            "evalue",
+            "bitscore",
+        ],
+    )
 
     # Filter high e-value
-    blast_out = blast_out[blast_out.evalue <= 1E-30]
-    blast_out = blast_out.sort_values(by=['bitscore'], ascending=False)
+    blast_out = blast_out[blast_out.evalue <= 1e-30]
+    blast_out = blast_out.sort_values(by=["bitscore"], ascending=False)
 
-    blast_out['sseqid'] = blast_out['sseqid'].apply(lambda x: x.split('_')[0])
+    blast_out["sseqid"] = blast_out["sseqid"].apply(lambda x: x.split("_")[0])
 
     # Information about ISFinder databasse records
     # db_info = pd.read_csv(args.csv, usecols=['Name', 'Family', 'Group', 'Origin', 'Length'])
@@ -64,14 +77,16 @@ def main():
 
     # drop IS elements that did not pass overlap check
     blast_out = blast_out[check_overlap]
-    blast_out['Row_num'] = blast_out.groupby(['sseqid']).cumcount()+1
-    blast_out['sseqid'] = blast_out.apply(lambda x: x.sseqid + '_' + str(x.Row_num), axis=1)
+    blast_out["Row_num"] = blast_out.groupby(["sseqid"]).cumcount() + 1
+    blast_out["sseqid"] = blast_out.apply(lambda x: x.sseqid + "_" + str(x.Row_num), axis=1)
 
-    blast_out.to_csv(join_path(args.outdir, 'ISTable_processing.txt'),
-              sep='\t',
-              columns=['sseqid', 'qseqid', 'qstart', 'qend'],
-              header=False,
-              index=False)
+    blast_out.to_csv(
+        join_path(args.outdir, "ISTable_processing.txt"),
+        sep="\t",
+        columns=["sseqid", "qseqid", "qstart", "qend"],
+        header=False,
+        index=False,
+    )
 
 
 if __name__ == "__main__":
