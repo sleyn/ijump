@@ -10,9 +10,18 @@ clipped_read_search.search.
 
 
 class FakeRead:
-    def __init__(self, query_name, cigarstring, ref_positions, query_sequence,
-                 is_unmapped=False, is_reverse=False, reference_name='contig_1',
-                 aligned_pairs=None, infer_len=None):
+    def __init__(
+        self,
+        query_name,
+        cigarstring,
+        ref_positions,
+        query_sequence,
+        is_unmapped=False,
+        is_reverse=False,
+        reference_name="contig_1",
+        aligned_pairs=None,
+        infer_len=None,
+    ):
         self.query_name = query_name
         self.cigarstring = cigarstring
         self._ref_positions = ref_positions
@@ -20,8 +29,11 @@ class FakeRead:
         self.is_unmapped = is_unmapped
         self.is_reverse = is_reverse
         self.reference_name = reference_name
-        self.aligned_pairs = aligned_pairs if aligned_pairs is not None else \
-            [(i, p) for i, p in enumerate(ref_positions)]
+        self.aligned_pairs = (
+            aligned_pairs
+            if aligned_pairs is not None
+            else [(i, p) for i, p in enumerate(ref_positions)]
+        )
         self._infer_len = infer_len if infer_len is not None else len(query_sequence)
 
     def get_reference_positions(self, full_length=False):
@@ -36,7 +48,8 @@ class FakeAlignmentFetch:
     canned reads per chrom regardless of start/stop -- the boundaries under
     test are chosen by the caller, not derived from real coordinate overlap.
     """
-    references = ('contig_1', 'contig_2')
+
+    references = ("contig_1", "contig_2")
     lengths = (2000, 2000)
 
     def __init__(self, reads_by_chrom):

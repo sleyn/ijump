@@ -14,13 +14,24 @@ skipped the downstream report files, silently dropping the sample out of
 combine_results.py (see the ticket's "Why"). See git history for the prior
 version of this test, which pinned that behaviour.
 """
+
 import pandas as pd
 import pytest
 
 FILES_BY_MODE = {
-    "average": ["reads.txt", "ijump_junctions.txt", "ijump_sum_by_reg.txt", "ijump_report_by_is_reg.txt"],
-    "precise": ["reads.txt", "ijump_junctions.txt", "ijump_sum_by_reg.txt", "ijump_report_by_is_reg.txt",
-                "ijump_junction_pairs.txt"],
+    "average": [
+        "reads.txt",
+        "ijump_junctions.txt",
+        "ijump_sum_by_reg.txt",
+        "ijump_report_by_is_reg.txt",
+    ],
+    "precise": [
+        "reads.txt",
+        "ijump_junctions.txt",
+        "ijump_sum_by_reg.txt",
+        "ijump_report_by_is_reg.txt",
+        "ijump_junction_pairs.txt",
+    ],
 }
 
 

@@ -10,10 +10,9 @@ written). test_empty_run_writes_full_file_set_with_no_rows below is the
 end-to-end counterpart: it drives the CLI without --estimation_mode and
 asserts the full average-mode file set is written.
 """
+
 import pandas as pd
 import pytest
-
-from conftest import REPO_ROOT
 
 from ijump.ijump import parse_args
 from ijump.isclipped import EstimationMode
@@ -39,7 +38,13 @@ def test_omitted_estimation_mode_writes_full_average_mode_output_set(run_ijump):
 
     assert result.returncode == 0, result.stderr
 
-    for filename in ["reads.txt", "ijump_junctions.txt", "ijump_sum_by_reg.txt", "ijump_report_by_is_reg.txt"]:
+    filenames = [
+        "reads.txt",
+        "ijump_junctions.txt",
+        "ijump_sum_by_reg.txt",
+        "ijump_report_by_is_reg.txt",
+    ]
+    for filename in filenames:
         file_path = outdir / filename
         assert file_path.exists(), f"{filename} was not written"
         table = pd.read_csv(file_path, sep="\t")

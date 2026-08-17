@@ -7,5 +7,5 @@ a test needs no real BAM file.
 
 
 class FakeAlignment:
-    references = ('contig_1',)
+    references = ("contig_1",)
     lengths = (10000,)

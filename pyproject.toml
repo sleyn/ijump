@@ -34,5 +34,5 @@ target-version = "py37"
 select = ["E", "F", "W", "I", "B"]
 
 [tool.mypy]
-files = ["src/ijump"]
+files = ["src/ijump", "tests"]
 ignore_missing_imports = true

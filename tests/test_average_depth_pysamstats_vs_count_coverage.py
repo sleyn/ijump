@@ -41,9 +41,11 @@ bug, which is out of this ticket's scope. See
 ``.scratch/isclipped-refactor/issues/16-evaluate-dropping-pysamstats.md``
 for the full characterization and the decision not to swap.
 """
+
+from statistics import mean
+
 import pysam
 import pysamstats
-from statistics import mean
 
 from ijump.isclipped import ISClipped
 
@@ -85,6 +87,7 @@ def _pysamstats_average(aln, chrom, start, stop):
 
 
 # --- 1. Filter semantics: reconcilable ------------------------------------
+
 
 def test_tuned_count_coverage_matches_pysamstats_filters(tmp_path):
     """Region has: two normal reads, one low-base-quality read (qual=5,
@@ -166,6 +169,7 @@ def test_tuned_count_coverage_matches_pysamstats_across_realistic_windows(tmp_pa
 
 
 # --- 2. Numeric result: NOT reconcilable ------------------------------------
+
 
 def test_production_average_depth_truncates_fractional_means(tmp_path):
     """The actual blocker. Build a region whose true mean has a fractional
