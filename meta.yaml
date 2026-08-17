@@ -32,7 +32,7 @@ requirements:
     # was deprecated in Biopython 1.80 and removed in later releases.
     - biopython=1.79
     - pandas<3
-    - numpy<2
+    - numpy
     - scikit-learn
 
 test:

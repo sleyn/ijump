@@ -13,7 +13,5 @@ dependencies:
   # Pinned <3: pandas 3.0 changes positional Series.__getitem__ behavior,
   # breaking frequency_estimation.py's existing indexing.
   - pandas<3
-  # Pinned <2: numpy 2.0 removed the deprecated np.int0 alias used by
-  # junction_pairing.py.
-  - numpy<2
+  - numpy
   - scikit-learn

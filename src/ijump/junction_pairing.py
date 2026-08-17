@@ -51,7 +51,7 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
     for pos_index, pos in enumerate(pos_l):
         closeness_matrix[pos_index] = (
             np.ones_like(pos_r) * (np.abs(pos_r - pos) < max_is_dup_len)
-        ).astype(np.int0)
+        ).astype(np.intp)
 
     # Assign clusters and sort in each cluster by junction representation in descending order.
 
