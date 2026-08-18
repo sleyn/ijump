@@ -80,3 +80,48 @@ neither gates the other.)
 - [ ] CI green.
 
 ## Comments
+
+- **Finding counts confirmed, not drifted.** `ruff check tests/` at implementation
+  time reported the same **17 findings, 8 autofixable** the ticket cites
+  (6 × I001, 2 × F401 autofixable; 9 × E501 manual). No drift despite the
+  ticket's warning that the numbers might be stale.
+- **`ruff format --check tests/` was not clean** even after the 17 `ruff check`
+  findings were resolved — 16 of the 18 test files needed reformatting
+  (quote style, multi-line call/collection wrapping, etc.). The ticket's "Why"
+  section only quantified `ruff check` findings; `ruff format --check tests/`
+  passing clean is also a stated verification criterion, so this was in scope.
+  Ran `ruff format tests/` to apply it mechanically — no manual judgment calls,
+  pure formatter output, verified behavior-preserving by running the subset of
+  `tests/` that can execute without the (documented, pre-existing) missing
+  `pysamstats`/CLI-entry-point deps.
+- **9 manual E501 line-wraps** — all mechanical: split long literal lists /
+  call arguments onto multiple lines with a trailing comma so `ruff format`
+  keeps them exploded. No behavior changes. Files: `test_check_blast_ref.py`,
+  `test_clipped_read_search.py` (×3), `test_empty_run_outputs.py` (×2),
+  `test_estimation_mode_default.py`, `test_find_pair.py` (×2).
+- **mypy scope decision: widened to include `tests/`.** Ran
+  `mypy src/ijump tests` (matching `pyproject.toml`'s
+  `ignore_missing_imports = true`) — zero findings, so there was no baseline
+  debt that would justify leaving `tests/` out. Widened `pre-commit-config.yaml`
+  (`args: [src/ijump, tests]`), `pyproject.toml`'s `[tool.mypy] files`, and
+  `lint.yml`'s `mypy` step accordingly, with the reasoning recorded as a
+  comment in `.pre-commit-config.yaml`.
+- **Verified the widened `files:` pattern actually matches**: added a
+  deliberately malformed scratch file at `tests/_lint_probe.py` (unused
+  imports, missing trailing newline), ran
+  `pre-commit run --files tests/_lint_probe.py`, confirmed `ruff` and
+  `ruff-format` fired on it (mypy passed, as expected for that file), then
+  discarded the probe file — it was never committed.
+- **Follow-up not actioned (out of scope per ticket):** `simulation/`,
+  `rule-tests/`, and the repo-root scripts (`ijump.py`, `gff.py`,
+  `combine_results.py`, etc.) remain unlinted by both pre-commit and CI.
+  Worth a future ticket if those directories are meant to carry the same
+  bar as `src/ijump/`/`tests/`.
+- **Environment note:** this repo's runtime deps (`pysam`/`pysamstats`) are
+  not installable in the sandbox used to verify this ticket (same
+  known/documented limitation `lint.yml` already calls out for the deferred
+  `pytest` CI step). Ruff and mypy don't need them; verification for those
+  ran clean. A partial local `pytest` run (excluding modules that import
+  `pysamstats` or shell out to the uninstalled `ijump` console script) showed
+  21 passed / 0 unexpected failures, confirming the ruff/format changes are
+  behavior-preserving.

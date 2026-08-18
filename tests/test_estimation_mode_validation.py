@@ -6,6 +6,7 @@ Unlike run_ijump's fixture runs, no other flags are needed here: argparse
 validates choices for an option as soon as it's parsed, before checking
 that other (unrelated) arguments were supplied at all.
 """
+
 import subprocess
 
 from conftest import REPO_ROOT

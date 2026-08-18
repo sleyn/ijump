@@ -7,6 +7,7 @@ tiny fixture (``tests/fixtures/tiny.bam``) -- ``FakeAlignment`` only stubs
 call. The expected mean was cross-checked independently with
 ``samtools depth -a -r tiny_contig:801-900 tests/fixtures/tiny.bam``.
 """
+
 import pysam
 
 from ijump.isclipped import ISClipped
@@ -14,6 +15,6 @@ from ijump.isclipped import ISClipped
 
 def test_average_depth_returns_mean_coverage_for_region(fixtures_dir):
     aln = pysam.AlignmentFile(str(fixtures_dir / "tiny.bam"))
-    isc = ISClipped(aln, 'unused.fna', 'unused.gff', 'unused_wd')
+    isc = ISClipped(aln, "unused.fna", "unused.gff", "unused_wd")
 
-    assert isc.average_depth('tiny_contig', 800, 900) == 2
+    assert isc.average_depth("tiny_contig", 800, 900) == 2

@@ -20,6 +20,7 @@ def run_ijump(tmp_path):
     under tmp_path for each call, so runs don't interfere with each other or
     leave anything behind in the repo.
     """
+
     def _run(estimation_mode, extra_args=()):
         """estimation_mode=None omits --estimation_mode entirely, exercising
         the CLI's default rather than an explicitly-passed value."""
@@ -27,13 +28,20 @@ def run_ijump(tmp_path):
         outdir = tmp_path / f"out_{label}"
         workdir = tmp_path / f"wd_{label}"
         args = [
-            "ijump", "run",
-            "--aln", str(FIXTURES_DIR / "tiny.bam"),
-            "--ref", str(FIXTURES_DIR / "tiny.fna"),
-            "--gff", str(FIXTURES_DIR / "tiny.gff"),
-            "--isel", str(FIXTURES_DIR / "is_coords.txt"),
-            "--outdir", str(outdir),
-            "--wd", str(workdir),
+            "ijump",
+            "run",
+            "--aln",
+            str(FIXTURES_DIR / "tiny.bam"),
+            "--ref",
+            str(FIXTURES_DIR / "tiny.fna"),
+            "--gff",
+            str(FIXTURES_DIR / "tiny.gff"),
+            "--isel",
+            str(FIXTURES_DIR / "is_coords.txt"),
+            "--outdir",
+            str(outdir),
+            "--wd",
+            str(workdir),
             *(["--estimation_mode", estimation_mode] if estimation_mode is not None else []),
             *extra_args,
         ]

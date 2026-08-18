@@ -33,17 +33,19 @@ jobs:
           # tools directly instead of `pip install -e .[lint]`.
           python -m pip install ruff==0.16.3 mypy==2.3.1
 
-      # Scoped to src/ijump/: ticket 06 established a clean ruff/mypy
-      # baseline only for that directory (tests/ and other non-package
-      # directories were out of scope there and are not yet clean).
+      # Ticket 06 established a clean ruff/mypy baseline for src/ijump/;
+      # ticket 03 (lint follow-up) cleared tests/ to the same standard and
+      # widened both to cover it too. Other non-package directories
+      # (simulation/, rule-tests/, repo-root scripts) are still out of
+      # scope and unclean.
       - name: ruff check
-        run: ruff check src/ijump
+        run: ruff check src/ijump tests
 
       - name: ruff format --check
-        run: ruff format --check src/ijump
+        run: ruff format --check src/ijump tests
 
       - name: mypy
-        run: mypy src/ijump
+        run: mypy src/ijump tests
 
       # No pytest step here on purpose: this repo's test suite needs
       # BLAST+ and pysamstats (a compiled, conda-only dependency), and
