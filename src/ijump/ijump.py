@@ -10,7 +10,6 @@ import sys
 
 import pysam
 
-from ijump import circos
 from ijump.isclipped import EstimationMode, ISClipped
 
 # Define a path to output directory that will be available to all functions.
@@ -208,16 +207,7 @@ def main():
 
     # Plot circular diagram of insertions
     if args.circos is True and args.estimation_mode == EstimationMode.AVERAGE:
-        circos.write_files(
-            is_processing.report_table,
-            is_processing.sum_by_region,
-            is_processing.is_coords,
-            is_processing.ref_len,
-            is_processing.data_folder,
-            is_processing.cutoff,
-            is_processing.average_depth,
-            is_processing.gff.ann_pos,
-        )
+        is_processing.write_circos_files()
 
 
 if __name__ == "__main__":

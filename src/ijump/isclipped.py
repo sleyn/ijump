@@ -14,7 +14,7 @@ import pandas as pd
 import pysamstats
 from sklearn.cluster import AgglomerativeClustering
 
-from ijump import clipped_read_search, frequency_estimation, gff, region_summary
+from ijump import circos, clipped_read_search, frequency_estimation, gff, region_summary
 from ijump.clipped_read_search import NoInsertionsFound
 from ijump.junction_pairing import find_pairs
 
@@ -732,3 +732,19 @@ class ISClipped:
             self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000
         )
         return mean(c.reads_all)
+
+    # Write the Circos diagram files from this pipeline's own state.
+    # The caller (main()) only decides whether to call this; this method
+    # is the adapter that knows which pieces of pipeline state a Circos
+    # diagram needs.
+    def write_circos_files(self):
+        circos.write_files(
+            self.report_table,
+            self.sum_by_region,
+            self.is_coords,
+            self.ref_len,
+            self.data_folder,
+            self.cutoff,
+            self.average_depth,
+            self.gff.ann_pos,
+        )
