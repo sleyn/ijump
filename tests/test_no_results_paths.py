@@ -17,6 +17,7 @@ import pytest
 from ijump.isclipped import ISClipped, NoInsertionsFound
 from fake_alignment import FakeAlignment
 from ijump.clipped_read_search import _parseblast
+from ijump.frequency_estimation import _read_count_mtx
 
 
 def test_missing_blast_output_signals_no_insertions(tmp_path):
@@ -50,5 +51,12 @@ def test_all_hits_inside_is_boundaries_signal_no_insertions():
 
 
 def test_read_count_mtx_rejects_invalid_orientation():
-    with pytest.raises(ValueError):
-        ISClipped._read_count_mtx(pd.DataFrame(), 'up')
+    # `_read_count_mtx` is a module-level helper in `frequency_estimation`
+    # (moved there by isclipped-refactor ticket 09, formerly an `ISClipped`
+    # static method). It has no public wrapper: `estimate_frequencies`, the
+    # module's public entry point, always calls it with a hardcoded "left" or
+    # "right" and never exposes `orientation` to its own callers, so the
+    # invalid-orientation guard is unreachable from the public API. Testing
+    # the private helper directly is therefore the only way to cover it.
+    with pytest.raises(ValueError, match='"left" or "right"'):
+        _read_count_mtx(pd.DataFrame(), 'up')

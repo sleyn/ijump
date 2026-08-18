@@ -232,3 +232,5 @@ Full `pytest` run: 45 passed, 1 pre-existing failure unrelated to this ticket
 (`test_read_count_mtx_rejects_invalid_orientation` — references a method,
 `ISClipped._read_count_mtx`, that no longer exists; predates this ticket, noted
 in ticket 12's comments too).
+
+**Correction (2026-08-17, review-followups ticket 02):** The `test_read_count_mtx_rejects_invalid_orientation` failure noted above was *not* pre-existing. It was introduced by isclipped-refactor ticket 09's extraction of the read-count-matrix helper to module level in `frequency_estimation.py`, which left no delegating alias on `ISClipped`; on `master` the helper is still an `ISClipped` static method and the test passes there. It is fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.

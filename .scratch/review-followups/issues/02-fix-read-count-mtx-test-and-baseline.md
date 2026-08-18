@@ -77,11 +77,154 @@ a test baseline that was wrong about its own provenance.
 
 **Status:** ready-for-agent
 
-- [ ] The test calls the helper at its real location and passes.
-- [ ] A decision is recorded on whether to test the private helper or the public entry point.
-- [ ] Every ticket claiming this failure was pre-existing carries a Comment retracting that.
-- [ ] packaging/08's incorrect expected-baseline line in Verification is corrected in place and the edit noted.
-- [ ] isclipped-refactor ticket 09 carries a Comment about its unmet "pytest passes" criterion.
-- [ ] No original ticket body text rewritten beyond that one baseline line.
+- [x] The test calls the helper at its real location and passes.
+- [x] A decision is recorded on whether to test the private helper or the public entry point.
+- [x] Every ticket claiming this failure was pre-existing carries a Comment retracting that.
+- [x] packaging/08's incorrect expected-baseline line in Verification is corrected in place and the edit noted.
+- [x] isclipped-refactor ticket 09 carries a Comment about its unmet "pytest passes" criterion.
+- [x] No original ticket body text rewritten beyond that one baseline line.
 
 ## Comments
+
+Implemented 2026-08-17.
+
+**The test fix.** `tests/test_no_results_paths.py::test_read_count_mtx_rejects_invalid_orientation`
+now imports and calls `frequency_estimation._read_count_mtx` directly instead
+of the no-longer-existing `ISClipped._read_count_mtx`, and asserts on the
+guard's actual message (`pytest.raises(ValueError, match='"left" or "right"')`)
+so it keeps testing the invalid-orientation guard specifically, not just "some
+exception."
+
+**Decision: test the private helper directly, not the public entry point.**
+`_read_count_mtx` has no public wrapper. `estimate_frequencies` (the module's
+public entry point) always calls it with a hardcoded `"left"` or `"right"` and
+never exposes `orientation` to its own callers — the invalid-orientation guard
+is simply unreachable from the public API. Testing the private module-level
+function directly is therefore the only way to exercise that guard at all, so
+that's what the fixed test does (this mirrors what the pre-refactor
+`ISClipped._read_count_mtx` static-method test already did — same shape of
+test, just pointed at the helper's new home).
+
+**Correcting the record.** `grep -rln "pre-existing" .scratch/*/issues/`
+returned 13 files. Read each rather than editing blindly; 8 actually make the
+specific claim that `test_read_count_mtx_rejects_invalid_orientation` was
+pre-existing/unrelated:
+- `.scratch/isclipped-refactor/issues/12-close-circos-av-depth-seam.md`
+- `.scratch/isclipped-refactor/issues/16-evaluate-dropping-pysamstats.md`
+- `.scratch/packaging/issues/01-src-layout-package.md`
+- `.scratch/packaging/issues/02-cli-subcommand-dispatch.md`
+- `.scratch/packaging/issues/03-uv-migration.md`
+- `.scratch/packaging/issues/04-local-conda-packaging.md`
+- `.scratch/packaging/issues/06-ruff-mypy-config.md`
+- `.scratch/packaging/issues/08-upgrade-numpy-2.md`
+
+Each got a Comment appended (body text otherwise untouched) retracting the
+claim and pointing at this ticket as the fix. The other 5 matches were false
+positives on the same grep string, checked and left alone because they're
+about something else entirely:
+- `.scratch/isclipped-refactor/issues/06-find-pair-characterization-test.md`
+  — "pre-existing environment gap" = missing `pysamstats`/`Bio`/`sklearn` in
+  the shell, unrelated to this test.
+- `.scratch/isclipped-refactor/issues/09-extract-frequency-estimation.md`
+  — "No pre-existing captured-real-data fixture" = about test-fixture
+  provenance, not a failure claim. (It still got a *separate* Comment per
+  this ticket's own scope, about its unmet "pytest passes from a clean
+  clone" criterion — see below.)
+- `.scratch/isclipped-refactor/issues/14-fix-estimation-mode-default.md`
+  — "Confirmed pre-existing" refers to the `--estimation_mode` default bug,
+  a different failure entirely.
+- `.scratch/isclipped-refactor/issues/15-commit-untracked-agent-scaffolding.md`
+  — same `pysamstats` environment-gap note as ticket 06, not about this test.
+- `.scratch/packaging/issues/07-lint-pre-commit-ci.md` — "pre-existing
+  findings" refers to ruff lint findings in `tests/`, unrelated.
+
+`.scratch/packaging/issues/08-upgrade-numpy-2.md` was the one case where the
+false claim sat in a **Verification** section as an instruction to future
+implementers ("pytest passes with the same profile as today (45 passed, 1
+pre-existing unrelated failure...)"), so that line was corrected in place (to
+"46 passed, 0 failures") per this ticket's explicit exception, with a Comment
+in that file noting the edit and why.
+
+`.scratch/isclipped-refactor/issues/09-extract-frequency-estimation.md` got a
+Comment recording that its "Done when" criterion "`pytest` passes from a
+clean clone" was not actually met at close time — this is the ticket whose
+extraction broke the test.
+
+**Sandbox limitations, recorded honestly.** This sandbox's system Python
+(3.9.13, Homebrew) has a broken/ABI-mismatched pandas/pyarrow install, so a
+fresh venv was needed. In that venv, `pysam`/`pysamstats` could not be built:
+`pysamstats`'s isolated build pulls in `pysam<0.16` from source, which fails
+on `ModuleNotFoundError: No module named 'pkg_resources'` (newer setuptools
+dropped it) even after pre-installing an older setuptools in the venv itself,
+because `pysamstats`'s own build-isolation environment ignores that; forcing
+`--no-build-isolation` instead hits `no cython installed, but can not find
+pysam/libchtslib.c` since this pysam release ships no compiled sources named
+that. This reproduces the same "conda-only, unbuildable via plain pip/venv"
+wall packaging tickets 03/04 already documented. To get `tests/` collecting
+at all, a **local stub** `pysamstats` module (raising `NotImplementedError`
+from `load_coverage`) was placed in the venv's site-packages — not part of
+this ticket's diff, not committed, exists only in `/tmp/ijump-venv-t02` for
+this run.
+
+With that stub, `pytest -q` from this venv: 36 passed, 10 failed. All 10
+failures are attributable to the sandbox, not to this ticket's change or to
+real bugs:
+- `tests/test_average_depth_pysamstats_vs_count_coverage.py` (3 tests) and
+  `tests/test_isclipped.py::test_average_depth_returns_mean_coverage_for_region`
+  — hit the stub's `NotImplementedError` (real `pysamstats.load_coverage`
+  unavailable).
+- `tests/test_empty_run_outputs.py` (4 tests),
+  `tests/test_estimation_mode_default.py::test_omitted_estimation_mode_writes_full_average_mode_output_set`,
+  and `tests/test_estimation_mode_validation.py::test_invalid_estimation_mode_rejected_at_parse_time`
+  — `subprocess`-invoke the `ijump` console script, which isn't installed
+  because `pip install -e .` also depends on the same unbuildable
+  `pysam`/`pysamstats` chain.
+
+The specific test this ticket targets,
+`tests/test_no_results_paths.py::test_read_count_mtx_rejects_invalid_orientation`,
+passes, along with the rest of `tests/test_no_results_paths.py` (4/4) and the
+full suite modulo the 10 sandbox-attributable failures above. Per this
+ticket's own out-of-scope list, the full suite was not re-run in a working
+conda environment and packaging/08's pytest checkbox was left untouched —
+that remains ticket 08's job.
+
+**Review note.** Two parallel sub-agent code-review tasks (Standards axis,
+Spec axis) were launched against this diff per the `/implement` workflow.
+Their `SendMessage` replies back to this session's agent name failed to
+route; the coordinator relayed the Standards result directly instead. That
+result: no hard violations — every `.scratch/*/issues/*.md` correction is a
+pure Comments append except packaging/08's authorized in-place Verification
+edit (which correctly carries an "Edit note:" disclosing it); 8 of the 13
+`grep -rln "pre-existing"` hits are the genuine claim and were corrected, the
+other 5 were correctly left alone; the test fix correctly repoints to
+`frequency_estimation._read_count_mtx` with a tightened assertion. Sole
+observation (not a violation): the same correction paragraph is duplicated
+verbatim across the 7 append-only files — defensible given the repo's
+append-only Comments convention.
+
+The Spec-axis sub-agent also returned (relayed the same way): no missing
+requirements, no scope creep, the checklist was correctly checked off, and
+the test fix correctly targets the invalid-orientation guard. One note from
+that review: re-running `grep -rln "pre-existing" .scratch/*/issues/` now
+returns 14 files, not the ticket's stated 13 — the extra hit is this ticket
+file itself (`review-followups/issues/02-...md`), whose own prose uses the
+word "pre-existing" several times while describing the bug. Not an
+implementer error; the ticket's "13 files" count was taken before this
+ticket's own file existed in the count.
+
+Manual self-review performed in parallel: re-read the full diff (`git diff
+HEAD`) hunk by hunk, confirmed `tests/test_no_results_paths.py`'s fix
+imports and calls `frequency_estimation._read_count_mtx` (verified against
+the real current location via `grep -n "_read_count_mtx"
+src/ijump/frequency_estimation.py`) and that the assertion still targets the
+invalid-orientation guard specifically (`pytest.raises(ValueError,
+match='"left" or "right"')`, not a bare `pytest.raises(Exception)`), re-ran
+`tests/test_no_results_paths.py` (4/4 pass), and ran `ruff check` on the
+changed test file — it flags one `I001` unsorted-import finding, but that
+same finding already exists on `HEAD` before this change (verified via `git
+show HEAD:... | ruff check --stdin-filename ... -`), so it's pre-existing
+and, per ticket 07's Comments, `tests/` is out of ruff's currently-enforced
+scope anyway — not something this ticket introduced or needs to fix.
+Confirmed via `git diff --stat HEAD` that every `.scratch/*/issues/*.md`
+change other than packaging/08's one authorized Verification line is a pure
+append (no lines removed from original ticket bodies).

@@ -91,3 +91,5 @@ and added `tests/test_isclipped.py` exercising `average_depth` against
 `tests/fixtures/tiny.bam` via a real `pysam.AlignmentFile`. Full suite passes
 except the pre-existing, unrelated `test_read_count_mtx_rejects_invalid_orientation`
 failure (references a method that no longer exists, predates this ticket).
+
+**Correction (2026-08-17, review-followups ticket 02):** The `test_read_count_mtx_rejects_invalid_orientation` failure noted above was *not* pre-existing. It was introduced by isclipped-refactor ticket 09's extraction of the read-count-matrix helper to module level in `frequency_estimation.py`, which left no delegating alias on `ISClipped`; on `master` the helper is still an `ISClipped` static method and the test passes there. It is fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.
