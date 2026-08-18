@@ -39,9 +39,10 @@ repo-wide grep for `np.int0`/`np.float_`/`np.bool8`/`np.object0`/
 
 ## Verification
 
-- `pytest` passes with the same profile as today (45 passed, 1
-  pre-existing unrelated failure in
-  `tests/test_no_results_paths.py::test_read_count_mtx_rejects_invalid_orientation`)
+- `pytest` passes with the same profile as today (46 passed, 0 failures —
+  `tests/test_no_results_paths.py::test_read_count_mtx_rejects_invalid_orientation`
+  was fixed by review-followups ticket 02; it was never actually
+  pre-existing, see Comments)
   and — the actual point of this ticket — the `np.int0`
   `DeprecationWarning` in `tests/test_find_pair.py` is gone.
 - Manual real-sample run (`ijump run` against `Test/Sample.bam` +
@@ -128,3 +129,13 @@ already merged into `refactor`).
   actual conda env with numpy ≥ 2, run the full 45-passed pytest suite
   there, run the manual real-sample `ijump run`, and run `conda build .`
   — none of that was possible in this sandbox.
+
+**Correction (2026-08-17, review-followups ticket 02):** The `test_read_count_mtx_rejects_invalid_orientation` failure noted above was *not* pre-existing. It was introduced by isclipped-refactor ticket 09's extraction of the read-count-matrix helper to module level in `frequency_estimation.py`, which left no delegating alias on `ISClipped`; on `master` the helper is still an `ISClipped` static method and the test passes there. It is fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.
+
+**Edit note:** unlike the other tickets carrying this correction, this file's
+**Verification** section (above, "45 passed, 1 pre-existing unrelated
+failure...") stated the wrong baseline as an *instruction to future
+implementers* rather than as a past-tense report, so review-followups ticket
+02 corrected that line in place (to "46 passed, 0 failures") instead of only
+appending a Comment. This is the one exception to "don't rewrite original
+ticket body text" that ticket 02 was authorized to make.

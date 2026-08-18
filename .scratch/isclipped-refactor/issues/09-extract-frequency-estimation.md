@@ -132,3 +132,5 @@ byte-for-byte. Must match exactly.
 - `pytest` passes from a clean clone.
 
 ## Comments
+
+**Correction (2026-08-17, review-followups ticket 02):** This ticket's "Done when" required `pytest` to pass from a clean clone. That criterion was not actually met when the ticket was closed: this extraction moved `_read_count_mtx` (and the other helper statics) off `ISClipped` to module level in `frequency_estimation.py` without leaving a delegating alias, which broke `tests/test_no_results_paths.py::test_read_count_mtx_rejects_invalid_orientation` (it called `ISClipped._read_count_mtx(...)`, which no longer existed, so the test raised `AttributeError` instead of the `ValueError` it asserted). Several later tickets recorded that failure as "pre-existing" — it was not; it originated here. Fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.
