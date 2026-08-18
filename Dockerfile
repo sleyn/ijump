@@ -75,17 +75,22 @@ COPY . .
 # cannot resolve this project's real dependency set today, precisely
 # because of the pysam/pysamstats situation above), so `uv sync --frozen`
 # is not usable here. Install the resolvable dependencies with `uv pip
-# install --system` instead, then install pysam/pysamstats as a deliberate
-# two-step workaround for the pin conflict described above, then install
-# the `ijump` project itself with --no-deps since every dependency it
-# declares has already been installed explicitly above.
+# install --system` instead, then install the `ijump` project itself with
+# --no-deps since every dependency it declares has already been installed
+# explicitly above.
+#
+# `pysamstats` was dropped as a dependency (ticket 16); the pysam==0.15.4 /
+# Python 3.8 / build-essential / zlib1g-dev machinery above exists solely to
+# satisfy pysamstats' pysam<0.16 pin and could be relaxed to a modern pysam
+# wheel on a current Python base now that constraint is gone -- left as-is
+# here since re-architecting the image is out of this ticket's scope; see
+# ticket 16's Comments.
 RUN uv pip install --system \
         pandas \
         "biopython==1.79" \
         "numpy<2" \
         scikit-learn \
         "pysam==0.15.4" \
-    && uv pip install --system --no-deps "pysamstats==1.1.2" \
     && uv pip install --system --no-deps .
 
 ENTRYPOINT ["ijump"]

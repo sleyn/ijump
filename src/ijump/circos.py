@@ -12,7 +12,7 @@ import re
 # `average_depth_fn` and `gff_ann_pos` are not part of ticket 11's originally enumerated
 # signature (report_table, sum_by_region, is_coords, ref_len, data_folder, cutoff) but the
 # moved body reads both: average-depth lookups (originally ISClipped.average_depth, which
-# needs a live BAM handle via pysamstats) and GFF annotation positions (originally
+# needs a live BAM handle via pysam) and GFF annotation positions (originally
 # self.gff.ann_pos, a plain nested dict). Both are passed in explicitly instead of an object
 # to read from, keeping this a plain function of its inputs -- true to the "already-finished
 # results" framing in the ticket's Why section, just with two more of them than were

@@ -9,6 +9,19 @@ Software for search of Insertion Sequences (IS) rearrangements in evolved popula
 
 **NOTE:** Working with short-read-only assembled genomes is difficult with iJump. The reason is that usually IS elements are repetitive regions which are difficult to resolve for assemblers. This often result in shreading IS elements to several/many sometimes overlapped short contigs. This introduces difficulty either for boundaries determination and for mapping algorithms.
 
+**Unreleased:** Dropped the `pysamstats` dependency; `average_depth`'s coverage
+calculation is now pure `pysam` (a per-read CIGAR/span accumulator, no pileup),
+verified to reproduce `pysamstats`' true (unrounded) coverage mean exactly across
+supplementary reads, internal deletions/ref-skips, and zero-coverage windows. This
+also fixes a pre-existing bug: `average_depth` previously called `statistics.mean()`
+on a `numpy.int32` coverage array, which truncated every fractional mean down to an
+integer. Coverage means (and, in `--estimation_mode average`, the `Depth` column and
+everything derived from it) are now the correct, unrounded float — if you compare a
+new run's `Depth`/`Frequency` values against one from an earlier version, expect
+`Depth` to gain a fractional part it previously lost, and `Frequency` (which divides
+by `Depth`) to shift slightly *downward* as a result, since the old truncated,
+smaller `Depth` inflated it.
+
 **v1.0.4:** Fixed a bug (`--estimation_mode precise` was compared against the misspelled
 `'presice'`) where the `IS pos` column of `ijump_junctions.txt` in precise mode was left
 0-based while `Position` on the same row was already 1-based. `IS pos` is now converted to
@@ -55,7 +68,6 @@ But it is dependent on several Python libraries:
 * **biopython**
 * **pandas**
 * **pysam**
-* **pysamstats**
 * **numpy**
 * **scipy**
 * **sklearn**
@@ -64,9 +76,9 @@ But it is dependent on several Python libraries:
 ### Conda
 
 `environment.yml` at the repo root is the single source of truth for the
-conda environment (Python version, `blast`, `pysam`, `pysamstats=1.1.2`,
-and the rest of the runtime deps from `pyproject.toml`, from the `bioconda`
-and `conda-forge` channels). It only installs the dependencies — install
+conda environment (Python version, `blast`, `pysam`, and the rest of the
+runtime deps from `pyproject.toml`, from the `bioconda` and `conda-forge`
+channels). It only installs the dependencies — install
 `ijump` itself into the resulting environment (editable mode, for local
 dev) to get a working `ijump` command:
 
@@ -184,8 +196,13 @@ pip install -e .
 This makes `import ijump`, `from ijump.isclipped import ...`, etc. resolve
 from anywhere without any manual `PYTHONPATH`/`sys.path` fiddling, and is
 what `pytest` (run from the repo root) relies on to import the package
-under test. The tests additionally require `pysam` and `pysamstats`, which
-are conda-only packages on most platforms.
+under test. The tests additionally require `pysam`, which has prebuilt
+wheels for current Python/platform combinations and installs fine via
+plain `pip`/`uv` (unlike the now-removed `pysamstats`, which pinned
+`pysam<0.16` and forced a conda install — see the `uv` section below,
+whose documented `pysam`/`pysamstats` build failure predates that
+removal and describes a conflict that no longer exists for a plain
+`pysam` install).
 
 <a name="uv"></a>
 #### uv

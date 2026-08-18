@@ -7,16 +7,24 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from statistics import mean
+from statistics import StatisticsError
 
 import numpy as np
 import pandas as pd
-import pysamstats
 from sklearn.cluster import AgglomerativeClustering
 
 from ijump import circos, clipped_read_search, frequency_estimation, gff, region_summary
 from ijump.clipped_read_search import NoInsertionsFound
 from ijump.junction_pairing import find_pairs
+
+# SAM flag bits average_depth() excludes when accumulating coverage:
+# UNMAP(0x4) | SECONDARY(0x100) | QCFAIL(0x200) | DUP(0x400). This is
+# htslib's own default pileup flag filter, which is what pysamstats'
+# reads_all was built on -- matched empirically (ticket 16 round 2), not
+# assumed. SUPPLEMENTARY(0x800) is deliberately kept: iJump is a
+# transposon-insertion caller and supplementary alignments of clipped reads
+# are precisely the reads it exists to find.
+_COVERAGE_EXCLUDE_FLAGS = 0x4 | 0x100 | 0x200 | 0x400
 
 
 # Values accepted by --estimation_mode. A str Enum instead of bare string
@@ -725,13 +733,34 @@ class ISClipped:
     # per ticket 06's scope (tooling-config only, no design changes).
     @lru_cache(maxsize=128)  # noqa: B019
     def average_depth(self, chrom, start, stop):
-        # aln_depth = self.aln.count_coverage(chrom, start, stop)
-        # depth = sum(map(sum, aln_depth))
-        # return depth / len(aln_depth[0])  # average depth of the region
-        c = pysamstats.load_coverage(
-            self.aln, chrom=chrom, start=start, end=stop, truncate=True, max_depth=300000
-        )
-        return mean(c.reads_all)
+        # Mean coverage over *covered* positions in [start, stop) -- matches
+        # pysamstats.load_coverage(..., pad=False)'s denominator, which emits
+        # a row only for reference positions some read actually covers, not
+        # for every position in the window (ticket 16 round 2).
+        #
+        # A read's reference span [reference_start, reference_end) is
+        # contiguous coverage for this purpose: every op that consumes the
+        # reference (M/=/X, but also D/N) sits inside that span, and only
+        # S/I/H -- which don't consume the reference -- fall outside it. So
+        # summing per-read span overlap with the window reproduces
+        # pysamstats' reads_all exactly, without walking CIGAR ops or a
+        # per-column pileup.
+        window = stop - start
+        depth = np.zeros(window, dtype=np.int64)
+        for read in self.aln.fetch(chrom, start, stop):
+            if read.flag & _COVERAGE_EXCLUDE_FLAGS:
+                continue
+            read_start = max(read.reference_start, start)
+            read_stop = min(read.reference_end, stop)
+            if read_start >= read_stop:
+                continue
+            depth[read_start - start : read_stop - start] += 1
+
+        covered = depth > 0
+        n_covered = int(covered.sum())
+        if n_covered == 0:
+            raise StatisticsError("mean requires at least one data point")
+        return float(depth[covered].sum() / n_covered)
 
     # Write the Circos diagram files from this pipeline's own state.
     # The caller (main()) only decides whether to call this; this method
