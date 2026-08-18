@@ -61,11 +61,67 @@ just moved. Ticket 06 is small; take it first.
 
 **Status:** ready-for-agent
 
-- [ ] `ISClipped` grows a method that writes the Circos files from its own state.
-- [ ] `main()` reduced to the gating condition plus one call; no attribute walk remains.
-- [ ] Gating on `--circos` and average mode still lives in `main()`.
-- [ ] Circos module functions unchanged — no new dependency on `ISClipped`.
-- [ ] Circos output byte-identical for a `--circos` average-mode run.
-- [ ] Both negative paths (no flag; precise mode) and the no-insertions path verified.
+- [x] `ISClipped` grows a method that writes the Circos files from its own state.
+- [x] `main()` reduced to the gating condition plus one call; no attribute walk remains.
+- [x] Gating on `--circos` and average mode still lives in `main()`.
+- [x] Circos module functions unchanged — no new dependency on `ISClipped`.
+- [x] Circos output byte-identical for a `--circos` average-mode run.
+- [x] Both negative paths (no flag; precise mode) and the no-insertions path verified.
 
 ## Comments
+
+Implemented in commit `4cf46c3` on `ticket-07-circos-call-assembly`.
+
+- Added `ISClipped.write_circos_files(self)` in `src/ijump/isclipped.py`, calling
+  `circos.write_files(...)` with the same eight positional arguments, in the same
+  order, sourced from `self` (`self.report_table`, `self.sum_by_region`,
+  `self.is_coords`, `self.ref_len`, `self.data_folder`, `self.cutoff`,
+  `self.average_depth`, `self.gff.ann_pos`). Added `circos` to `isclipped.py`'s
+  existing `from ijump import ...` line; no circular-import risk since
+  `circos.py` imports only stdlib.
+- `main()` in `src/ijump/ijump.py` now reads:
+  ```python
+  if args.circos is True and args.estimation_mode == EstimationMode.AVERAGE:
+      is_processing.write_circos_files()
+  ```
+  The gating condition is untouched/unmoved. Removed the now-unused
+  `from ijump import circos` import from `ijump.py`.
+- `circos.py` (including `write_files`'s 8-parameter signature) was not touched,
+  per the ticket's explicit "leave this signature exactly as-is" instruction —
+  ticket 09's territory.
+
+Verification performed:
+- `ruff check src/ijump/` and `mypy src/ijump/`: both clean.
+- `grep -n "is_processing\." src/ijump/ijump.py`: only remaining hits are
+  `is_processing.iscollect(...)`, `is_processing.set_is_boundaries(...)`,
+  `is_processing.run(...)`, and `is_processing.write_circos_files()` — the
+  eight-attribute walk (including `is_processing.gff.ann_pos`) is gone.
+- Full test suite (`pytest tests/`, 47 tests) passes in an env with the package
+  installed as an editable console-script (`ijump-verify` conda env, since the
+  repo's own environment isn't set up for `pip install -e .` in this worktree).
+  Env was restored to its original (ijump-not-importable) state afterward so as
+  not to disturb other concurrent worktree sessions sharing it.
+- Positive path (byte-identical Circos output): `test_circos.py`'s existing
+  golden-output test against `circos.write_files` is untouched and still passes
+  (that function's code wasn't modified). Additionally verified directly that
+  `ISClipped.write_circos_files` forwards the exact same 8 values in the exact
+  same order as the old inline call (monkeypatched `circos.write_files` and
+  asserted the captured `args` tuple), so the positive path is byte-identical
+  by construction.
+- Negative paths, driven end-to-end via the CLI against the `tests/fixtures`
+  tiny fixture set (which yields no insertions found): confirmed no
+  `ijump_data/` (Circos output) directory is created for (a) average mode
+  without `--circos`, (b) precise mode with `--circos`, and (c) average mode
+  with `--circos` but no insertions found (the early-exit-before-this-block
+  path). All three returned exit code 0 with no Circos output, matching
+  pre-change behavior.
+- `code-review` skill run (Standards + Spec sub-agents in parallel against
+  `refactor..HEAD`): both reports came back clean — no hard standards
+  violations (repo has no CODING_STANDARDS.md/CONTRIBUTING.md), no missing or
+  partial spec requirements, no scope creep. Standards review flagged two
+  minor non-blocking judgement calls: (1) `ISClipped`'s import list and
+  responsibility surface is growing (now also owns file-writing delegation)
+  — worth watching across future tickets, not actionable here; (2) the
+  3-line comment above `write_circos_files` is slightly more
+  self-justifying than strictly necessary — left as-is since it documents
+  the adapter's intent per the ticket's own framing.
