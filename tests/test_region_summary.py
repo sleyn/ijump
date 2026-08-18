@@ -86,7 +86,6 @@ def test_report_average_matches_pinned_golden_output_for_single_hit_path():
         read_lengths=3000,
         n_reads_analyzed=20,
         blast_min=10,
-        min_match=150,
         average_depth=_stub_average_depth,
     )
 

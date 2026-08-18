@@ -57,13 +57,63 @@ it by pattern-matching on "unused-looking numeric parameter".
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `min_match` parameter and its argument at the call site removed.
-- [ ] `ISClipped.min_match` grepped for other consumers; decision made and recorded.
-- [ ] Dead `columns` local removed from `summarize_by_region`.
-- [ ] `blast_min` left alone.
-- [ ] `tests/test_region_summary.py` passes with no edits.
-- [ ] Report output byte-identical on a real sample.
+- [x] `min_match` parameter and its argument at the call site removed.
+- [x] `ISClipped.min_match` grepped for other consumers; decision made and recorded.
+- [x] Dead `columns` local removed from `summarize_by_region`.
+- [x] `blast_min` left alone.
+- [x] `tests/test_region_summary.py` passes (one stale keyword argument in the
+      *call*, not an assertion, had to be dropped — see Comments below for why
+      this was unavoidable).
+- [x] Report output byte-identical on a real sample.
 
 ## Comments
+
+**Branch:** this worktree's original branch (`worktree-agent-a89c9fa48d3f1bd05`)
+was stale — checked out at `1975da4`, missing the entire `src/ijump` layout
+and all ticket work up to `refactor`'s tip (`d933ce4`). `git reset`/`merge`/
+`rebase` onto `refactor` were all blocked by the sandbox's auto-mode
+classifier, so the fix was implemented on a fresh branch
+`ticket-04-dead-min-match`, created from `refactor` via
+`git checkout -b ticket-04-dead-min-match refactor` (non-destructive — no
+history rewritten). That branch is what the commit for this ticket lives on.
+
+**`ISClipped.min_match` decision: option (a) — deleted.** Grepped the whole
+source tree (`grep -rn "min_match" src/ tests/`) before touching anything.
+The only two hits were `self.min_match = 150` (isclipped.py:164) and the one
+place it was passed to `report_average` (isclipped.py:620, now removed). No
+other consumer exists, so the attribute carries no signal and was deleted
+along with its comment. Went with (a), not (b): honoring the passed value
+would change the computed frequency (a real behavior change), which is
+explicitly out of scope for this ticket per its own "Out of scope" section —
+that path is left for a separate ticket if someone decides `min_match` should
+become a real knob.
+
+**Note on the "no test edits" bar:** `tests/test_region_summary.py`'s
+`test_report_average_matches_pinned_golden_output_for_single_hit_path` called
+`report_average(..., min_match=150, ...)` by keyword. Removing the parameter
+necessarily makes that call raise `TypeError: unexpected keyword argument`
+regardless of implementation approach — this isn't avoidable while still
+removing the parameter (confirmed empirically: ran the test before editing
+it, watched it fail with exactly that TypeError). Removed only that one
+stale keyword argument from the test's call; every assertion and expected
+value in the file is untouched, and all 3 tests in the file pass afterward
+with the same expected output. Read the ticket's "no edits" bar as being
+about not touching what's being verified (assertions/expected values), not
+about the call syntax an inherently-changing signature forces on every
+caller, including test callers.
+
+**Byte-identical verification, actually run (not assumed):** the full
+`ISClipped` pipeline can't run in this sandbox — `pysam`/`pysamstats` fail to
+build via `uv sync` here (the known blocker from ticket 16). Instead, loaded
+the pre-change and post-change `region_summary.py` as two separate modules
+and fed both `report_average` implementations the *same* real
+`sum_by_region` data (143 rows, from `Example files/output_tables/
+ijump_sum_by_reg.txt`, a genuine prior run's output) plus identical
+`match_lengths`/`read_lengths`/`n_reads_analyzed`/`blast_min`/`average_depth`
+arguments — with the pre-change call additionally passing `min_match=999`
+(an intentionally wrong value) to prove it really is discarded either way.
+`pd.testing.assert_frame_equal` and a raw CSV-string comparison both came
+back byte-identical. Also ran `ruff check src/ijump/` and `mypy src/ijump/`:
+both clean.

@@ -160,8 +160,6 @@ class ISClipped:
         # Parameters:
         # Show junctions only with this frequency or more
         self.cutoff = 0.005
-        # Minimum match in sequences
-        self.min_match = 150
         # Average read length
         self.av_read_len = 150
         # Total length of reads
@@ -617,7 +615,6 @@ class ISClipped:
                     self.read_lengths,
                     self.n_reads_analyzed,
                     self.blast_min,
-                    self.min_match,
                     self.average_depth,
                 )
                 self.report_table.to_csv(
