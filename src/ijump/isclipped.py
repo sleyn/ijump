@@ -168,8 +168,10 @@ class ISClipped:
         # Number of analyzed reads
         # Populated by clipped_read_search.search's forward (direction=1) call.
         self.n_reads_analyzed = 0
-        # Minimum length of clipped part to use in BLAST
-        self.blast_min = 10
+        # Minimum length of clipped part to use in BLAST. Fed into the
+        # frequency calculation in region_summary.report_average; the value
+        # itself lives on clipped_read_search.BLAST_MIN.
+        self.blast_min = clipped_read_search.BLAST_MIN
         # Maximum expected length of duplication created from the insertion event
         self.max_is_dup_len = 20
 
@@ -273,11 +275,10 @@ class ISClipped:
             ]
         )
 
-    # Create summary dataframe.
+    # Create summary dataframe. Shape is shared with region_summary's
+    # per-region builder -- see region_summary.sum_by_reg_tbl_init.
     def sum_by_reg_tbl_init(self):
-        sbrcolumns = ["ann", "chrom", "start", "stop"]
-        sbrcolumns.extend(list(self.is_coords.keys()))
-        return pd.DataFrame(columns=sbrcolumns)
+        return region_summary.sum_by_reg_tbl_init(self.is_coords)
 
     # Collect information about IS elements.
     def iscollect(self, file):
