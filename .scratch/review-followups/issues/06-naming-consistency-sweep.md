@@ -64,14 +64,48 @@ ruff and mypy are perfectly happy with a misspelled name used consistently.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `_resore_orig_counts` corrected, all references updated.
-- [ ] `_cirocs_colors` corrected, all references updated.
-- [ ] The circos depth-callable parameter renamed, finishing ticket 12.
-- [ ] "GE" replaced with the glossary term; `src/ijump/` re-grepped for other `_Avoid_`-list breaches.
-- [ ] Comments and docstrings updated alongside identifiers.
-- [ ] No user-facing name changed.
-- [ ] Output byte-identical on a real sample.
+- [x] `_resore_orig_counts` corrected, all references updated.
+- [x] `_cirocs_colors` corrected, all references updated.
+- [x] The circos depth-callable parameter renamed, finishing ticket 12.
+- [x] "GE" replaced with the glossary term; `src/ijump/` re-grepped for other `_Avoid_`-list breaches.
+- [x] Comments and docstrings updated alongside identifiers.
+- [x] No user-facing name changed.
+- [x] Output byte-identical on a real sample.
 
 ## Comments
+
+Implemented. `_resore_orig_counts` → `_restore_orig_counts` in
+`frequency_estimation.py` (definition, 2 call sites, 1 comment).
+`_cirocs_colors` → `_circos_colors` in `circos.py` (definition + 4 usage
+sites).
+
+`write_files`'s `av_depth` parameter renamed to **`average_depth_fn`**
+rather than bare `average_depth`, because `region_summary.report_average`
+already has a parameter literally named `average_depth` for the same kind
+of callable — reusing that name in `circos.py` would relocate rather than
+close the scalar/callable ambiguity ticket 12 set out to fix. Header
+comment and both internal call sites updated; the external caller
+(`ijump.py`) passes positionally so needed no change.
+
+Replaced "genetic element (GE)"/"each GE" with "Region" at all 3
+`isclipped.py` comment sites. Re-grepped `src/ijump/` against every
+`CONTEXT.md` `_Avoid_` entry (GE, locus, gene, empty result/no data/
+failure/error, approximate/fast/exact/detailed mode) — no other breaches
+found; remaining `gene`/`Locus tag` hits are genuine GFF-annotation fields
+or user-facing output column headers, correctly left alone (out of scope
+per the ticket).
+
+No test edits — `tests/test_circos.py` still says `av_depth` in its
+docstring and `fake_av_depth` fixture name, but the call there is
+positional so it needed no change; this is a residual outside the
+ticket's `src/`-scoped verification.
+
+Verification: `grep -rn` for all three old spellings across `src/` returns
+nothing. `ruff`/`mypy` clean on `src/ijump/`. Output verified
+byte-identical on `tests/fixtures/tiny.*` before/after. Full suite: 35
+passed / 11 failed in the implementing sandbox, confirmed via `git stash`
+that the same 11 tests fail identically with and without this diff — a
+pre-existing, documented `pysamstats` environment gap (ticket 16),
+unrelated to this change.
