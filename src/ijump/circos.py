@@ -9,22 +9,32 @@ import re
 
 # Create Circos files.
 #
-# `av_depth` and `gff_ann_pos` are not part of ticket 11's originally enumerated signature
-# (report_table, sum_by_region, is_coords, ref_len, data_folder, cutoff) but the moved body
-# reads both: average-depth lookups (originally ISClipped.average_depth, which needs a live BAM
-# handle via pysamstats) and GFF annotation positions (originally self.gff.ann_pos, a plain
-# nested dict). Both are passed in explicitly instead of an object to read from, keeping this
-# a plain function of its inputs -- true to the "already-finished results" framing in the
-# ticket's Why section, just with two more of them than were enumerated there.
+# `average_depth_fn` and `gff_ann_pos` are not part of ticket 11's originally enumerated
+# signature (report_table, sum_by_region, is_coords, ref_len, data_folder, cutoff) but the
+# moved body reads both: average-depth lookups (originally ISClipped.average_depth, which
+# needs a live BAM handle via pysamstats) and GFF annotation positions (originally
+# self.gff.ann_pos, a plain nested dict). Both are passed in explicitly instead of an object
+# to read from, keeping this a plain function of its inputs -- true to the "already-finished
+# results" framing in the ticket's Why section, just with two more of them than were
+# enumerated there. `average_depth_fn` is a callable (chrom, start, stop) -> depth, not a
+# scalar depth value -- named with the `_fn` suffix to keep that distinct from a plain
+# average-depth number.
 def write_files(
-    report_table, sum_by_region, is_coords, ref_len, data_folder, cutoff, av_depth, gff_ann_pos
+    report_table,
+    sum_by_region,
+    is_coords,
+    ref_len,
+    data_folder,
+    cutoff,
+    average_depth_fn,
+    gff_ann_pos,
 ) -> None:
     logging.info("Create CIRCOS files")
     while not os.path.exists(data_folder):
         os.makedirs(data_folder)
 
     # Colors used for IS elements and contig representation
-    _cirocs_colors = ("green", "red", "blue", "purple", "orange", "yellow", "grey")
+    _circos_colors = ("green", "red", "blue", "purple", "orange", "yellow", "grey")
     # Colors assigned to each chromosome
     _ref_colours = dict()
     # Colours assigned to each IS element
@@ -42,10 +52,10 @@ def write_files(
                 + " 0 "
                 + str(ref_len[contig])
                 + " "
-                + _cirocs_colors[col_ind % len(_cirocs_colors)]
+                + _circos_colors[col_ind % len(_circos_colors)]
                 + "\n"
             )
-            _ref_colours[contig] = _cirocs_colors[col_ind % len(_cirocs_colors)]
+            _ref_colours[contig] = _circos_colors[col_ind % len(_circos_colors)]
             col_ind += 1
 
     # Text file
@@ -61,10 +71,10 @@ def write_files(
                 + " "
                 + is_name
                 + " color=vvd"
-                + _cirocs_colors[col_ind % len(_cirocs_colors)]
+                + _circos_colors[col_ind % len(_circos_colors)]
                 + "\n"
             )
-            _is_colours[is_name] = _cirocs_colors[col_ind % len(_cirocs_colors)]
+            _is_colours[is_name] = _circos_colors[col_ind % len(_circos_colors)]
             col_ind += 1
 
         # List to remove duplicates
@@ -114,7 +124,7 @@ def write_files(
     with open(data_folder + "histogram.txt", "w") as histogram:
         for i in range(len(sum_by_region)):
             # Calculate average depth of the region.
-            depth = av_depth(
+            depth = average_depth_fn(
                 sum_by_region.iloc[i]["chrom"],
                 sum_by_region.iloc[i]["start"],
                 sum_by_region.iloc[i]["stop"],
@@ -145,7 +155,7 @@ def write_files(
             for _ann_id, ann in gff_ann_pos[contig].items():
                 if ann[3] - ann[2] <= 0:
                     continue
-                depth = av_depth(ann[1], ann[2], ann[3])
+                depth = average_depth_fn(ann[1], ann[2], ann[3])
                 depth_hist.write(" ".join([str(x) for x in ann[1:]]) + " " + str(depth) + "\n")
 
     # Write config.
