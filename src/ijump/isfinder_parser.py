@@ -54,6 +54,15 @@ def main():
             "check",
         ]
     )  # specific inforamtion about every hit
+    # Seed the accumulator list with the template itself (matching what
+    # `isels_final.append(isels, ...)` did implicitly on each iteration):
+    # `isels` is indexed by "name" while this template has "name" as an
+    # ordinary column, so concatenating the two does not align the index
+    # into that column -- the "name" column ends up all-NaN and a stray,
+    # all-NaN "check" column survives (isels dropped "check" before this
+    # point). That's pre-existing behaviour this rewrite preserves exactly,
+    # not something introduced here.
+    isels_final_frames = [isels_final]
 
     # Check if the Query= string exists
     query_exists = False
@@ -82,12 +91,20 @@ def main():
         gname = gname_match.group(1)  # contig name
         gsize = int(gname_match.group(2))  # contig size
 
+        isels_ge_rows = []
         for isel in re.findall(
             "<a[^>]+>([^<]+)</a></td><td>([^<]*)</td><td>([^<]*)</td><td><a[^>]+>([^<]*)</a></td><td><a[^>]+>[^<]+</a></td><td>[^<]+</td></tr>",
             contig,
         ):  # IS name, family, group, genome
             isel_df = pd.DataFrame([list(isel)], columns=["name", "family", "group", "origin"])
-            isels_ge = isels_ge.append(isel_df, sort=False)
+            isels_ge_rows.append(isel_df)
+        # Only concat when there is at least one row: concatenating with the
+        # still-empty `isels_ge` accumulator is unnecessary and triggers
+        # pandas's "empty/all-NA entries" FutureWarning; skipping it when
+        # there's nothing to add keeps `isels_ge` as the empty, correctly
+        # columned DataFrame it already is.
+        if isels_ge_rows:
+            isels_ge = pd.concat(isels_ge_rows, sort=False)
 
         isels_ge = isels_ge.set_index("name")
 
@@ -97,6 +114,7 @@ def main():
             continue
 
         alignments_block = match.group(1)
+        isels_rows = []
         for alignments in alignments_block.split("&gt;"):
             match = re.search(r"</a> (\S+) <span", alignments)
             name = match.group(1)
@@ -135,8 +153,14 @@ def main():
                         "check",
                     ],
                 )
-                isels = isels.append(isel_df, sort=False)
+                isels_rows.append(isel_df)
                 index = index + 1
+
+        # Same rationale as isels_ge above: skip concatenating when nothing
+        # was collected so `isels` stays the empty, correctly columned
+        # DataFrame it was initialized as.
+        if isels_rows:
+            isels = pd.concat(isels_rows, sort=False)
 
         isels = isels.sort_values(by=["score"], ascending=False)
         isels = isels.set_index("name")
@@ -163,7 +187,20 @@ def main():
 
         isels = isels[isels["check"] == 1]  # remove overlapping IS hits with less score
         isels = isels.drop(columns=["check"])  # remove check column
-        isels_final = isels_final.append(isels, sort=False)
+        # Only collect non-empty per-contig tables: an empty table
+        # contributes no rows, so skipping it changes nothing but the
+        # (irrelevant) presence of a no-op entry in the concat list.
+        if not isels.empty:
+            isels_final_frames.append(isels)
+
+    # Unlike the isels_ge/isels concats above, this one cannot skip the
+    # empty-accumulator case: isels_final_frames always starts with the
+    # (empty) isels_final template (see the comment where it's built), which
+    # is what produces the blank "name"/stray "check" columns being
+    # preserved. That means this call does trigger pandas's "empty/all-NA
+    # entries" FutureWarning even when isels were found -- expected here,
+    # not an oversight.
+    isels_final = pd.concat(isels_final_frames, sort=False)
 
     if query_exists:
         # write full table in file

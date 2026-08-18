@@ -3,8 +3,10 @@ language: python
 severity: warning
 message: DataFrame.append was removed in pandas 2.0 — use pd.concat
 note: |
-  README.md pins pandas=1.3.5, where DataFrame.append still works but is
-  deprecated. This is an upgrade blocker, not a live break.
+  README.md no longer pins a pandas version (environment.yml/meta.yaml allow
+  pandas<3), so this is a live break: `DataFrame.append` was removed in
+  pandas 2.0, and any hit here crashes with `AttributeError` at runtime, not
+  just an upgrade-time concern.
 
   The rewrite is not mechanical — pd.concat takes a list and its keyword
   arguments differ — so this rule carries no `fix:`. Do it by hand.
