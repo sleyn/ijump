@@ -7,7 +7,6 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from statistics import StatisticsError
 
 import numpy as np
 import pandas as pd
@@ -759,7 +758,7 @@ class ISClipped:
         covered = depth > 0
         n_covered = int(covered.sum())
         if n_covered == 0:
-            raise StatisticsError("mean requires at least one data point")
+            return 0.0
         return float(depth[covered].sum() / n_covered)
 
     # Write the Circos diagram files from this pipeline's own state.

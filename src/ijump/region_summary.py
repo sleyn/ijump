@@ -3,6 +3,7 @@
 
 import logging
 
+import numpy as np
 import pandas as pd
 
 
@@ -83,10 +84,14 @@ def report_average(
     )
 
     report_table["Frequency"] = report_table.apply(
-        lambda x: round(
-            (x["count"] / 2 * (1 + blast_min / av_read_len))
-            / (x["Depth"] * (1 - min_match / av_read_len)),
-            4,
+        lambda x: (
+            np.nan
+            if x["Depth"] == 0
+            else round(
+                (x["count"] / 2 * (1 + blast_min / av_read_len))
+                / (x["Depth"] * (1 - min_match / av_read_len)),
+                4,
+            )
         ),
         axis=1,
     )

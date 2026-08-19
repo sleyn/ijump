@@ -66,7 +66,7 @@ which inverts round 1's finding now that it's fixed.
 """
 
 import random
-from statistics import StatisticsError, mean
+from statistics import mean
 
 import pysam
 import pytest
@@ -290,11 +290,11 @@ def test_denominator_is_covered_positions_not_window_length(tmp_path):
     assert isc.average_depth(contig, 0, 30) == 1.0
 
 
-def test_zero_coverage_window_raises(tmp_path):
+def test_zero_coverage_window_returns_zero(tmp_path):
     """A window with no covered positions at all has no true mean --
-    pysamstats' own reads_all array would be empty there too (mean() of an
-    empty pysamstats array already raised StatisticsError in production
-    before this ticket; the pysam-only accumulator preserves that)."""
+    pysamstats' own reads_all array would be empty there too. Ticket 01:
+    production now degrades to 0.0 instead of raising, so a fully-deleted
+    annotated region doesn't crash the whole AVERAGE-mode run."""
     bam = tmp_path / "empty.bam"
     contig, contig_len = "chr1", 200
     reads = [_simple_read("r1", 10, 10, 40, 0)]  # covers [10, 20) only
@@ -302,8 +302,9 @@ def test_zero_coverage_window_raises(tmp_path):
     aln = pysam.AlignmentFile(str(bam))
     isc = ISClipped(aln, "unused.fna", "unused.gff", "unused_wd")
 
-    with pytest.raises(StatisticsError):
-        isc.average_depth(contig, 100, 110)
+    result = isc.average_depth(contig, 100, 110)
+    assert result == 0.0
+    assert isinstance(result, float)
 
 
 def _build_mixed_feature_bam(path, seed):
@@ -360,12 +361,13 @@ def test_production_matches_pysamstats_across_realistic_windows_with_gaps_and_su
         stop = start + w
 
         pysamstats_true_mean = _pysamstats_true_mean(pysamstats, aln, contig, start, stop)
-        try:
-            production_avg = isc.average_depth(contig, start, stop)
-        except StatisticsError:
-            production_avg = None
+        production_avg = isc.average_depth(contig, start, stop)
+        # pysamstats/pad=False emits no rows at all for a zero-coverage
+        # window (True mean == None); production degrades to 0.0 there
+        # instead (ticket 01), so treat the two as equivalent.
+        expected = 0.0 if pysamstats_true_mean is None else pysamstats_true_mean
 
-        if pysamstats_true_mean != production_avg:
+        if expected != production_avg:
             mismatches += 1
 
     assert mismatches == 0

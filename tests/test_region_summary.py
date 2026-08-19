@@ -105,6 +105,36 @@ def test_report_average_matches_pinned_golden_output_for_single_hit_path():
     pdt.assert_frame_equal(result, expected)
 
 
+def test_report_average_frequency_is_nan_when_depth_is_zero():
+    """Ticket 01: a region can have junction-supporting reads (count > 0)
+    but zero total coverage in [start, stop) -- e.g. a fully-deleted
+    annotated region. Frequency must come out as NaN there, not inf (which
+    plain float division by 0.0 would otherwise produce)."""
+    sum_by_region = pd.DataFrame(
+        {
+            "ann": ["geneA"],
+            "chrom": ["tiny_contig"],
+            "start": [800],
+            "stop": [840],
+            "IS1": [1],
+            "IS2": [0],
+        },
+        index=pd.Index(["geneA"], name="ann_id"),
+    ).astype(object)
+
+    result = report_average(
+        sum_by_region,
+        match_lengths=[140, 145, 150],
+        read_lengths=3000,
+        n_reads_analyzed=20,
+        blast_min=10,
+        average_depth=lambda chrom, start, stop: 0.0,
+    )
+
+    assert result["Depth"].iloc[0] == 0.0
+    assert pd.isna(result["Frequency"].iloc[0])
+
+
 def test_summarize_by_region_accumulates_counts_across_multiple_hits_in_one_region():
     """Spec-based, not characterization -- see module docstring.
 
