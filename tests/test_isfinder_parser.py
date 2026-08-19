@@ -18,6 +18,7 @@ accumulation and the score-descending sort), an IS element on a second
 contig (exercising accumulation *across* contigs), and BLAST hits get
 filtered where the e-value is too high.
 """
+
 import sys
 
 from ijump import isfinder_parser
@@ -70,9 +71,11 @@ def _build_fixture_html():
     )
     return (
         "<html><body><article>\n"
-        "<b>Query=</b>" + contig1 +
-        "<b>Query=</b>" + contig2 +
-        "</article><footer>after</footer></body></html>"
+        "<b>Query=</b>"
+        + contig1
+        + "<b>Query=</b>"
+        + contig2
+        + "</article><footer>after</footer></body></html>"
     )
 
 
@@ -98,9 +101,7 @@ def test_main_produces_pinned_output_shape_and_values(tmp_path, monkeypatch):
         "IS3_1\tcontig2\t\tfam3\tgrp3\torg3\t400\t1e-32\t1\t100\t\n"
     )
     expected_processing = (
-        "IS1_1\tcontig1\t10\t200\n"
-        "IS2_1\tcontig1\t300\t350\n"
-        "IS3_1\tcontig2\t1\t100\n"
+        "IS1_1\tcontig1\t10\t200\nIS2_1\tcontig1\t300\t350\nIS3_1\tcontig2\t1\t100\n"
     )
 
     assert full_table == expected_full
