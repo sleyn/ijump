@@ -15,10 +15,10 @@
 import logging
 import os
 import re
+import subprocess
 from dataclasses import dataclass, field
 
 import pandas as pd
-from Bio.Blast.Applications import NcbiblastnCommandline
 
 # Minimum length of a clipped segment to write into the BLAST query FASTA.
 # Was ISClipped.blast_min; never overridden by a caller.
@@ -50,10 +50,33 @@ class SearchResult:
 # fake for, so the real blastn subprocess is never invoked by a test.
 def run_blast_subprocess(query_file, ref_name, out_file):
     logging.info("Run BLAST for clipped parts of the reads")
-    blastn_cl = NcbiblastnCommandline(
-        query=query_file, db=ref_name, evalue=0.001, out=out_file, outfmt=6, word_size=10
-    )
-    blastn_cl()
+    try:
+        subprocess.run(
+            [
+                "blastn",
+                "-query",
+                query_file,
+                "-db",
+                ref_name,
+                "-evalue",
+                "0.001",
+                "-out",
+                out_file,
+                "-outfmt",
+                "6",
+                "-word_size",
+                "10",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        logging.error("blastn not found. Is BLAST+ installed and on PATH?")
+        raise
+    except subprocess.CalledProcessError as e:
+        logging.error(f"blastn failed (exit {e.returncode}): {e.stderr.decode(errors='replace')}")
+        raise
 
 
 # For a clipped segment return left, right positions, junction side, coordinate of

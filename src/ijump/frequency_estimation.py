@@ -232,7 +232,7 @@ def estimate_frequencies(
     )
 
     pairs_df["Frequency"] = pairs_df[["Frequency_l", "Frequency_r"]].apply(
-        lambda x: _calc_freq_precise(x[0], x[1]), axis=1
+        lambda x: _calc_freq_precise(x.Frequency_l, x.Frequency_r), axis=1
     )
 
     # Add total depth column.

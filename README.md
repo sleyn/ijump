@@ -65,7 +65,6 @@ git clone https://github.com/sleyn/ijump.git
 ```
 
 But it is dependent on several Python libraries:
-* **biopython**
 * **pandas**
 * **pysam**
 * **numpy**

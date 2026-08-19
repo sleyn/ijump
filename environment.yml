@@ -6,11 +6,6 @@ dependencies:
   - python=3.11
   - blast=2.16.0
   - pysam
-  # Pinned <1.80: Bio.Blast.Applications (used by src/ijump/clipped_read_search.py)
-  # was deprecated in Biopython 1.80 and removed in later releases.
-  - biopython=1.79
-  # Pinned <3: pandas 3.0 changes positional Series.__getitem__ behavior,
-  # breaking frequency_estimation.py's existing indexing.
-  - pandas<3
+  - pandas
   - numpy
   - scikit-learn
