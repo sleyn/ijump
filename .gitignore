@@ -9,3 +9,7 @@ reads.txt
 .Rproj.user
 ijump_wd/
 program.prof
+.agents/
+.claude/
+skills-lock.json
+src/
