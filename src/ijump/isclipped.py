@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
-from ijump import circos, clipped_read_search, frequency_estimation, gff, region_summary
+from ijump import circos, clipped_read_search, frequency_estimation, gff, is_table, region_summary
 from ijump.clipped_read_search import NoInsertionsFound
 from ijump.junction_pairing import find_pairs
 
@@ -152,7 +152,14 @@ class ISClipped:
         self.cl_read_cov_overlap = {}
         # Boundaries of clipped reads
         self.boundaries = list()
-        # Coordinates of provided IS elements. IS name => [chrom, start, stop]
+        # The IS table as read, all of is_table.COLUMNS. Set by iscollect, and
+        # the authoritative copy of the file: is_coords below is derived from it
+        # and nothing writes to one without the other.
+        self.is_table = None
+        # Coordinate lookup derived from is_table. IS name => [chrom, start, stop],
+        # always exactly those three fields as text. The annotation columns stay
+        # out of it deliberately -- callers index and unpack this positionally
+        # (see circos.write_circos_input), so its width is part of its contract.
         self.is_coords = dict()
         # List of lengths for matched segments
         # Used to calculate correction coefficients
@@ -290,10 +297,13 @@ class ISClipped:
     # Collect information about IS elements.
     def iscollect(self, file):
         logging.info(f"Read file with IS elements: {file}")
-        with open(file, "r") as is_coords_file:
-            for coord in is_coords_file.readlines():
-                c = coord.split()
-                self.is_coords[c[0]] = c[1:]
+        self.is_table = is_table.read_is_table(file)
+        for is_element in self.is_table.itertuples(index=False):
+            self.is_coords[is_element.is_name] = [
+                is_element.contig,
+                is_element.start,
+                is_element.stop,
+            ]
 
     # Initialize junction table.
     @staticmethod

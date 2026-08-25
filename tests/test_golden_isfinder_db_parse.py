@@ -6,10 +6,9 @@ tier runs anywhere -- no large inputs, no BLAST+ install.
 
 This is characterization, not specification: the golden records what the parser
 does today, including the behaviour the rest of this ticket series sets out to
-change (``sseqid`` reduced to ``x.split("_")[0]``, which drops family and group
-and truncates names containing an underscore; the ``_\\d+`` copy suffix invented
-here). When a later ticket changes that on purpose, re-pin with
-``python tests/regenerate_goldens.py parser`` and review the diff.
+change (the ``_\\d+`` copy suffix invented here). When a later ticket changes that
+on purpose, re-pin with ``python tests/regenerate_goldens.py parser`` and review
+the diff.
 """
 
 import golden_support

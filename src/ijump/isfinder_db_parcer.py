@@ -5,6 +5,8 @@ from os.path import join as join_path
 
 import pandas as pd
 
+from . import is_table
+
 
 def main():
     parser = argparse.ArgumentParser(description="Parse BLAST output Genome vs ISFinder.")
@@ -44,7 +46,13 @@ def main():
     blast_out = blast_out[blast_out.evalue <= 1e-30]
     blast_out = blast_out.sort_values(by=["bitscore"], ascending=False)
 
-    blast_out["sseqid"] = blast_out["sseqid"].apply(lambda x: x.split("_")[0])
+    # A subject id is name_family_group -- keep all three, splitting from the
+    # right so names carrying an underscore of their own survive whole.
+    blast_out[["sseqid", "family", "group"]] = pd.DataFrame(
+        blast_out["sseqid"].apply(is_table.parse_subject_id).tolist(),
+        columns=["sseqid", "family", "group"],
+        index=blast_out.index,
+    )
 
     # Information about ISFinder databasse records
     # db_info = pd.read_csv(args.csv, usecols=['Name', 'Family', 'Group', 'Origin', 'Length'])
@@ -80,13 +88,16 @@ def main():
     blast_out["Row_num"] = blast_out.groupby(["sseqid"]).cumcount() + 1
     blast_out["sseqid"] = blast_out.apply(lambda x: x.sseqid + "_" + str(x.Row_num), axis=1)
 
-    blast_out.to_csv(
-        join_path(args.outdir, "ISTable_processing.txt"),
-        sep="\t",
-        columns=["sseqid", "qseqid", "qstart", "qend"],
-        header=False,
-        index=False,
+    blast_out = blast_out.rename(
+        columns={
+            "sseqid": "is_name",
+            "qseqid": "contig",
+            "qstart": "start",
+            "qend": "stop",
+        }
     )
+
+    is_table.write_is_table(blast_out, join_path(args.outdir, "ISTable_processing.txt"))
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ earlier version, `IS pos` will be shifted by 1.
     - [Releasing to PyPI](#releasing)
 - [Usage](#usage)	
   - [Input](#input)
-    - [Mobile elements coordinates file](#mecf)
+    - [IS table](#mecf)
 	- [Reference Fasta](#ref_fasta)
 	- [GFF file](#gff)
 	- [BAM file](#bam)
@@ -324,17 +324,28 @@ iJump requires four files for input:
 ![iJump input and output](./img/ijump_input.png)
 
 <a name="mecf"></a>
-#### Mobile elements coordinates file
+#### IS table
 
-File with mobile elements coordinates shoud be tab-separated tables of the following structure:
+The IS table — the file with mobile element coordinates — is a tab-separated table with a
+header row:
 ```
-IS_Name    Contig_Name Start_position  End_position
+name	contig	start	stop	family	group	pident
 ```
 
 For example:
 ```
-ISAcsp3	NODE_1	2980551	2981283
+name	contig	start	stop	family	group	pident
+ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	99.454
 ```
+
+`family`, `group` and `pident` are the ISFinder family and group of the element and the
+percent identity of the hit it was called from. They are filled in by the
+**isfinder-db-parse** subcommand below; if you write the table by hand you may leave them
+empty.
+
+Tables in the older headerless four-column format (name, contig, start, stop) are still
+accepted — they are recognised by the missing header row and read with the annotation
+columns empty.
 
 If you don't have file with coordinates of mobile elements you can do a manual BLAST against the standalone ISFinder database. The database could be downloaded from:
 

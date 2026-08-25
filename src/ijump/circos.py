@@ -99,7 +99,10 @@ def write_files(
             # Draw only lines with cutoff more than specified
             if report_table.iloc[i]["Frequency"] >= cutoff:
                 is_name = report_table.iloc[i]["IS Name"]
-                is_chrom, is_start, is_stop = is_coords[is_name]
+                # Slice rather than unpack the whole entry: the IS table it
+                # comes from grows columns over time, and Circos wants the
+                # coordinate triple, not everything the table knows.
+                is_chrom, is_start, is_stop = is_coords[is_name][:3]
                 j_chrom = report_table.iloc[i]["Chromosome"]
                 j_pos = str(report_table.iloc[i]["Start"])
                 colour = "l" + _is_colours[is_name]
