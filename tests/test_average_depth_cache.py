@@ -1,9 +1,10 @@
 """``average_depth``'s cache must not outlive its pipeline (review-followups 11).
 
-The cache was an ``@lru_cache`` on the method, which lives on the *class*: every
-``ISClipped`` that ever answered a depth query stayed reachable from it, together
-with its alignment handle, junction tables and depth dictionaries. Ruff's bugbear
-rule names this (``B019``); it was suppressed rather than fixed.
+The cache was an ``@lru_cache`` on the method, which lives on the *class* and keys
+on ``self``: a discarded ``ISClipped`` stayed reachable from it -- with its
+alignment handle, junction tables and depth dictionaries -- until its entries aged
+out of the 128 the cache held. Ruff's bugbear rule names this (``B019``); it was
+suppressed rather than fixed.
 
 The caching itself earns its keep — a region's depth is asked for once per IS
 entry in the per-region report, and again when Circos draws — so these tests pin
@@ -50,13 +51,18 @@ def test_a_region_is_measured_once(fixtures_dir):
 
 
 def test_a_different_region_is_measured_again(fixtures_dir):
-    """Cached per region, not one answer for all of them."""
+    """Cached per region, not one answer for all of them.
+
+    Asserted on the fetches rather than on the two depths differing: equal depths
+    would be a perfectly ordinary coincidence, and would fail a test that meant
+    to be about caching.
+    """
     isc = _pipeline(fixtures_dir)
 
-    first = isc.average_depth("tiny_contig", 800, 900)
-    second = isc.average_depth("tiny_contig", 0, 100)
+    isc.average_depth("tiny_contig", 800, 900)
+    isc.average_depth("tiny_contig", 0, 100)
 
-    assert first != second
+    assert len(isc.aln.fetches) == 2
 
 
 def test_a_discarded_pipeline_is_collectable_without_a_gc_pass(fixtures_dir):

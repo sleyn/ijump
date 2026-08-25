@@ -56,3 +56,17 @@ kept as a guard on the replacement, which could plausibly have got that wrong.
 
 **Verification.** `ruff` and `mypy` clean; full suite 202 passed, 4 skipped; the end-to-end
 goldens are byte-identical in both estimation modes, so the depth columns did not move.
+
+**Review follow-up — a correction to this ticket's own reasoning.** Both the code comment
+and the test docstring said the `lru_cache` held "every `ISClipped` that ever answered a
+query … for the life of the process". That overstates it: `self` is part of the cache key
+and the cache held 128 entries, so a discarded pipeline stayed reachable only until its
+entries aged out — up to 128 at once, not unboundedly. Checked rather than argued: a
+`maxsize=2` cache holds exactly 2 of 5 discarded instances after `gc.collect()`. The fix is
+still right — 128 live pipelines, each with an open BAM and its tables, is a real leak, and
+the eviction is what made the cache useless as a cache — but the justification was wrong and
+is corrected in both places.
+
+Also from review: `test_a_different_region_is_measured_again` asserted that two regions'
+depths differ, which pins a coincidence rather than the caching. It counts fetches now, like
+its neighbours.

@@ -793,19 +793,19 @@ class ISClipped:
 
         return RunResult(insertions_found=True)
 
-    # Calculate average depth of the region.
+    # Average depth of a region, cached.
     #
     # Cached because a region's depth is asked for once per IS entry in the
     # per-region report and again when Circos draws, and the answer cannot
     # change within a run -- the alignment is open read-only.
     #
     # The cache is a plain dict on the instance rather than an `lru_cache` on the
-    # method. An lru_cache lives on the *class*, so it held every ISClipped that
-    # ever answered a query -- with its alignment handle and its tables --
-    # for the life of the process (ruff's B019). A dict of coordinates to floats
-    # holds no reference back to self, so it neither leaks nor forms a cycle for
-    # the collector to clean up later: the pipeline dies when its last real
-    # reference does.
+    # method. An lru_cache lives on the *class* and keys on `self`, so a discarded
+    # ISClipped stayed reachable from it -- with its alignment handle and its
+    # tables -- until its entries aged out, up to 128 pipelines at once (ruff's
+    # B019). A dict of coordinates to floats holds no reference back to self, so
+    # it neither leaks nor forms a cycle for the collector to clean up later: the
+    # pipeline dies when its last real reference does.
     #
     # Unbounded, where the lru_cache held 128 entries. One float per region is
     # nothing beside the alignment already open, and 128 was in any case far too
@@ -818,6 +818,7 @@ class ISClipped:
             self._depth_by_region[region] = self._measure_average_depth(chrom, start, stop)
         return self._depth_by_region[region]
 
+    # Calculate average depth of the region.
     def _measure_average_depth(self, chrom, start, stop):
         # Mean coverage over *covered* positions in [start, stop) -- matches
         # pysamstats.load_coverage(..., pad=False)'s denominator, which emits

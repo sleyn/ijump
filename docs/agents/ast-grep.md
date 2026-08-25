@@ -76,37 +76,51 @@ between the two sets is what matters.
 
 ### What it found
 
-Of **55** instance attributes, **47 are written once in `__init__` and only read
-afterwards** — those are safe to pass as constructor arguments to any extracted
-class. Eight are mutated later:
+**These counts are a snapshot, and they drift.** The table below was regenerated on
+2026-08-25; an earlier version of it named `min_match`, `av_read_len`, `assess_isel_freq`
+and `summary_junctions_by_region`, none of which exist any more, and CLAUDE.md points
+readers here as though it were current. Re-run the queries above before trusting the
+numbers — the technique is the point, not the figures.
 
-| attribute | readers | written outside `__init__` by |
+Of **30** instance attributes, **13 are written once in `__init__` and only read
+afterwards** — those are safe to pass as constructor arguments to any extracted class.
+Seventeen are written or mutated later:
+
+| attribute | methods touching it | written outside `__init__` by |
 |---|---|---|
-| `min_match` | 4 | `assess_isel_freq`, `report_average` |
-| `av_read_len` | 4 | `assess_isel_freq`, `report_average` |
-| `blastout_filtered` | 4 | `parseblast` |
+| `_depth_by_region` | 2 | `average_depth` |
+| `blastout_filtered` | 4 | `run` |
+| `cl_read_cov_overlap` | 2 | `run` |
+| `clipped_reads` | 3 | `run` |
+| `clipped_reads_bwrd` | 3 | `run` |
+| `is_clusters` | 5 | `run`, `search_insert_pos` |
+| `is_coords` | 4 | `iscollect` |
+| `is_table` | 4 | `iscollect` |
+| `is_table_fingerprint` | 3 | `run` |
 | `junctions` | 4 | `call_junctions` |
-| `sum_by_region` | 4 | `summary_junctions_by_region` |
-| `pairs_df` | 3 | `search_insert_pos` |
-| `report_table` | 3 | `report_average` |
-| `_index` | 2 | `_crtable_ungapped` |
+| `match_lengths` | 2 | `run` |
+| `n_reads_analyzed` | 2 | `run` |
+| `pairs_df` | 3 | `run`, `search_insert_pos` |
+| `read_lengths` | 2 | `run` |
+| `report_table` | 3 | `run` |
+| `sum_by_region` | 3 | `run` |
+| `unclipped_depth` | 3 | `count_depth_unclipped` |
 
-Six of the eight have a single writer — a clear producer, easy to reason about.
-The two with *two* writers are the hazard, and looking at them pays off:
+Fifteen of the seventeen have a single writer — a clear producer, easy to reason about. The
+two with *two* writers are the hazard, and looking at them pays off. Both are written by
+`run` and again by `search_insert_pos`:
 
-```
-src/ijump/isclipped.py:89,91      self.min_match = 150 ; self.av_read_len = 150
-src/ijump/isclipped.py:1079-1080  self.min_match = min(self.match_lengths)
-                        self.av_read_len = self.read_lengths / self.n_reads_analyzed
-src/ijump/isclipped.py:1198-1199  self.min_match = min(self.match_lengths)
-                        self.av_read_len = self.read_lengths / self.n_reads_analyzed
-```
+- `is_clusters` is derived from the IS table. `run` builds it up front so a table carrying
+  no cluster column stops the run before any work; `search_insert_pos` builds it lazily for
+  a caller driving the pairing step on its own. Two writers, and which one fires depends on
+  how the object is driven.
+- `pairs_df` starts as a placeholder row from `__init__`, is replaced by
+  `search_insert_pos`, then rewritten repeatedly by `run` as columns are added. The
+  placeholder is live until the first real write — the same shape the retired
+  `min_match` case had, where a `150` from `__init__` stood in until whichever method ran
+  first overwrote it.
 
-The computation is duplicated verbatim in `assess_isel_freq` and `report_average`,
-each overwriting a `150` placeholder from `__init__`. These are derived values
-masquerading as state: whichever method runs first wins, and the placeholder is
-live until one of them does. Any extraction that separates those two methods has
-to decide who owns the derivation.
+Any extraction separating those methods has to decide who owns the derivation.
 
 ## Structural map before reading
 
