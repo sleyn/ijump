@@ -9,6 +9,7 @@ assembler cut at a contig seam (``origin_spanning``). Those rules live here so
 the back-ends share them rather than each carrying its own copy to drift.
 """
 
+import argparse
 import os
 from typing import Union
 
@@ -18,6 +19,30 @@ from ijump import is_clustering, origin_spanning
 
 # Anything open() takes.
 Path = Union[str, "os.PathLike[str]"]
+
+
+def add_cluster_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the clustering thresholds to a back-end's command line.
+
+    Every back-end offers them, with the same names, scales and defaults --
+    they are arguments to the shared core below, not to the back-end. Added from
+    one place so that changing a default or a help string is one edit rather than
+    one per back-end.
+    """
+    parser.add_argument(
+        "--cluster-identity",
+        type=is_clustering.threshold_type(0, 100, "a percent"),
+        default=is_clustering.IDENTITY_DEFAULT,
+        help="Minimum %% identity for two elements to share a cluster "
+        f"(default: {is_clustering.IDENTITY_DEFAULT}).",
+    )
+    parser.add_argument(
+        "--cluster-coverage",
+        type=is_clustering.threshold_type(0, 1, "a fraction"),
+        default=is_clustering.COVERAGE_DEFAULT,
+        help="Minimum fraction of the shorter element the alignment has to span "
+        f"(default: {is_clustering.COVERAGE_DEFAULT}).",
+    )
 
 
 def annotate_and_cluster(

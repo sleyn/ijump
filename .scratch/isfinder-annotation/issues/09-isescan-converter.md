@@ -84,3 +84,20 @@ goldens still pass nothing and still chain to the parser tier.
 **Union is still out of scope**, as filed. Where both back-ends fire they disagree on span —
 977 bp against 2299 bp for one locus — and span drives the boundary search windows. The rule
 for resolving that is a scientific judgement.
+
+**Review follow-ups.** One hard finding and two duplications that a third back-end tipped
+over:
+
+- `README`'s IS-table section still said the annotation columns "are the ISFinder family and
+  group" and that "all of them are filled in by the **isfinder-db-parse** subcommand".
+  Both halves are wrong for a table `isescan-convert` wrote. It now names all three
+  back-ends, says which columns they agree on (`cluster`, `wraps_origin`, `element_id`) and
+  which they do not, and that only `cluster` is required.
+- Three back-ends each carried a byte-identical eleven-line `--cluster-identity` /
+  `--cluster-coverage` block, so changing a default was an edit in three files. They are
+  arguments to the shared core rather than to any back-end, so they are added by
+  `is_annotation.add_cluster_arguments` from one place.
+- `read_isescan` hand-listed five empty columns to satisfy the reindex, three of which
+  `annotate_and_cluster` immediately overwrites — a second copy of a fill rule
+  `read_is_table` already had. It is `is_table.with_all_columns` now, used by both, so a
+  back-end states only the columns it can speak to.

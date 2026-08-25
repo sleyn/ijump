@@ -5,7 +5,7 @@ from os.path import join as join_path
 
 import pandas as pd
 
-from . import is_annotation, is_clustering, is_table
+from . import is_annotation, is_table
 
 
 def main():
@@ -27,20 +27,7 @@ def main():
         "is extracted from it and compared with all the others, so copies of one "
         "mobile element share a cluster.",
     )
-    parser.add_argument(
-        "--cluster-identity",
-        type=is_clustering.threshold_type(0, 100, "a percent"),
-        default=is_clustering.IDENTITY_DEFAULT,
-        help="Minimum %% identity for two elements to share a cluster "
-        f"(default: {is_clustering.IDENTITY_DEFAULT}).",
-    )
-    parser.add_argument(
-        "--cluster-coverage",
-        type=is_clustering.threshold_type(0, 1, "a fraction"),
-        default=is_clustering.COVERAGE_DEFAULT,
-        help="Minimum fraction of the shorter element the alignment has to span "
-        f"(default: {is_clustering.COVERAGE_DEFAULT}).",
-    )
+    is_annotation.add_cluster_arguments(parser)
     # parser.add_argument('-c', '--csv', type=str, action='store',
     #                      help='CSV description of IS Finder database mobile elements.')
     parser.add_argument("-o", "--outdir", type=str, default=".", help="Output directory")

@@ -24,6 +24,8 @@ clustering needs to extract the called elements from. It carries the same contig
 real names and lengths and the called elements at their real coordinates and sequences,
 with every other base masked to `N` — so extraction and the all-vs-all search see exactly
 what they would on the real assembly, and the parser golden is byte-identical either way.
+"Called elements" means **every back-end's**, ISEScan's included: `new_269` has no ISFinder
+counterpart, and a span masked to `N` would cluster against nothing.
 Rebuild it with `python tests/fixtures/isfinder/make_reference_fixture.py`.
 
 `tests/fixtures/isfinder/legacy_is_table.txt` is the same 13 loci in the legacy four-column
@@ -41,9 +43,7 @@ full reasoning.
 
 `tests/fixtures/isescan/isescan_results.tsv` is a byte copy of a real ISEScan run over the
 same assembly (`Test/ISEScan/`, gitignored). It is what `tests/test_isescan_convert.py`
-converts. Note `reference.fna.gz` unmasks **every back-end's** loci, ISEScan's included —
-`new_269` has no ISFinder counterpart, and a span masked to `N` would cluster against
-nothing.
+converts.
 
 The parser tier **skips** where BLAST+ is missing: clustering runs an all-vs-all `blastn`
 over the extracted elements. Its inputs are still all committed.

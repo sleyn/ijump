@@ -173,20 +173,7 @@ def build_arg_parser():
         help="ISFinder BLAST database (the -out prefix given to makeblastdb), "
         "searched to recover each locus's family and group.",
     )
-    parser.add_argument(
-        "--cluster-identity",
-        type=is_clustering.threshold_type(0, 100, "a percent"),
-        default=is_clustering.IDENTITY_DEFAULT,
-        help="Minimum %% identity for two elements to share a cluster "
-        f"(default: {is_clustering.IDENTITY_DEFAULT}).",
-    )
-    parser.add_argument(
-        "--cluster-coverage",
-        type=is_clustering.threshold_type(0, 1, "a fraction"),
-        default=is_clustering.COVERAGE_DEFAULT,
-        help="Minimum fraction of the shorter element the alignment has to span "
-        f"(default: {is_clustering.COVERAGE_DEFAULT}).",
-    )
+    is_annotation.add_cluster_arguments(parser)
     parser.add_argument("-o", "--outdir", type=str, default=".", help="Output directory")
     return parser
 

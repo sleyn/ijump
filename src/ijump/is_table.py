@@ -87,6 +87,23 @@ def write_is_table(table: pd.DataFrame, path: Path) -> None:
     table.to_csv(path, sep="\t", columns=list(COLUMNS), header=True, index=False)
 
 
+def with_all_columns(table: pd.DataFrame) -> pd.DataFrame:
+    """``table`` widened to all of COLUMNS, in order, absent ones empty.
+
+    The one place the fill rule lives: a back-end states the columns it can
+    speak to and this fills in the rest, rather than each back-end carrying its
+    own list of empty strings to fall out of step with COLUMNS. Columns beyond
+    COLUMNS are kept, at the end -- a table may carry more than its reader knows
+    about, and dropping such a column on the way through would defeat the header.
+    """
+    widened = table.copy()
+    for column in COLUMNS:
+        if column not in widened.columns:
+            widened[column] = ""
+    extra = [column for column in widened.columns if column not in COLUMNS]
+    return widened[list(COLUMNS) + extra]
+
+
 def read_is_table(path: Path) -> pd.DataFrame:
     """Read an IS table, headered or legacy, into a frame carrying all of COLUMNS.
 
@@ -98,12 +115,7 @@ def read_is_table(path: Path) -> pd.DataFrame:
     that.
     """
     if _has_header(path):
-        table = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
-        for column in COLUMNS:
-            if column not in table.columns:
-                table[column] = ""
-        extra = [column for column in table.columns if column not in COLUMNS]
-        return table[list(COLUMNS) + extra]
+        return with_all_columns(pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False))
 
     # Legacy tables were split on arbitrary whitespace, so keep accepting that.
     table = pd.read_csv(
@@ -113,9 +125,7 @@ def read_is_table(path: Path) -> pd.DataFrame:
         dtype=str,
         keep_default_na=False,
     )
-    for column in COLUMNS[len(LEGACY_COLUMNS) :]:
-        table[column] = ""
-    return table[list(COLUMNS)]
+    return with_all_columns(table)
 
 
 def cluster_by_name(table: pd.DataFrame) -> Dict[str, str]:

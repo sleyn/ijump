@@ -77,18 +77,14 @@ def read_isescan(path: Path) -> pd.DataFrame:
             "start": results[IS_BEGIN],
             "stop": results[IS_END],
             "family": results[FAMILY],
-            # ISEScan reports a family and its own numeric cluster, not an
-            # ISFinder group, and not a percent identity against any database.
-            # Filing the cluster id under `group` would put a different kind of
-            # value under a name that already means something.
-            "group": "",
-            "cluster": "",
-            "pident": "",
-            "wraps_origin": "",
-            "element_id": "",
         }
     )
-    return loci[list(is_table.COLUMNS)].reset_index(drop=True)
+    # `group` and `pident` stay empty on purpose, not for want of filling in:
+    # ISEScan reports its own numeric cluster rather than an ISFinder group, and
+    # no identity against any database. Filing the cluster id under `group` would
+    # put a different kind of value under a name that already means something.
+    # `cluster`, `wraps_origin` and `element_id` are filled by annotate_and_cluster.
+    return is_table.with_all_columns(loci).reset_index(drop=True)
 
 
 def convert(
@@ -134,20 +130,7 @@ def build_arg_parser():
         help="Reference FASTA ISEScan was run on. Each locus is extracted from it "
         "so copies of one mobile element share a cluster.",
     )
-    parser.add_argument(
-        "--cluster-identity",
-        type=is_clustering.threshold_type(0, 100, "a percent"),
-        default=is_clustering.IDENTITY_DEFAULT,
-        help="Minimum %% identity for two elements to share a cluster "
-        f"(default: {is_clustering.IDENTITY_DEFAULT}).",
-    )
-    parser.add_argument(
-        "--cluster-coverage",
-        type=is_clustering.threshold_type(0, 1, "a fraction"),
-        default=is_clustering.COVERAGE_DEFAULT,
-        help="Minimum fraction of the shorter element the alignment has to span "
-        f"(default: {is_clustering.COVERAGE_DEFAULT}).",
-    )
+    is_annotation.add_cluster_arguments(parser)
     parser.add_argument("-o", "--outdir", type=str, default=".", help="Output directory")
     return parser
 

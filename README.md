@@ -339,12 +339,18 @@ is_name	contig	start	stop	family	group	cluster	pident	wraps_origin	element_id
 ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	ISAcsp3	99.454	no	
 ```
 
-`family`, `group` and `pident` are the ISFinder family and group of the element and the
-percent identity of the hit it was called from. `cluster` groups the rows that are copies
-of one mobile element — see [Clusters](#clusters) below. `wraps_origin` and `element_id`
-mark the copies an assembler broke at a contig boundary — see
-[Origin-spanning elements](#origin-spanning) below. All of them are filled in by the
-**isfinder-db-parse** subcommand below; if you write the table by hand you may leave them
+`family`, `group` and `pident` describe the element's ISFinder annotation: its family and
+group, and the percent identity of the hit it was called from. `cluster` groups the rows
+that are copies of one mobile element — see [Clusters](#clusters) below. `wraps_origin` and
+`element_id` mark the copies an assembler broke at a contig boundary — see
+[Origin-spanning elements](#origin-spanning) below.
+
+Any of the three IS-table back-ends below fills these in: **isfinder-db-parse**,
+**migrate-is-table** and **isescan-convert**. `cluster`, `wraps_origin` and `element_id` are
+computed the same way by all three. The ISFinder columns are not: `isescan-convert` writes
+ISEScan's family and leaves `group` and `pident` empty, because ISEScan reports neither an
+ISFinder group nor an identity against any database. Only `cluster` is required — a run
+refuses a table without it — so if you write the table by hand you may leave the rest
 empty.
 
 Tables in the older headerless four-column format (name, contig, start, stop) are still
