@@ -14,6 +14,7 @@ invisible to it.
 
 import gzip
 import shutil
+import subprocess
 from pathlib import Path
 
 import pysam
@@ -212,3 +213,30 @@ class FakeIsescanAlignment:
         "NODE_2_length_148137_cov_371.33_ID_22131",
     )
     lengths = (3909467, 148137)
+
+
+@needs_blast
+def test_the_subcommand_writes_a_table_the_reader_accepts(reference, tmp_path):
+    """Through the CLI and back off disk, which none of the tests above do."""
+    result = subprocess.run(
+        [
+            "ijump",
+            "isescan-convert",
+            "-i",
+            str(ISESCAN_TSV),
+            "-r",
+            str(reference),
+            "-o",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+    written = is_table.read_is_table(tmp_path / "ISTable_processing.txt")
+
+    assert list(written.columns) == list(is_table.COLUMNS)
+    assert len(written) == 13
+    # The point of the whole back-end: a table `ijump run` will take.
+    assert len(is_table.cluster_by_name(written)) == 13

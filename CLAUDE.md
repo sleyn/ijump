@@ -37,22 +37,36 @@ junction has one part mapped to the reference and the clipped remainder matching
 Full algorithm write-up: `docs/algorithm.md`. Domain vocabulary (avoid drifting to synonyms it
 explicitly rejects): `CONTEXT.md`.
 
-**Entry point**: `ijump` console script → `src/ijump/cli.py` dispatches to one of three subcommands,
+**Entry point**: `ijump` console script → `src/ijump/cli.py` dispatches to one of five subcommands,
 each still parsing its own argv independently (this repo predates the unified CLI and the dispatch
 layer is deliberately thin — it does not reinterpret any target's flags):
 - `ijump run` → `ijump.ijump:main` — the main detection pipeline
 - `ijump combine-results` → `ijump.combine_results:main` — merges per-sample report tables
-- `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses ISFinder BLAST outfmt-6
-  output into the IS table (`is_table.py`), grouping copies of one element by sequence
-  similarity (`is_clustering.py`)
-- `ijump migrate-is-table` → `ijump.migrate_is_table:main` — annotates an existing
-  (legacy four-column) IS table in place of regenerating it, preserving its coordinates
-- `ijump isescan-convert` → `ijump.isescan_convert:main` — converts ISEScan's `.tsv`
-  results into an IS table. iJump **reads** ISEScan output and never invokes ISEScan
+- three IS-table back-ends, below
 
-The IS-table back-ends differ only in where the four locus columns come from; everything
-after that — clustering and the origin-spanning flags — is `is_annotation.annotate_and_cluster`,
-shared so they cannot drift on what a cluster is.
+**Two stages, one file between them.** The *annotation stage* produces the IS table; the
+*detection pipeline* consumes it (`--isel`). The table's format is `is_table.py`, the one
+module both stages agree on.
+
+**Annotation stage — pluggable back-ends over a shared core.** A back-end reads some input
+and produces the four locus columns (`is_name`, `contig`, `start`, `stop`); everything after
+that is `is_annotation.annotate_and_cluster`, which fills `cluster` (`is_clustering.py`) and
+the origin-spanning flags (`origin_spanning.py`). A rule about clusters or origin-spanning
+belongs in that core, never in a back-end — the point of the split is that three back-ends
+cannot drift on what a cluster is. `is_annotation.add_cluster_arguments` likewise gives all
+three the same threshold flags:
+- `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses an ISFinder BLAST
+  outfmt-6 search of the genome; the only back-end that recovers `family`/`group`/`pident`
+  from its input
+- `ijump migrate-is-table` → `ijump.migrate_is_table:main` — annotates an IS table that
+  already exists rather than regenerating it, preserving its coordinates exactly and
+  re-deriving family and group from a fresh locus-versus-database search
+- `ijump isescan-convert` → `ijump.isescan_convert:main` — converts ISEScan's `.tsv`. iJump
+  **reads** ISEScan output and never invokes ISEScan. ISEScan's own `cluster` column is not
+  iJump's and is not used as one
+
+Both estimation modes group by the `cluster` column and refuse a table without it, naming
+`migrate-is-table` as the remedy — so the back-ends are not optional decoration.
 
 **Pipeline core**: `ISClipped` in `src/ijump/isclipped.py` drives both workflows and owns most
 detection state across its methods (see `docs/agents/ast-grep.md`'s state-coupling matrix for which

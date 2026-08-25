@@ -56,6 +56,16 @@ with its own name, contig and coordinates. Several loci can be one **Cluster**: 
 and its own truncated fragments are separate loci of one element.
 _Avoid_: hit, IS copy, element (an element may span several loci), region
 
+**Fragment**:
+A **Locus** covering only part of its element — the assembly, or the search that called it,
+stopped short of the whole thing. A fragment is a locus like any other and is kept: a read
+clipped at a 76 bp remnant cannot be told from one clipped at a full copy, so it belongs in
+its parent's **Cluster** and its junctions are that element's. Coverage for clustering is
+therefore measured on the *shorter* of two loci, which is what lets a fragment join a parent
+it covers 7% of. The two halves of an **Origin-spanning element** are fragments of a
+particular kind.
+_Avoid_: partial hit, truncated element (the element is whole; the call is truncated)
+
 **Annotation stamp**:
 The line at the head of a report naming the IS table the run was annotated against
 (`# ijump-is-table: <digest>`), written by `ijump run` and read by `ijump combine-results`.

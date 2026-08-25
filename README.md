@@ -28,6 +28,9 @@ smaller `Depth` inflated it.
 1-based too, so if you compare a new run's `ijump_junctions.txt` against one produced by an
 earlier version, `IS pos` will be shifted by 1.
 
+Upgrading from an earlier version? `CHANGELOG.md` lists the two breaking changes in this
+release and the one-command remedy for each.
+
 ## Content
 
 - [Motivation](#motivation)
@@ -36,13 +39,20 @@ earlier version, `IS pos` will be shifted by 1.
   - [Docker](#docker)
   - [Development setup](#dev-setup)
     - [Releasing to PyPI](#releasing)
-- [Usage](#usage)	
+- [Usage](#usage)
   - [Input](#input)
     - [IS table](#mecf)
-	- [Reference Fasta](#ref_fasta)
-	- [GFF file](#gff)
-	- [BAM file](#bam)
-- [Run iJump](#run)	
+      - [Producing one](#backends)
+      - [Clusters](#clusters)
+      - [Using ISEScan instead](#isescan)
+      - [Migrating an existing table](#migrate)
+      - [Origin-spanning elements](#origin-spanning)
+    - [Reference Fasta](#ref_fasta)
+    - [GFF file](#gff)
+    - [BAM file](#bam)
+  - [Run iJump](#run)
+  - [Reports name elements, not called loci](#reports)
+  - [Compare samples](#compare)
 
 <a name="motivation"></a>
 ## Motivation
@@ -71,7 +81,7 @@ But it is dependent on several Python libraries:
 * **scipy**
 * **sklearn**
 
-<a name="'conda"></a>
+<a name="conda"></a>
 ### Conda
 
 `environment.yml` at the repo root is the single source of truth for the
@@ -354,10 +364,24 @@ refuses a table without it — so if you write the table by hand you may leave t
 empty.
 
 Tables in the older headerless four-column format (name, contig, start, stop) are still
-accepted — they are recognised by the missing header row and read with the annotation
-columns empty.
+*read* — they are recognised by the missing header row and the annotation columns come back
+empty — but a run needs the `cluster` column and stops without it. See
+[Migrating an existing table](#migrate) for the one-command remedy.
 
-If you don't have file with coordinates of mobile elements you can do a manual BLAST against the standalone ISFinder database. The database could be downloaded from:
+<a name="backends"></a>
+##### Producing one
+
+Three subcommands write an IS table, differing only in where they get the element
+coordinates. Everything after that — the `cluster` column and the origin-spanning flags — is
+computed the same way by all three.
+
+| You have | Use | Section |
+| --- | --- | --- |
+| a genome and the ISFinder database | `isfinder-db-parse` | below |
+| ISEScan results | `isescan-convert` | [Using ISEScan instead](#isescan) |
+| an IS table already, in any format | `migrate-is-table` | [Migrating an existing table](#migrate) |
+
+**From a BLAST search against ISFinder.** The database can be downloaded from:
 
 - [ISFinder original GitHub](https://github.com/thanhleviet/ISfinder-sequences)
 - [My Fork](https://github.com/sleyn/ISfinder-sequences) with already built BLASTn database.
@@ -583,6 +607,7 @@ optional arguments:
   --version             Print iJump version and exit.
 ```
 
+<a name="reports"></a>
 ### Reports name elements, not called loci
 
 **Breaking change.** The per-region report and the region summary carry one entry per
@@ -611,6 +636,7 @@ annotations disagree** rather than lining up names that mean different things. A
 written before this change carries no such line and is refused with a message saying to
 rerun the sample.
 
+<a name="compare"></a>
 ### Compare samples
 
 If you have several related samples and want to compare them side by side you can copy all *ijump_report_by_is_reg.txt* files in one folder, rename them as *ijump_<*Sample name*>*.txt* and run:

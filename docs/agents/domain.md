@@ -11,7 +11,8 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 ## File structure
 
-This is a single-context repo. Python modules live flat at the repo root.
+This is a single-context repo. The package lives under `src/ijump/`; nothing importable sits
+at the repo root.
 
 ```
 /
@@ -22,10 +23,23 @@ This is a single-context repo. Python modules live flat at the repo root.
 │   │   └── 0002-<slug>.md
 │   ├── agents/
 │   └── algorithm.md
-├── isclipped.py
-├── ijump.py
-└── gff.py
+└── src/ijump/
+    ├── cli.py               # dispatches every subcommand
+    ├── ijump.py             # `ijump run` -- the detection pipeline
+    ├── isclipped.py         # the pipeline's state and stages
+    └── ...                  # see CLAUDE.md's Architecture section
 ```
+
+`CLAUDE.md` is the authority on which module does what. Two shapes are worth knowing before
+exploring, because both are easy to mistake for duplication:
+
+- **The annotation stage** produces the IS table. Three back-ends read different inputs and
+  all produce the same four locus columns, then hand off to one shared
+  `is_annotation.annotate_and_cluster` that owns everything after. A rule about clusters or
+  origin-spanning belongs in that core, never in a back-end.
+- **The detection pipeline** consumes that table. `ISClipped` owns most of its state across
+  methods — see `docs/agents/ast-grep.md`'s state-coupling matrix before extracting anything
+  from it.
 
 ## Use the glossary's vocabulary
 

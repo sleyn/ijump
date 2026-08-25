@@ -4,6 +4,7 @@
 
 - [Overview](#overview)
 - [Inputs](#inputs)
+- [Annotation Stage](#annotation-stage--producing-the-is-table)
 - [Shared Steps](#shared-steps)
   - [Step 1 — IS Boundary Windows](#step-1--is-boundary-windows)
   - [Step 2 — Forward Clipped Read Collection (IS→Ref)](#step-2--forward-clipped-read-collection-isref)
@@ -36,7 +37,10 @@ iJump provides two workflows:
 - **Average mode** — estimates frequency at the gene/intergenic-region level; more sensitive, less precise.
 - **Precise mode** — localises each insertion to exact base-pair coordinates before frequency estimation; more accurate, more computationally intensive.
 
-Both workflows share the same initial steps for clipped read collection and BLAST alignment.
+Both workflows share the same initial steps for clipped read collection and BLAST alignment,
+and both report per **cluster** — the copies and fragments of one mobile element, grouped by
+sequence similarity in the annotation stage below, not by the names the loci were called
+with.
 
 ---
 
@@ -47,7 +51,48 @@ Both workflows share the same initial steps for clipped read collection and BLAS
 | BAM file | BAM/SAM | Short reads aligned to the reference genome |
 | Reference genome | FASTA | One record per contig |
 | Genome annotations | GFF3 | PATRIC/PROKKA-style, with `##sequence-region` headers |
-| IS element coordinates | TSV | `IS_name  contig  start  stop` |
+| IS table | TSV | Headered: `is_name  contig  start  stop  family  group  cluster  pident  wraps_origin  element_id`. Produced by the annotation stage below; `cluster` is required. |
+
+---
+
+## Annotation Stage — producing the IS table
+
+*Implemented in `is_annotation.py` and the three back-end modules*
+
+The pipeline below consumes an IS table; this stage produces one. It runs separately, once
+per reference, and its output is what `--isel` points at.
+
+A **back-end** reads some input and produces the four locus columns — `is_name`, `contig`,
+`start`, `stop`:
+
+| Back-end | Reads | Notes |
+|---|---|---|
+| `isfinder-db-parse` | an ISFinder BLAST outfmt-6 search of the genome | The only one whose input carries `family`, `group` and `pident`. Keeps non-overlapping hits at E ≤ 1e-30, where a hit overlapping an existing call by ≥75% of its length is dropped |
+| `migrate-is-table` | an IS table that already exists | Coordinates preserved exactly; family and group re-derived by searching each locus against the ISFinder database |
+| `isescan-convert` | ISEScan's `.tsv` results | iJump reads ISEScan output and never runs it. ISEScan's own `cluster` column is a different notion and is not used as one |
+
+Everything after those four columns is shared (`is_annotation.annotate_and_cluster`), so the
+back-ends cannot disagree about it:
+
+1. **Clustering** (`is_clustering.py`). Each locus is extracted from the reference and
+   aligned against every other with `blastn`. Two loci are linked when the alignment is
+   ≥95% identical over ≥80% of the **shorter** of the two, and clusters are the connected
+   components under **single** linkage. Coverage on the shorter locus is what lets a 76 bp
+   fragment join the full copy it is part of; single linkage is what lets two fragments that
+   do not overlap each other reach one another through a parent that overlaps both. The
+   price is chaining, so every internal pair that does not meet the threshold on its own is
+   logged by name for the operator to check.
+2. **Cluster naming.** A cluster takes the base IS name of its longest member, suffixed
+   `.a`/`.b` only where two clusters would otherwise collide.
+3. **Origin-spanning flags** (`origin_spanning.py`). Two loci in one cluster that sit at
+   opposite ends of one contig, within 20 bases of its boundaries, are one copy the
+   assembler cut in half. Both rows are kept — they are genuinely separate spans and the
+   boundary search needs both — and each carries `wraps_origin=yes` plus a shared
+   `element_id`.
+
+The `cluster` column is the grouping key for everything downstream: average mode reports one
+column per cluster, precise mode pairs junctions per cluster. A table without it stops a run
+before any work, naming `migrate-is-table` as the remedy.
 
 ---
 

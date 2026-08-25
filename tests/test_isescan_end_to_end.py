@@ -15,6 +15,7 @@ Skips wherever the large inputs are missing, like the rest of the e2e tier.
 """
 
 import golden_support
+import pandas as pd
 import pytest
 
 from ijump import is_table, isescan_convert
@@ -53,6 +54,13 @@ def test_an_isescan_table_drives_a_run(mode, isescan_is_table, tmp_path_factory)
     assert result.returncode == 0, f"{mode} run failed:\n{result.stdout}\n{result.stderr}"
     for filename in EXPECTED_OUTPUTS[mode]:
         assert (run_dir / "out" / filename).is_file(), f"{mode} run did not write {filename}"
+
+    # Not just "it ran": the element only this back-end can see has to reach the
+    # report, or the sensitivity argument for supporting ISEScan is untested.
+    junctions = pd.read_csv(run_dir / "out" / "ijump_junctions.txt", sep="\t")
+    assert junctions["IS name"].str.startswith("new_269").any(), (
+        f"{mode} run found no junctions for the ISEScan-only element"
+    )
 
 
 def test_the_converted_table_carries_loci_the_isfinder_back_end_never_saw(isescan_is_table):

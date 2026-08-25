@@ -101,3 +101,17 @@ over:
   `annotate_and_cluster` immediately overwrites — a second copy of a fill rule
   `read_is_table` already had. It is `is_table.with_all_columns` now, used by both, so a
   back-end states only the columns it can speak to.
+
+**Spec-review follow-ups.** Two test gaps closed:
+
+- The both-modes test asserted only exit 0 and three filenames, which a header-only report
+  would also pass — leaving the ticket's own sensitivity argument untested. It now asserts
+  that `new_269`, the element only this back-end can see, actually reaches the junctions
+  report. It does, in both modes.
+- Nothing ran `ijump isescan-convert` through the CLI and read the table back off disk, as
+  the other back-ends' tests do. Added.
+
+The review also noted, from the fixture, that ISEScan itself reports `ncopy4is=2` for
+`new_269` with two of the three rows typed `p` (partial) — so ISEScan does not claim three
+complete copies either, and the two-cluster split agrees with its own output better than the
+ticket's "three copies" phrasing suggested.
