@@ -31,10 +31,23 @@ that.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A right-only group is written as right-junction orphans: position in `Position_r`, count in `Count_mapped_to_IS_r`, both left columns zero
-- [ ] The left-only arm is unchanged
-- [ ] Unit coverage pins both arms of the early return — today's `find_pairs` test exercises only the two-sided path
-- [ ] The precise-mode end-to-end golden is re-pinned, and the diff is confined to the seven `ISAba12`/`ISAba53` rows on `NODE_2`
-- [ ] Those seven rows carry non-zero frequencies where the underlying evidence is non-zero
+- [x] A right-only group is written as right-junction orphans: position in `Position_r`, count in `Count_mapped_to_IS_r`, both left columns zero
+- [x] The left-only arm is unchanged
+- [x] Unit coverage pins both arms of the early return — today's `find_pairs` test exercises only the two-sided path
+- [x] The precise-mode end-to-end golden is re-pinned, and the diff is confined to the seven `ISAba12`/`ISAba53` rows on `NODE_2`
+- [x] Those seven rows carry non-zero frequencies where the underlying evidence is non-zero
+
+## Comments
+
+- The golden diff is the seven predicted rows and nothing else; every other row is
+  byte-identical and the row count is unchanged. `filter_pairs` kept all seven, so moving
+  the coordinate between columns did not change what survives filtering.
+- The zeroed frequencies were not near-zero. `N_clipped_l` was 0.0 for these rows because a
+  right junction's clipped reads live in the *right* count matrix, and the left lookup
+  found nothing there. Read from the right matrix, position 145221 has 284 clipped reads
+  against 2 unclipped, and reports frequency **0.983** where it used to report 0.0 — a
+  near-fixed ISAba12 insertion the pipeline was reporting as absent. The other six land
+  between 0.0034 and 0.207.
+- The precise-mode `ijump_junctions.txt` golden is unchanged; only the pairs table moved.

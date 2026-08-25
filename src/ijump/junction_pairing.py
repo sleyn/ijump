@@ -36,12 +36,20 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
             }
         )
 
+        # Each junction becomes an orphan on its own side, written the way the
+        # main path below writes the orphans it finds -- a right junction into
+        # the right columns, a left one into the left. The right arm used to
+        # mirror the left arm instead, putting a right junction's position and
+        # count in Position_l/Count_mapped_to_IS_l and leaving the right columns
+        # zero. Frequency estimation reads a right junction's evidence out of
+        # the right columns, so those rows reported 0.0 for insertions that were
+        # really there (junction-pairing-orphans 01).
         if pos_r.size == 0:
             for pos_l_index, pos in enumerate(pos_l):
                 pairs_df.iloc[pos_l_index, :] = [pos, 0, pos_l_count[pos_l_index], 0, chrom]
         else:
             for pos_r_index, pos in enumerate(pos_r):
-                pairs_df.iloc[pos_r_index, :] = [pos, 0, pos_r_count[pos_r_index], 0, chrom]
+                pairs_df.iloc[pos_r_index, :] = [0, pos, 0, pos_r_count[pos_r_index], chrom]
 
         return pairs_df
 
