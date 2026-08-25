@@ -63,6 +63,14 @@ use across packaging 01-07 but appear nowhere in
   nothing to revert.** Just append a Comment to packaging/04 noting the
   deviation, so the record is accurate.
 
+- **Run `pre-commit run --all-files`, and confirm CI is green.** Added 2026-08-25.
+  `pre-commit` is not installed in any agent environment used on this repo, and no CI run is
+  observable from one, so tickets 03 and 10 leave those two boxes unticked with the reason
+  inline rather than ticked on trust. What *was* verified there: each hook's command
+  (`ruff check`, `ruff format --check`, `mypy src/ijump tests`) passes on its own, and the
+  shared `files: ^(src/ijump|tests)/` pattern matches test paths and not `simulation/`,
+  `rule-tests/` or repo-root files. What is left is the hook runner itself and CI.
+
 ## Out of scope
 
 - Reverting the `region_summary` fix.
@@ -95,6 +103,8 @@ use across packaging 01-07 but appear nowhere in
 
 **Status:** ready-for-human
 
+- [ ] `pre-commit run --all-files` passes with the hooks installed (carried from tickets 03 and 10).
+- [ ] CI observed green (carried from ticket 03).
 - [ ] Conda environment created; numpy ≥ 2 confirmed resolved, not assumed.
 - [ ] Full test suite run in that environment with all 14 files collected; real numbers recorded.
 - [ ] `conda build .` succeeds.

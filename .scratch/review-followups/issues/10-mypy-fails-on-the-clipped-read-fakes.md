@@ -27,7 +27,7 @@ next fake drifting the same way.
 
 - [x] `mypy src/ijump tests` reports no errors
 - [x] The fake declares the reference-position type pysam actually returns, rather than suppressing the finding
-- [x] `pre-commit run --all-files` passes with the hook installed
+- [ ] `pre-commit run --all-files` passes with the hook installed — **not verified here**; `pre-commit` is not installed in this environment. Every command the hook runs was checked on its own and the `files:` pattern confirmed against test paths. Carried by ticket 08.
 - [x] `.pre-commit-config.yaml`'s comment about there being no baseline debt is true again, or rewritten to say what is actually the case
 
 ## Comments

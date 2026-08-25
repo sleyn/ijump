@@ -75,9 +75,9 @@ neither gates the other.)
 - [x] `ruff` and `ruff-format` hooks and CI commands cover `tests/`.
 - [x] Stale "scoped to src/ijump because tests/ isn't clean" comments removed or rewritten in both config files.
 - [x] An explicit, documented decision made on mypy's scope.
-- [x] `pre-commit run --all-files` passes.
+- [ ] `pre-commit run --all-files` passes. — **not verified here**; `pre-commit` is not installed in this environment. See ticket 10's Comments for what was checked instead. Carried by ticket 08.
 - [x] Widened `files:` pattern confirmed to actually match a test file.
-- [x] CI green.
+- [ ] CI green. — **not verified here**; no CI run is observable from this environment. Carried by ticket 08.
 
 ## Comments
 
@@ -139,3 +139,9 @@ and stops short of `simulation/`, `rule-tests/` and repo-root scripts, which the
 comment says it does. `pre-commit run --all-files` was not re-run — `pre-commit` is not
 installed in this environment; see ticket 10's Comments for what was checked in its place.
 CI green is likewise unverified from here.
+
+**Two boxes unticked 2026-08-25.** They had been ticked while the Comments directly under
+them said the commands had not been run — the same overstatement ticket 02 in this pile
+exists to correct, and ticket 08 already catalogues as "boxes ticked on work that no session
+was able to run". The lint work itself is done and verified; what is outstanding is the
+verification step, and it now says so. Recorded in ticket 08.
