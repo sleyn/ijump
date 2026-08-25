@@ -8,13 +8,22 @@ that surface -- no real BAM file needed to characterize
 clipped_read_search.search.
 """
 
+from typing import List, Optional
+
+# What ``pysam``'s ``get_reference_positions(full_length=True)`` returns: the
+# reference position of every aligned base of a read, and ``None`` in place of
+# every clipped one. Named so the fakes below can say it once -- a list literal
+# that starts with the clipped end otherwise infers as a list of ``None`` and
+# rejects the positions appended to it.
+ReferencePositions = List[Optional[int]]
+
 
 class FakeRead:
     def __init__(
         self,
         query_name,
         cigarstring,
-        ref_positions,
+        ref_positions: ReferencePositions,
         query_sequence,
         is_unmapped=False,
         is_reverse=False,

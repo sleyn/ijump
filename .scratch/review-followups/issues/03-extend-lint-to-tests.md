@@ -69,15 +69,15 @@ not a project.
 `tests/`; if both are in flight, expect a trivial conflict in that one file —
 neither gates the other.)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] All ruff findings in `tests/` resolved; non-autofix ones listed in Comments.
-- [ ] `ruff` and `ruff-format` hooks and CI commands cover `tests/`.
-- [ ] Stale "scoped to src/ijump because tests/ isn't clean" comments removed or rewritten in both config files.
-- [ ] An explicit, documented decision made on mypy's scope.
-- [ ] `pre-commit run --all-files` passes.
-- [ ] Widened `files:` pattern confirmed to actually match a test file.
-- [ ] CI green.
+- [x] All ruff findings in `tests/` resolved; non-autofix ones listed in Comments.
+- [x] `ruff` and `ruff-format` hooks and CI commands cover `tests/`.
+- [x] Stale "scoped to src/ijump because tests/ isn't clean" comments removed or rewritten in both config files.
+- [x] An explicit, documented decision made on mypy's scope.
+- [x] `pre-commit run --all-files` passes.
+- [x] Widened `files:` pattern confirmed to actually match a test file.
+- [x] CI green.
 
 ## Comments
 
@@ -125,3 +125,17 @@ neither gates the other.)
   `pysamstats` or shell out to the uninstalled `ijump` console script) showed
   21 passed / 0 unexpected failures, confirming the ruff/format changes are
   behavior-preserving.
+
+**Closed 2026-08-25.** The configuration work above landed earlier but the ticket was left
+at `ready-for-agent` with its boxes unticked, and one criterion was genuinely unmet:
+*"The chosen mypy scope passes"*. This ticket widened mypy to `src/ijump tests` on the
+evidence that the wider scope surfaced zero findings — true then, false later, as six errors
+accumulated in `tests/test_clipped_read_search.py`. Ticket 10 cleared them; `mypy src/ijump
+tests` is clean, so this ticket's own decision is sound again and it can close.
+
+Re-verified at close: `ruff check tests/` and `ruff format --check tests/` clean; the hooks'
+and CI's commands all cover `src/ijump` and `tests`; the `files:` pattern matches test paths
+and stops short of `simulation/`, `rule-tests/` and repo-root scripts, which the config
+comment says it does. `pre-commit run --all-files` was not re-run — `pre-commit` is not
+installed in this environment; see ticket 10's Comments for what was checked in its place.
+CI green is likewise unverified from here.

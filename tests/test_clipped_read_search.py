@@ -31,29 +31,36 @@ fake ``run_blast`` that writes a canned file instead of invoking ``blastn``.
 import pandas as pd
 import pandas.testing as pdt
 import pytest
-from fake_clipped_read import FakeAlignmentFetch, FakeRead
+from fake_clipped_read import FakeAlignmentFetch, FakeRead, ReferencePositions
 
 import ijump.clipped_read_search as clipped_read_search
 from ijump.clipped_read_search import NoInsertionsFound, SearchResult, search
 
+# Reference positions for the fakes below, typed once: mixing None with real
+# coordinates is what pysam does, and the annotation is what lets the literal say
+# so (fake_clipped_read.ReferencePositions).
+LEFT_CLIPPED_POSITIONS: ReferencePositions = [None, None, None, *range(510, 517)]
+RIGHT_CLIPPED_POSITIONS: ReferencePositions = [*range(720, 727), None, None, None]
+SHORT_LEFT_CLIPPED_POSITIONS: ReferencePositions = [None, None, *range(330, 335)]
+
 READ_LEFT = FakeRead(
     "read_left",
     "3S7M",
-    [None, None, None] + list(range(510, 517)),
+    LEFT_CLIPPED_POSITIONS,
     "AAA" + "CCCCCCC",
     reference_name="contig_1",
 )
 READ_RIGHT = FakeRead(
     "read_right",
     "7M3S",
-    list(range(720, 727)) + [None, None, None],
+    RIGHT_CLIPPED_POSITIONS,
     "GGGGGGG" + "TTT",
     reference_name="contig_2",
 )
 READ_UNMAPPED = FakeRead(
     "read_unmapped",
     "3S7M",
-    [None, None, None] + list(range(510, 517)),
+    LEFT_CLIPPED_POSITIONS,
     "AAAAAAAAAA",
     is_unmapped=True,
     reference_name="contig_1",
@@ -68,7 +75,7 @@ READ_NO_CLIP = FakeRead(
 READ_LEFT_REVERSE = FakeRead(
     "read_left_reverse",
     "2S5M",
-    [None, None] + list(range(330, 335)),
+    SHORT_LEFT_CLIPPED_POSITIONS,
     "AA" + "CCCCC",
     is_reverse=True,
     reference_name="contig_1",

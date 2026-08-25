@@ -75,7 +75,7 @@ a test baseline that was wrong about its own provenance.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The test calls the helper at its real location and passes.
 - [x] A decision is recorded on whether to test the private helper or the public entry point.
@@ -228,3 +228,10 @@ scope anyway — not something this ticket introduced or needs to fix.
 Confirmed via `git diff --stat HEAD` that every `.scratch/*/issues/*.md`
 change other than packaging/08's one authorized Verification line is a pure
 append (no lines removed from original ticket bodies).
+
+**Status corrected 2026-08-25.** The work above landed on 2026-08-17 with every box ticked,
+but the `Status:` line was left at `ready-for-agent`, so the ticket kept showing up on the
+agent frontier. Re-verified before relabelling: the test imports and calls
+`frequency_estimation._read_count_mtx`, asserts on the guard's own message, and
+`tests/test_no_results_paths.py` passes 4/4; `packaging/08`'s Verification baseline reads
+"46 passed, 0 failures". Nothing to re-do.
