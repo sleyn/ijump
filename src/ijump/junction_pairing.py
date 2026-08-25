@@ -10,6 +10,18 @@ import pandas as pd
 # Similar results could be achieved by KNN search, but this algorithm shows slightly
 # better performance on tests.
 def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len, chrom):
+    # The cluster sort below writes back into pos_l and pos_l_count, so work on
+    # copies: the caller passes Series.to_numpy() results, which pandas 3 hands
+    # out non-writeable (pandas 2 returned writeable copies, which is why this
+    # only surfaced on the upgrade). Copying also keeps the caller's arrays out
+    # of the reordering, which was never intentional. pos_r and pos_r_count are
+    # only read today, but are copied too so the whole signature carries one
+    # rule -- inputs are never touched -- rather than a per-argument exception.
+    pos_l = np.array(pos_l, copy=True)
+    pos_r = np.array(pos_r, copy=True)
+    pos_l_count = np.array(pos_l_count, copy=True)
+    pos_r_count = np.array(pos_r_count, copy=True)
+
     # Check if both left and right junctions present. If not - process just present
     # part of junctions.
     if pos_l.size == 0 or pos_r.size == 0:

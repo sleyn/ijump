@@ -76,3 +76,46 @@ def test_find_pair_matches_pinned_golden_output():
     )
 
     pdt.assert_frame_equal(pairs_df, expected)
+
+
+def test_find_pair_accepts_read_only_input_arrays():
+    """pandas 3 hands out read-only arrays, and precise mode feeds them straight in.
+
+    ``isclipped.search_insert_pos`` builds every argument here with
+    ``Series.to_numpy()``, which under pandas 3 returns a non-writeable view.
+    ``find_pairs`` sorts its clusters by writing back into ``pos_l``,
+    ``pos_l_count`` and ``closeness_matrix``, so a non-writeable input aborted
+    the whole precise run with "assignment destination is read-only" -- before
+    a single output file was written.
+    """
+    read_only_args = []
+    for array in (POS_L, POS_R, POS_L_COUNT, POS_R_COUNT):
+        copy = array.copy()
+        copy.flags.writeable = False
+        read_only_args.append(copy)
+
+    pairs_df = find_pairs(*read_only_args, CHROM_LEN, MAX_IS_DUP_LEN, CHROM)
+
+    expected = find_pairs(
+        POS_L.copy(),
+        POS_R.copy(),
+        POS_L_COUNT.copy(),
+        POS_R_COUNT.copy(),
+        CHROM_LEN,
+        MAX_IS_DUP_LEN,
+        CHROM,
+    )
+    pdt.assert_frame_equal(pairs_df, expected)
+
+
+def test_find_pair_leaves_its_input_arrays_untouched():
+    """The caller's arrays are not scratch space -- the cluster sort must not reorder them."""
+    pos_l, pos_r = POS_L.copy(), POS_R.copy()
+    pos_l_count, pos_r_count = POS_L_COUNT.copy(), POS_R_COUNT.copy()
+
+    find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, CHROM_LEN, MAX_IS_DUP_LEN, CHROM)
+
+    np.testing.assert_array_equal(pos_l, POS_L)
+    np.testing.assert_array_equal(pos_r, POS_R)
+    np.testing.assert_array_equal(pos_l_count, POS_L_COUNT)
+    np.testing.assert_array_equal(pos_r_count, POS_R_COUNT)
