@@ -10,8 +10,8 @@ element, and joining on the name would line them up as though it were
 import pandas as pd
 import pytest
 
-from ijump import report_provenance
-from ijump.combine_results import read_reports
+from ijump import annotation_stamp
+from ijump.combine_results import add_element_column, read_reports
 
 REPORT = pd.DataFrame(
     {
@@ -28,7 +28,7 @@ REPORT = pd.DataFrame(
 
 def _report(tmp_path, sample, fingerprint, table=REPORT):
     path = tmp_path / f"ijump_{sample}.txt"
-    report_provenance.write_report(table, path, fingerprint)
+    annotation_stamp.write_report(table, path, fingerprint)
     return str(path)
 
 
@@ -60,7 +60,7 @@ def test_samples_from_different_is_tables_are_refused(tmp_path):
         _report(tmp_path, "s2", "def456"),
     ]
 
-    with pytest.raises(report_provenance.MixedAnnotations) as excinfo:
+    with pytest.raises(annotation_stamp.MixedAnnotations) as excinfo:
         read_reports(reports, [], clonal_workflow=False, mode="average")
 
     message = str(excinfo.value)
@@ -73,12 +73,34 @@ def test_the_refusal_comes_before_any_report_is_read_as_data(tmp_path):
     whatever the first badly-joined column happens to raise."""
     mismatched = _report(tmp_path, "s2", "def456")
     unreadable = tmp_path / "ijump_s3.txt"
-    report_provenance.write_report(pd.DataFrame({"IS Name": ["x"]}), unreadable, "abc123")
+    annotation_stamp.write_report(pd.DataFrame({"IS Name": ["x"]}), unreadable, "abc123")
 
-    with pytest.raises(report_provenance.MixedAnnotations):
+    with pytest.raises(annotation_stamp.MixedAnnotations):
         read_reports(
             [_report(tmp_path, "s1", "abc123"), mismatched, str(unreadable)],
             [],
             clonal_workflow=False,
             mode="average",
         )
+
+
+def test_the_lab_format_element_column_does_not_truncate_cluster_names():
+    """The lab format collapses rows of one element together, and used to derive
+    that element by stripping a numeric copy suffix off a per-locus name
+    (``IS17_1`` -> ``IS17``). A cluster name has no such suffix, so the same
+    regex eats a real digit: ``ISAba12``, ``ISAba11`` and ``ISAba1`` all become
+    ``ISAba``, summing three elements' frequencies into one row.
+
+    Clustering already did the collapsing, so the element is the reported name.
+    """
+    summary_table = pd.DataFrame({"IS Name": ["ISAba12", "ISAba11", "ISAba1", "ISAlw13", "ISVsa3"]})
+
+    with_element = add_element_column(summary_table)
+
+    assert with_element["Mutation"].tolist() == [
+        "ISAba12",
+        "ISAba11",
+        "ISAba1",
+        "ISAlw13",
+        "ISVsa3",
+    ]

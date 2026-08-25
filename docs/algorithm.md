@@ -324,7 +324,7 @@ pandas is the universal data layer. Every internal table (clipped reads, junctio
 | `.groupby().transform(_hclust)` | `make_gene_side_regions:583` | Apply hierarchical clustering independently per chromosome |
 | `.groupby().count().reset_index()` | `search_insert_pos:829` | Count reads per unique (position, IS, orientation) combination |
 | `pd.melt(id_vars=..., var_name=..., value_name=...)` | `report_average:1200` | Pivot the wide sum-by-region table (clusters as columns) to long format for frequency calculation |
-| `.groupby().agg('sum')` | `combine_results.py:349` | Collapse IS element copies (IS1_1 + IS1_2 → IS1) by summing frequencies |
+| `combine_results.py` | Sum the per-region rows of one element across samples. The report names clusters, so the element is the name -- there is no copy suffix left to strip (isfinder-annotation 07) |
 | `reduce(lambda df1, df2: pd.merge(..., how='outer'), dfs)` | `combine_results.py:107` | Iterative outer-join of all per-sample report DataFrames into one wide comparative table |
 
 #### Row-wise computation

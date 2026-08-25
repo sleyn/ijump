@@ -22,12 +22,13 @@ import pandas as pd
 # Anything open() takes.
 Path = Union[str, "os.PathLike[str]"]
 
-# The leading comment line, minus the fingerprint.
-PROVENANCE_PREFIX = "# ijump-is-table:"
+# The annotation stamp's leading comment line, minus the digest.
+STAMP_PREFIX = "# ijump-is-table:"
 
 
-class MissingProvenance(Exception):
-    """A report does not say which IS table it was built from."""
+class MissingStamp(Exception):
+    """A report carries no annotation stamp -- it does not say which IS table it
+    was built from."""
 
 
 class MixedAnnotations(Exception):
@@ -37,8 +38,30 @@ class MixedAnnotations(Exception):
 def write_report(table: pd.DataFrame, path: Path, fingerprint: str) -> None:
     """Write ``table`` as a TSV stamped with the IS table it came from."""
     with open(path, "w") as report_file:
-        report_file.write(f"{PROVENANCE_PREFIX} {fingerprint}\n")
+        report_file.write(f"{STAMP_PREFIX} {fingerprint}\n")
         table.to_csv(report_file, sep="\t", index=False)
+
+
+def read_stamp(path: Path) -> str:
+    """The IS table digest a report is stamped with, without reading its table.
+
+    Separate from read_report because the check that every report shares an
+    annotation runs over all of them before any is read as data, and parsing each
+    table twice to answer a one-line question is waste.
+    """
+    with open(path, "r") as report_file:
+        first_line = report_file.readline()
+
+    if not first_line.startswith(STAMP_PREFIX):
+        raise MissingStamp(
+            f"{os.fspath(path)} does not say which IS table it was built from. "
+            "Reports written before iJump reported by cluster name one column per "
+            "called locus, and those names cannot be merged with names that mean "
+            "whole elements. Rerun iJump on this sample to produce a report that "
+            "carries the annotation it was built against."
+        )
+
+    return first_line[len(STAMP_PREFIX) :].strip()
 
 
 def read_report(path: Path) -> Tuple[pd.DataFrame, str]:
@@ -49,22 +72,7 @@ def read_report(path: Path) -> Tuple[pd.DataFrame, str]:
     elements, and merging it with a report that names elements would join names
     that do not mean the same thing.
     """
-    with open(path, "r") as report_file:
-        first_line = report_file.readline()
-
-    if not first_line.startswith(PROVENANCE_PREFIX):
-        raise MissingProvenance(
-            f"{os.fspath(path)} does not say which IS table it was built from. "
-            "Reports written before iJump reported by cluster name one column per "
-            "called locus, and those names cannot be merged with names that mean "
-            "whole elements. Rerun iJump on this sample to produce a report that "
-            "carries the annotation it was built against."
-        )
-
-    return (
-        pd.read_csv(path, sep="\t", skiprows=1),
-        first_line[len(PROVENANCE_PREFIX) :].strip(),
-    )
+    return pd.read_csv(path, sep="\t", skiprows=1), read_stamp(path)
 
 
 def check_one_annotation(fingerprint_by_report: Mapping[str, str]) -> None:

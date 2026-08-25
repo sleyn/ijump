@@ -30,10 +30,15 @@ strictly worse than today. The merge needs to detect that and refuse.
 **The collapse is bigger than the ticket's example, and it changes numbers.** `ISAba11_1/2/3`
 collapse to `ISAba11` for the same reason `IS17`/`ISAba12` do, and where two loci of one
 element hit the same region their counts now sum into one row: the first report row goes
-from frequency 0.0017 to 0.0034. The change also surfaces an insertion that was invisible —
-region `AUO97b_01699` at 1658711 now clears the reporting cutoff, because its evidence was
-previously split three ways and each share fell below it. That is the point of the ticket,
-but it means the diff is not a relabelling.
+from frequency 0.0017 to 0.0034. That means the diff is not a relabelling.
+
+The clearest case is region `AUO97b_01699` at 1658711. It was two rows, `IS17_1` and
+`IS17_2`, at 0.0043 each; it is now one `ISAba12` row at 0.0085. Circos draws at a cutoff of
+0.005, so neither half cleared it and the insertion was **absent from the diagram
+entirely** — it appears in `links.txt`, `text.txt` and `histogram.txt` for the first time
+here. (It was always present in the per-region report itself, at half strength in each of
+two rows. An earlier draft of this comment said it was below the *report's* cutoff; that was
+wrong, and the review caught it.)
 
 **Circos had to follow, or the run crashes.** `write_files` looked up `is_coords[is_name]`
 with a name taken from the report, which is now a cluster and not a row of the IS table, and
@@ -59,3 +64,22 @@ A report without the stamp is refused rather than merged on trust. That is defen
 because the two arrive together: any report predating this change also predates the cluster
 columns, so its names mean called loci and were never mergeable with names that mean
 elements. The message says to rerun the sample.
+
+**Review follow-ups.** Two hard findings, both fixed:
+
+- `combine_results`' lab format still derived its element column by stripping a numeric copy
+  suffix — correct for a locus name, ruinous for a cluster name, which has no suffix to
+  strip: `ISAba1`, `ISAba11`, `ISAba12` and `ISAba18` all became `ISAba` and their
+  frequencies summed into one row. Clustering does that collapsing now, so there is nothing
+  left to derive and the column is the reported name. It is `add_element_column`, with a
+  regression test, because a comprehension inside `main()` had no seam to test through —
+  which is why the change slipped past the first pass.
+- The stamp concept had four names across module, constant and prose. It is **annotation
+  stamp** now, registered in `CONTEXT.md`, and the module is `annotation_stamp`. The digest
+  itself stays `is_table.fingerprint` — the value and the line that carries it are different
+  things.
+
+Also: `README` claimed both average-mode files carry the stamp; only the two that
+`combine-results` merges do, and `ijump_sum_by_reg.txt` does not. `docs/Precise.md` gained
+the same note `docs/Average.md` got. `docs/algorithm.md`'s row describing the copy-suffix
+collapse was stale.

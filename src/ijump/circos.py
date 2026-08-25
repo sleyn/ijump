@@ -51,6 +51,8 @@ def write_files(
     _cluster_loci = dict()
     for is_name, cluster in clusters.items():
         _cluster_loci.setdefault(cluster, []).append(is_name)
+    for cluster_ind, cluster in enumerate(_cluster_loci):
+        _is_colours[cluster] = _circos_colors[cluster_ind % len(_circos_colors)]
 
     # Karyotype file
     with open(os.path.join(data_folder, "karyotype.txt"), "w") as karyotype:
@@ -87,9 +89,6 @@ def write_files(
                 + "\n"
             )
             col_ind += 1
-
-        for cluster_ind, cluster in enumerate(_cluster_loci):
-            _is_colours[cluster] = _circos_colors[cluster_ind % len(_circos_colors)]
 
         # List to remove duplicates
         text_regions = list()

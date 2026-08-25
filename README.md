@@ -534,7 +534,9 @@ Anyone reading `ijump_report_by_is_reg.txt` or `ijump_sum_by_reg.txt` by IS name
 selecting `IS17_1`, or a column index into the region summary — is broken by this and needs
 updating to the cluster names. `ijump combine-results` handles it for you.
 
-Both files now begin with a line naming the IS table the run was annotated against:
+`ijump_report_by_is_reg.txt` -- and precise mode's `ijump_junction_pairs.txt` -- now begin
+with a line naming the IS table the run was annotated against. These are the files
+`ijump combine-results` merges; `ijump_sum_by_reg.txt` is not merged and is not stamped:
 
 ```
 # ijump-is-table: c5775ee72813f8c2

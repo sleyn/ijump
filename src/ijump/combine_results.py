@@ -8,22 +8,35 @@ from os import path
 
 import pandas as pd
 
-from ijump import gff, report_provenance
+from ijump import annotation_stamp, gff
+
+
+# The element each row belongs to, as the lab format's collapse groups on.
+#
+# This used to strip a numeric copy suffix off a per-locus name -- ISAba12_1 to
+# ISAba12 -- so that the copies of one element summed into one row. Clustering
+# does that collapsing now (isfinder-annotation 07) and the report names the
+# element directly, so there is nothing left to derive. Left in place, the same
+# regex ate the element's own digits instead: ISAba1, ISAba11, ISAba12 and
+# ISAba18 all became "ISAba", silently summing four unrelated elements.
+def add_element_column(summary_table):
+    table = summary_table.copy()
+    table["Mutation"] = table["IS Name"]
+    return table
 
 
 # Read one report, dropping the line naming the IS table it was built from.
 def _read_report(report):
-    table, _ = report_provenance.read_report(report)
+    table, _ = annotation_stamp.read_report(report)
     return table
 
 
 # Refuse a set of reports that were not all annotated against one IS table.
 def _check_one_annotation(reports):
-    fingerprint_by_report = {}
-    for report in reports:
-        _, fingerprint = report_provenance.read_report(report)
-        fingerprint_by_report[path.basename(report)] = fingerprint
-    report_provenance.check_one_annotation(fingerprint_by_report)
+    fingerprint_by_report = {
+        path.basename(report): annotation_stamp.read_stamp(report) for report in reports
+    }
+    annotation_stamp.check_one_annotation(fingerprint_by_report)
 
 
 # Read and ijump report tables
@@ -400,10 +413,7 @@ def main():
             # Sum IS elements with the same name
             summary_table_collapsed = summary_table.copy()
             if args.ijump_mode == "average":
-                summary_table_collapsed["Mutation"] = [
-                    re.match(r"^(.+?)_?\d*$", is_ele).group(1)
-                    for is_ele in summary_table_collapsed["IS Name"].tolist()
-                ]
+                summary_table_collapsed = add_element_column(summary_table_collapsed)
                 summary_table_collapsed = summary_table_collapsed.drop(
                     columns=["IS Name", "Start", "Stop"]
                 )

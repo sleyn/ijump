@@ -18,7 +18,7 @@ version of this test, which pinned that behaviour.
 import pandas as pd
 import pytest
 
-from ijump import report_provenance
+from ijump import annotation_stamp
 
 FILES_BY_MODE = {
     "average": [
@@ -63,6 +63,6 @@ STAMPED = {"ijump_report_by_is_reg.txt", "ijump_junction_pairs.txt"}
 
 def _read(file_path):
     if file_path.name in STAMPED:
-        table, _ = report_provenance.read_report(file_path)
+        table, _ = annotation_stamp.read_report(file_path)
         return table
     return pd.read_csv(file_path, sep="\t")

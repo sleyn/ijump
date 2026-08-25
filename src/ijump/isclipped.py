@@ -12,13 +12,13 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
 from ijump import (
+    annotation_stamp,
     circos,
     clipped_read_search,
     frequency_estimation,
     gff,
     is_table,
     region_summary,
-    report_provenance,
 )
 from ijump.clipped_read_search import NoInsertionsFound
 from ijump.junction_pairing import NO_JUNCTION, find_pairs
@@ -186,7 +186,7 @@ class ISClipped:
         self.is_clusters = None
         # Digest of the IS table this run is annotated against, stamped on the
         # reports so a later multi-sample merge can tell that its samples share
-        # one cluster vocabulary (see report_provenance).
+        # one cluster vocabulary (see annotation_stamp).
         self.is_table_fingerprint = ""
         # List of lengths for matched segments
         # Used to calculate correction coefficients
@@ -616,14 +616,14 @@ class ISClipped:
         self.sum_by_reg_tbl_init().to_csv(
             os.path.join(outdir, "ijump_sum_by_reg.txt"), sep="\t", index=False
         )
-        report_provenance.write_report(
+        annotation_stamp.write_report(
             self.report_table_init(),
             os.path.join(outdir, "ijump_report_by_is_reg.txt"),
             self.is_table_fingerprint,
         )
 
         if mode == EstimationMode.PRECISE:
-            report_provenance.write_report(
+            annotation_stamp.write_report(
                 self.pairs_table_empty(),
                 os.path.join(outdir, "ijump_junction_pairs.txt"),
                 self.is_table_fingerprint,
@@ -686,7 +686,7 @@ class ISClipped:
                     self.blast_min,
                     self.average_depth,
                 )
-                report_provenance.write_report(
+                annotation_stamp.write_report(
                     self.report_table,
                     os.path.join(outdir, "ijump_report_by_is_reg.txt"),
                     self.is_table_fingerprint,
@@ -779,7 +779,7 @@ class ISClipped:
                 self.pairs_df["Position_r"] = convert_zero_one_base(
                     self.pairs_df["Position_r"].tolist()
                 )
-                report_provenance.write_report(
+                annotation_stamp.write_report(
                     self.pairs_df, self.pairs_df_path, self.is_table_fingerprint
                 )
         except NoInsertionsFound as e:

@@ -54,6 +54,15 @@ with its own name, contig and coordinates. Several loci can be one **Cluster**: 
 and its own truncated fragments are separate loci of one element.
 _Avoid_: hit, IS copy, element (an element may span several loci), region
 
+**Annotation stamp**:
+The line at the head of a report naming the IS table the run was annotated against
+(`# ijump-is-table: <digest>`), written by `ijump run` and read by `ijump combine-results`.
+Cluster names are derived from the loci rather than fixed, so two runs annotated against
+different tables can use one name for different elements; the stamp is what lets a merge
+tell that its samples share one **Cluster** vocabulary before joining them on it. The digest
+is `is_table.fingerprint`; the format lives in `annotation_stamp`.
+_Avoid_: provenance, checksum, watermark, version
+
 **Origin-spanning element**:
 One copy of a mobile element called as two **Locus** rows because the assembler broke its
 contig in the middle of it — one row ending at the contig's last base, one starting at its

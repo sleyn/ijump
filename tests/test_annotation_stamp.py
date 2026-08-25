@@ -13,7 +13,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from ijump import report_provenance
+from ijump import annotation_stamp
 
 TABLE = pd.DataFrame(
     {
@@ -26,9 +26,9 @@ TABLE = pd.DataFrame(
 
 def test_a_stamped_report_round_trips(tmp_path):
     report = tmp_path / "ijump_s1.txt"
-    report_provenance.write_report(TABLE, report, "abc123")
+    annotation_stamp.write_report(TABLE, report, "abc123")
 
-    read, fingerprint = report_provenance.read_report(report)
+    read, fingerprint = annotation_stamp.read_report(report)
 
     assert fingerprint == "abc123"
     pdt.assert_frame_equal(read, TABLE)
@@ -38,7 +38,7 @@ def test_the_stamp_is_the_first_line_and_a_comment(tmp_path):
     """A leading comment line keeps the table itself where it has always been, so
     anything reading the file with a `#`-aware reader is unaffected."""
     report = tmp_path / "ijump_s1.txt"
-    report_provenance.write_report(TABLE, report, "abc123")
+    annotation_stamp.write_report(TABLE, report, "abc123")
 
     lines = report.read_text().splitlines()
     assert lines[0] == "# ijump-is-table: abc123"
@@ -52,8 +52,8 @@ def test_an_unstamped_report_is_refused(tmp_path):
     report = tmp_path / "ijump_s1.txt"
     report.write_text("IS Name\tChromosome\tFrequency\nISAba12\tNODE_1\t0.5\n")
 
-    with pytest.raises(report_provenance.MissingProvenance) as excinfo:
-        report_provenance.read_report(report)
+    with pytest.raises(annotation_stamp.MissingStamp) as excinfo:
+        annotation_stamp.read_report(report)
 
     assert "ijump_s1.txt" in str(excinfo.value)
     assert "rerun" in str(excinfo.value).lower()
@@ -61,18 +61,18 @@ def test_an_unstamped_report_is_refused(tmp_path):
 
 def test_reports_from_one_table_agree(tmp_path):
     first, second = tmp_path / "ijump_a.txt", tmp_path / "ijump_b.txt"
-    report_provenance.write_report(TABLE, first, "abc123")
-    report_provenance.write_report(TABLE, second, "abc123")
+    annotation_stamp.write_report(TABLE, first, "abc123")
+    annotation_stamp.write_report(TABLE, second, "abc123")
 
     # Does not raise.
-    report_provenance.check_one_annotation({str(first): "abc123", str(second): "abc123"})
+    annotation_stamp.check_one_annotation({str(first): "abc123", str(second): "abc123"})
 
 
 def test_reports_from_different_tables_are_refused(tmp_path):
     """The failure this exists to prevent: two samples whose `ISAba12` are not
     the same element, joined on the name as though they were."""
-    with pytest.raises(report_provenance.MixedAnnotations) as excinfo:
-        report_provenance.check_one_annotation({"ijump_a.txt": "abc123", "ijump_b.txt": "def456"})
+    with pytest.raises(annotation_stamp.MixedAnnotations) as excinfo:
+        annotation_stamp.check_one_annotation({"ijump_a.txt": "abc123", "ijump_b.txt": "def456"})
 
     message = str(excinfo.value)
     assert "ijump_a.txt" in message
