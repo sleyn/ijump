@@ -114,7 +114,8 @@ docker run --rm ijump --help
 (`--platform linux/amd64` is required when building on an Apple
 Silicon/arm64 host -- see the tradeoff note below for why.)
 
-`ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`) are
+`ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`,
+`migrate-is-table`) are
 the image's `ENTRYPOINT`, so any flags after the image name go straight to
 the console script. Input files (BAM, reference FASTA, GFF, mobile-elements
 coordinates file) are user-supplied at runtime, not baked into the image --

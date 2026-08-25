@@ -33,7 +33,8 @@ _Avoid_: gene (a region may be intergenic), locus, GE
 **IS table**:
 The tab-separated file listing the IS elements a run works from — one row per copy found in
 the reference, carrying its name, contig, coordinates and ISFinder annotation. Written by
-`ijump isfinder-db-parse`, read by `ijump run` (`--isel`), and editable by hand in between.
+any IS-table back-end (`ijump isfinder-db-parse`, `ijump migrate-is-table`), read by
+`ijump run` (`--isel`), and editable by hand in between.
 Headered since the annotation columns were added; four-column headerless tables predate that
 and are still read. In code it is `is_table.py`, `ISClipped.is_table`, and — for the
 coordinate columns alone — `ISClipped.is_coords`.
@@ -44,7 +45,7 @@ The set of IS table rows that are copies of one mobile element, computed from se
 similarity rather than from the rows' names — single linkage at ≥95% identity over ≥80% of
 the shorter element. A cluster is named for its longest member's base IS name (`ISAba12`),
 suffixed `.a`/`.b` only when two clusters would otherwise share a name. It is the `cluster`
-column of the IS table, written by `ijump isfinder-db-parse` and editable by hand.
+column of the IS table, written by every back-end that produces one and editable by hand.
 _Avoid_: group (the ISFinder group is separate annotation and never merges anything),
 family, IS type, merge key
 

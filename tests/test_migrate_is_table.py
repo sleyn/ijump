@@ -6,8 +6,8 @@ back-end keeps every coordinate exactly as written and fills in the rest.
 
 Needs BLAST+, like the parser tier: it searches each locus against a database and
 clusters the results. Skips cleanly without it. Its inputs are all committed --
-see ``tests/fixtures/isfinder/README.md`` for what the stand-in ISFinder database
-is and what it can and cannot stand in for.
+``tests/goldens/README.md`` says what the stand-in ISFinder database is, and
+``make_isfinder_db_fixture.py`` what it can and cannot stand in for.
 """
 
 import shutil
@@ -84,8 +84,26 @@ def test_coordinates_and_names_are_carried_through_untouched(migrated):
 
 def test_family_and_group_are_recovered_from_the_database(migrated, golden):
     """A four-column file carries no family to recover, so they come from a fresh
-    search of each locus against the database."""
+    search of each locus against the database.
+
+    What this can and cannot show: the stand-in database is built from these very
+    loci and labelled from this very golden, so the test proves the plumbing --
+    extract, search, pick the best hit, split the subject id -- and that each
+    locus picks an entry carrying its own family and group. It cannot show the
+    labels are biologically right, and it cannot tell the IS5/IS903 elements
+    apart from each other, since IS17, ISAba12 and ISAba53 share that pair.
+    Fidelity needs the real database.
+    """
     pd.testing.assert_frame_equal(migrated[["family", "group"]], golden[["family", "group"]])
+
+
+def test_percent_identity_is_written_the_way_the_primary_back_end_writes_it(migrated):
+    """Same identity, same text. The primary back-end reads its hits through
+    pandas, so its pident reaches the table as a float and is written "100.0";
+    BLAST's own output says "100.000". One table, written by two back-ends,
+    should not spell one number two ways.
+    """
+    assert migrated["pident"].tolist() == ["100.0"] * len(migrated)
 
 
 def test_clusters_match_the_primary_back_end(migrated, golden):

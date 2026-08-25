@@ -39,19 +39,37 @@ smaller things that were about to be duplicated went with it: the argparse thres
 answering wrongly) and the BLAST runner, promoted from `is_clustering._run` to
 `run_blast_command` now that a second module searches.
 
-**Reproduction is verified on every column but `pident`.** The committed legacy table is the
-same 13 loci as the golden, and migrating it reproduces the golden's `family`, `group`,
-`cluster`, `wraps_origin` and `element_id` exactly. `pident` is excluded on purpose: the
-tests search a **stand-in** ISFinder database, since the real one is not ours to
-redistribute, and a locus searched against a database whose entry *is* that locus matches
-itself at 100% where the real database gives 98.556. `tests/fixtures/isfinder/README` — the
-generator's docstring — states what the stand-in can and cannot stand for. Reproducing
-`pident` needs the real database.
+**Reproduction is verified on five of the six annotation columns.** The committed legacy
+table is the same 13 loci as the golden, and migrating it reproduces the golden's `family`,
+`group`, `cluster`, `wraps_origin` and `element_id` exactly. `pident` is not compared,
+because the tests search a **stand-in** ISFinder database — the real one is not ours to
+redistribute — and a locus searched against a database whose entry *is* that locus matches
+itself at 100% where the real database gives 98.556. `tests/goldens/README.md` says what the
+stand-in is; `make_isfinder_db_fixture.py`'s docstring what it can and cannot stand for.
 
-Worth noting for whoever gets the real database: byte-identical `pident` may not be
-achievable even then. The golden's value comes from searching the *genome* against ISFinder,
-where the alignment has genomic context either side of the locus; migration searches the
-extracted locus alone. The two are the same search of different queries.
+**Be precise about what the family/group check proves.** The stand-in's entries are built
+from these loci and labelled from this golden, so the check proves the plumbing — extract,
+search, best hit, split the subject id — and that each locus picks an entry carrying its own
+family and group. It cannot show the labels are biologically right, and it cannot tell
+`IS17`, `ISAba12` and `ISAba53` apart, since all three carry `IS5`/`IS903`. Fidelity needs
+the real database.
+
+**A `pident` divergence that had nothing to do with the stand-in**, found in review and
+fixed: the primary back-end reads its hits through `pd.read_csv`, so its identity reaches
+the table as a float and is written `100.0`, while migration kept BLAST's raw `100.000`.
+Same number, two spellings in one file depending on which back-end wrote it, on any
+database. It goes through `float` now.
+
+**An earlier note here claimed byte-identical `pident` may be unachievable even with the
+real database, because the golden's search carries genomic context the extracted locus does
+not. That was wrong** — the golden's `start`/`stop` *are* that search's HSP boundaries, so
+the extracted locus is the alignment, and blastn is local. The real difference is
+hit-selection: the parser filters at `evalue <= 1e-30` with an overlap-dedup pass, migration
+takes the best bitscore at 1e-5. That is deliberate and now documented on `search_database`
+— the parser is *calling* loci from a whole genome, where a lax threshold invents them,
+while migration annotates loci already decided on, the shortest of which is 76 bp and cannot
+reach 1e-30 however good the match.
+
 
 **A locus that matches nothing is kept**, with family, group and pident empty and a warning
 naming it. This back-end annotates; it does not re-call loci, and dropping a row the

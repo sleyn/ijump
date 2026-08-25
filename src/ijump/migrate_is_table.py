@@ -43,8 +43,16 @@ UNANNOTATED: Annotation = ("", "", "")
 def search_database(sequences: Dict[str, str], database: Path) -> Dict[str, Annotation]:
     """Search each locus against the ISFinder database, keeping its best hit.
 
-    Best by bitscore, which is how the primary back-end picks too. A locus with
-    no hit comes back UNANNOTATED rather than being dropped.
+    Best by bitscore, which is how the primary back-end picks too.
+
+    The e-value threshold is SENSITIVE_BLASTN's 1e-5, not the 1e-30 the primary
+    back-end filters on. That back-end is *calling* loci from a whole genome,
+    where a lax threshold invents them; this one is annotating loci an operator
+    already decided on, and the shortest of them is 76 bp -- short enough that
+    1e-30 is unreachable however good the match. Refusing to annotate a locus
+    because it is short would be the wrong answer to a question already settled.
+
+    A locus with no hit comes back UNANNOTATED rather than being dropped.
     """
     if not sequences:
         return {}
@@ -127,7 +135,11 @@ def _best_hits(out_file: Path, sequences: Dict[str, str]) -> Dict[str, Annotatio
             if query in best and best[query][0] >= score:
                 continue
             _, family, group = is_table.parse_subject_id(subject)
-            best[query] = (score, (family, group, pident))
+            # Through float, not BLAST's raw text: the primary back-end reads its
+            # hits with pd.read_csv, so its pident reaches the table as a float
+            # and is written "100.0". Keeping "100.000" here would put the same
+            # identity in the table two ways depending on which back-end wrote it.
+            best[query] = (score, (family, group, str(float(pident))))
 
     return {name: best[name][1] if name in best else UNANNOTATED for name in sequences}
 

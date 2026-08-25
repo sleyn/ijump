@@ -42,6 +42,24 @@ import pysam
 # Anything open() takes.
 Path = Union[str, "os.PathLike[str]"]
 
+# The blastn flags every locus search shares.
+#
+# The sensitive ``blastn`` task rather than the binary's megablast default: the
+# shortest loci here are under 100 bp, and megablast's seed of 28 would need an
+# exact 28-mer to find them at all. Extra weak hits are harmless -- callers apply
+# their own thresholds. One list rather than one per search, because this is one
+# tuning decision about one kind of query, and two copies would drift.
+SENSITIVE_BLASTN = (
+    "-task",
+    "blastn",
+    "-word_size",
+    "11",
+    "-dust",
+    "no",
+    "-evalue",
+    "1e-5",
+)
+
 # Minimum percent identity of an alignment for it to link two loci.
 IDENTITY_DEFAULT = 95.0
 # Minimum fraction of the *shorter* locus the alignment has to span.
@@ -266,10 +284,8 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
     """Align every locus against every other with ``blastn``.
 
     BLAST+ is already a hard dependency of a run, so this adds nothing to
-    install. The search is deliberately the sensitive ``blastn`` task rather than
-    the ``blastn`` binary's megablast default: the shortest loci here are under
-    100 bp, and a seed of 28 would need an exact 28-mer to find them at all. Extra
-    weak hits are harmless -- the identity and coverage thresholds discard them.
+    install. Sensitivity comes from SENSITIVE_BLASTN above; the identity and
+    coverage thresholds discard the extra weak hits it lets through.
 
     ``-max_target_seqs`` is raised to the number of loci. Its default of 500
     truncates the per-query hit list, and a truncated list here is not a slower
@@ -282,17 +298,13 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
 
     with tempfile.TemporaryDirectory() as workdir:
         query = os.path.join(workdir, "loci.fna")
-        with open(query, "w") as fasta:
-            for name, sequence in sequences.items():
-                fasta.write(f">{name}\n{sequence}\n")
+        write_query_fasta(sequences, query)
 
         database = os.path.join(workdir, "loci")
         out_file = os.path.join(workdir, "loci_vs_loci.out")
         run_blast_command(["makeblastdb", "-in", query, "-dbtype", "nucl", "-out", database])
         run_blast_command(
             [
-                "blastn",
-                "-task",
                 "blastn",
                 "-query",
                 query,
@@ -304,12 +316,7 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
                 "6 qseqid sseqid pident length",
                 "-max_target_seqs",
                 str(len(sequences)),
-                "-word_size",
-                "11",
-                "-dust",
-                "no",
-                "-evalue",
-                "1e-5",
+                *SENSITIVE_BLASTN,
             ]
         )
         return _read_hits(out_file)
@@ -427,11 +434,17 @@ def _suffix(index: int) -> str:
 # --- BLAST ------------------------------------------------------------------
 
 
+def write_query_fasta(sequences: Dict[str, str], path: Path) -> None:
+    """Write locus sequences as the query FASTA a blastn search reads."""
+    with open(path, "w") as fasta:
+        for name, sequence in sequences.items():
+            fasta.write(f">{name}\n{sequence}\n")
+
+
 def run_blast_command(command: List[str]) -> None:
     """Run one BLAST+ command, turning its failures into logged errors.
 
-    Public because every back-end that searches shares it -- see
-    migrate_is_table.search_database.
+    Public because more than one back-end searches.
     """
     try:
         subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
