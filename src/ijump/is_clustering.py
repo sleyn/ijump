@@ -194,8 +194,13 @@ def base_is_name(is_name: str) -> str:
 
 
 def loci_from_table(table: pd.DataFrame) -> List[Locus]:
-    """The clustering view of an IS table."""
-    return [
+    """The clustering view of an IS table.
+
+    Two rows sharing an ``is_name`` are rejected rather than clustered. Everything
+    downstream keys on that name -- linkage here, ``ISClipped.is_coords`` later --
+    so a duplicate would quietly drop one of the two rows instead of failing.
+    """
+    loci = [
         Locus(
             name=str(row.is_name),
             contig=str(row.contig),
@@ -204,6 +209,15 @@ def loci_from_table(table: pd.DataFrame) -> List[Locus]:
         )
         for row in table.itertuples(index=False)
     ]
+
+    names = [locus.name for locus in loci]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(
+            "IS table has more than one row named: " + ", ".join(duplicates) + ". "
+            "Element names have to be unique."
+        )
+    return loci
 
 
 def extract_loci(reference: Path, loci: Sequence[Locus]) -> Dict[str, str]:

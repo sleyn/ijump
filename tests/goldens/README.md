@@ -12,12 +12,22 @@ does, quirks included — not what it ought to do.
 
 | tier | test | inputs | runs where |
 | --- | --- | --- | --- |
-| parser-level | `tests/test_golden_isfinder_db_parse.py` | `tests/fixtures/isfinder/blast.out` (committed, 5 KB) | anywhere |
+| parser-level | `tests/test_golden_isfinder_db_parse.py` | `tests/fixtures/isfinder/` (committed, ~30 KB) | anywhere BLAST+ is installed |
 | end-to-end | `tests/test_golden_end_to_end.py` | `Test/Sample.bam` (840 MB) + reference, GFF, IS table | maintainer's machine only |
 
 `tests/fixtures/isfinder/blast.out` is a byte-identical copy of the gitignored
 `Test/blast.out` — the ISFinder BLAST outfmt-6 run of `Test/A_baumannii_assembly.fna`
 against a clone of the ISFinder database, re-derivable by repeating that search.
+
+`tests/fixtures/isfinder/reference.fna.gz` stands in for that 4 MB assembly, which
+clustering needs to extract the called elements from. It carries the same contigs at their
+real names and lengths and the called elements at their real coordinates and sequences,
+with every other base masked to `N` — so extraction and the all-vs-all search see exactly
+what they would on the real assembly, and the parser golden is byte-identical either way.
+Rebuild it with `python tests/fixtures/isfinder/make_reference_fixture.py`.
+
+The parser tier **skips** where BLAST+ is missing: clustering runs an all-vs-all `blastn`
+over the extracted elements. Its inputs are still all committed.
 
 The two tiers are chained: the end-to-end run takes its `--isel` IS table from the
 parser tier's own golden, not from a copy in the input directory. Re-pin the parser

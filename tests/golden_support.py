@@ -4,7 +4,8 @@ Two tiers of golden, both living under ``tests/goldens/``:
 
 * **Parser-level** -- ``tests/fixtures/isfinder/blast.out`` through
   ``ijump isfinder-db-parse``. Inputs and outputs are a few kilobytes, so both
-  are committed and the test runs anywhere.
+  are committed; the tier needs only BLAST+ on PATH, which clustering's
+  all-vs-all search runs.
 * **End-to-end** -- both estimation modes over the sample alignment. The
   alignment is 840 MB and cannot be committed, so the *outputs* are committed
   and the *inputs* are looked up on disk; when they are not there the tests
@@ -30,14 +31,45 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 # ISFinder BLAST outfmt-6 run of Test/A_baumannii_assembly.fna against a clone
 # of the ISFinder database.
 ISFINDER_BLAST_OUT = FIXTURES_DIR / "isfinder" / "blast.out"
+
+# The reference the search above was run against, with everything outside a
+# called locus masked to N -- see make_reference_fixture.py beside it. Clustering
+# reads the loci out of the reference, and the real 4 MB assembly is gitignored.
+ISFINDER_REFERENCE = FIXTURES_DIR / "isfinder" / "reference.fna.gz"
+
 ISFINDER_GOLDEN_DIR = GOLDENS_DIR / "isfinder_db_parse"
 ISFINDER_TABLE_NAME = "ISTable_processing.txt"
 
 
-def run_isfinder_db_parse(outdir):
-    """Parse the committed ISFinder BLAST output into an IS table in ``outdir``."""
+def missing_parser_requirements():
+    """Reasons the parser-level golden cannot run here, as a list of strings.
+
+    Only one: clustering runs an all-vs-all ``blastn`` over the called loci, so
+    the tier needs BLAST+ even though its inputs are committed.
+    """
+    return [
+        f"{tool} not on PATH" for tool in ("blastn", "makeblastdb") if shutil.which(tool) is None
+    ]
+
+
+def run_isfinder_db_parse(outdir, reference=None, extra_args=()):
+    """Parse the committed ISFinder BLAST output into an IS table in ``outdir``.
+
+    ``reference`` and ``extra_args`` are for tests that vary one input -- the
+    golden itself passes neither, so it is always the same command.
+    """
     return subprocess.run(
-        ["ijump", "isfinder-db-parse", "-b", str(ISFINDER_BLAST_OUT), "-o", str(outdir)],
+        [
+            "ijump",
+            "isfinder-db-parse",
+            "-b",
+            str(ISFINDER_BLAST_OUT),
+            "-r",
+            str(reference if reference is not None else ISFINDER_REFERENCE),
+            "-o",
+            str(outdir),
+            *extra_args,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

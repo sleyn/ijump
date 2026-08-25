@@ -5,7 +5,7 @@ from os.path import join as join_path
 
 import pandas as pd
 
-from . import is_table
+from . import is_clustering, is_table
 
 
 def main():
@@ -16,6 +16,30 @@ def main():
         type=str,
         action="store",
         help="BLAST output for parsing. Require outfmt 6.",
+    )
+    parser.add_argument(
+        "-r",
+        "--ref",
+        type=str,
+        action="store",
+        required=True,
+        help="Reference FASTA the BLAST search was run against. Each called element "
+        "is extracted from it and compared with all the others, so copies of one "
+        "mobile element share a cluster.",
+    )
+    parser.add_argument(
+        "--cluster-identity",
+        type=float,
+        default=is_clustering.IDENTITY_DEFAULT,
+        help="Minimum %% identity for two elements to share a cluster "
+        f"(default: {is_clustering.IDENTITY_DEFAULT}).",
+    )
+    parser.add_argument(
+        "--cluster-coverage",
+        type=float,
+        default=is_clustering.COVERAGE_DEFAULT,
+        help="Minimum fraction of the shorter element the alignment has to span "
+        f"(default: {is_clustering.COVERAGE_DEFAULT}).",
     )
     # parser.add_argument('-c', '--csv', type=str, action='store',
     #                      help='CSV description of IS Finder database mobile elements.')
@@ -95,6 +119,17 @@ def main():
             "qstart": "start",
             "qend": "stop",
         }
+    )
+
+    # Which of these rows are copies of one mobile element is a question about
+    # their sequences, not about the names above: the name is the nearest
+    # database entry, and two fragments of one element land on different
+    # entries while two distinct elements can land on the same one.
+    blast_out["cluster"] = is_clustering.annotate(
+        blast_out,
+        args.ref,
+        identity=args.cluster_identity,
+        coverage=args.cluster_coverage,
     )
 
     is_table.write_is_table(blast_out, join_path(args.outdir, "ISTable_processing.txt"))

@@ -329,17 +329,18 @@ iJump requires four files for input:
 The IS table — the file with mobile element coordinates — is a tab-separated table with a
 header row:
 ```
-name	contig	start	stop	family	group	pident
+is_name	contig	start	stop	family	group	cluster	pident
 ```
 
 For example:
 ```
-name	contig	start	stop	family	group	pident
-ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	99.454
+is_name	contig	start	stop	family	group	cluster	pident
+ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	ISAcsp3	99.454
 ```
 
 `family`, `group` and `pident` are the ISFinder family and group of the element and the
-percent identity of the hit it was called from. They are filled in by the
+percent identity of the hit it was called from. `cluster` groups the rows that are copies
+of one mobile element — see [Clusters](#clusters) below. All four are filled in by the
 **isfinder-db-parse** subcommand below; if you write the table by hand you may leave them
 empty.
 
@@ -360,10 +361,37 @@ blastn -query <Genome> -db <BLASTn database from IS.fna> -out <Output file> -out
 
 Parse the output table with the **isfinder-db-parse** subcommand:
 ```
-ijump isfinder-db-parse -b <BLAST output in outfmt 6 format> -o <Output directory>
+ijump isfinder-db-parse -b <BLAST output in outfmt 6 format> -r <Reference fasta> -o <Output directory>
 ```
 
-The parser will find non-overlapping hits with empirical E-value threshold 1E-30.
+The parser will find non-overlapping hits with empirical E-value threshold 1E-30. The
+reference fasta is the genome the BLAST search was run against; each called element is
+extracted from it and compared with all the others to fill in the `cluster` column.
+
+<a name="clusters"></a>
+##### Clusters
+
+`is_name` is the nearest ISFinder database entry plus a copy number, which is not a
+reliable way to tell which rows are the same mobile element. Two fragments of one element
+can land on different database entries and get different names, while two elements 15%
+apart can land on the same entry and share one. So iJump groups the rows by aligning the
+elements against each other: two elements share a cluster when they align at **≥95%
+identity over ≥80% of the shorter** of the two, and clusters are closed under single
+linkage — a fragment reaches a parent it shares no alignment with, through a sibling that
+aligns to both.
+
+Both thresholds are flags: `--cluster-identity` (percent, default 95) and
+`--cluster-coverage` (fraction, default 0.8).
+
+Coverage is measured on the *shorter* element on purpose: a read clipped at a 76 bp
+remnant of an element cannot be told from one clipped at a full copy of it, so the remnant
+belongs with its parent.
+
+Single linkage can chain — a fragment landing in a stretch conserved between two distinct
+elements merges them — and nothing in the alignment says whether a given chain is wanted.
+So the parser logs a warning naming both elements for every pair that shares a cluster
+without meeting the threshold itself. Read those warnings, and edit the `cluster` column
+before running the pipeline if two of them are different elements.
 
 <a name="ref_fasta"></a>
 #### Reference Fasta

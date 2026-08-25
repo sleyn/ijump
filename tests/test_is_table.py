@@ -46,9 +46,9 @@ def test_subject_id_without_family_and_group_keeps_the_whole_id_as_name(sseqid, 
 def test_reads_a_headered_table(tmp_path):
     table = tmp_path / "ISTable_processing.txt"
     table.write_text(
-        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tpident\n"
-        "ISAba18_1\tNODE_2\t93700\t95008\tIS3\tIS51\t100\n"
-        "ISAba1_1\tNODE_2\t112397\t113576\tIS4\tIS10\t99.5\n"
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "ISAba18_1\tNODE_2\t93700\t95008\tIS3\tIS51\tISAba18\t100\n"
+        "ISAba1_1\tNODE_2\t112397\t113576\tIS4\tIS10\tISAba1\t99.5\n"
     )
 
     read = is_table.read_is_table(table)
@@ -59,6 +59,7 @@ def test_reads_a_headered_table(tmp_path):
     assert read.loc[0, "start"] == "93700"
     assert read.loc[0, "family"] == "IS3"
     assert read.loc[1, "group"] == "IS10"
+    assert read.loc[0, "cluster"] == "ISAba18"
     assert read.loc[1, "pident"] == "99.5"
 
 
@@ -74,6 +75,7 @@ def test_reads_a_legacy_headerless_table_with_the_added_columns_empty(tmp_path):
     assert list(read["stop"]) == ["1000", "20"]
     assert list(read["family"]) == ["", ""]
     assert list(read["group"]) == ["", ""]
+    assert list(read["cluster"]) == ["", ""]
     assert list(read["pident"]) == ["", ""]
 
 
@@ -94,14 +96,14 @@ def test_a_column_the_reader_does_not_know_about_survives(tmp_path):
     a column from a later format generation, or one an operator added."""
     table = tmp_path / "ISTable_processing.txt"
     table.write_text(
-        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tpident\tcluster\n"
-        "ISAba18_1\tNODE_2\t93700\t95008\tIS3\tIS51\t100\tISAba18\n"
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\tnotes\n"
+        "ISAba18_1\tNODE_2\t93700\t95008\tIS3\tIS51\tISAba18\t100\tsplit by hand\n"
     )
 
     read = is_table.read_is_table(table)
 
-    assert list(read.columns) == list(is_table.COLUMNS) + ["cluster"]
-    assert read.loc[0, "cluster"] == "ISAba18"
+    assert list(read.columns) == list(is_table.COLUMNS) + ["notes"]
+    assert read.loc[0, "notes"] == "split by hand"
 
 
 def test_a_headered_table_missing_an_annotation_column_reads_it_as_empty(tmp_path):
@@ -118,8 +120,8 @@ def test_a_headered_table_missing_an_annotation_column_reads_it_as_empty(tmp_pat
 def test_written_table_reads_back_unchanged(tmp_path):
     written = pd.DataFrame(
         [
-            ["ISAba18_1", "NODE_2", "93700", "95008", "IS3", "IS51", "100"],
-            ["ISBj2_B_1", "NODE_2", "1", "2", "IS5", "IS5", "98.2"],
+            ["ISAba18_1", "NODE_2", "93700", "95008", "IS3", "IS51", "ISAba18", "100"],
+            ["ISBj2_B_1", "NODE_2", "1", "2", "IS5", "IS5", "ISBj2_B", "98.2"],
         ],
         columns=list(is_table.COLUMNS),
     )
@@ -134,8 +136,8 @@ def test_iscollect_keeps_coordinates_to_three_fields_for_both_formats(tmp_path, 
     unpacks it as one, so the annotation columns must not leak into it."""
     headered = tmp_path / "ISTable_processing.txt"
     headered.write_text(
-        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tpident\n"
-        "IS1_1\ttiny_contig\t900\t1000\tIS3\tIS51\t100\n"
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS1_1\ttiny_contig\t900\t1000\tIS3\tIS51\tIS1\t100\n"
     )
     legacy = fixtures_dir / "is_coords.txt"
 

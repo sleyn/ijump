@@ -12,6 +12,7 @@ the ticket names are exercised here without the 4 MB genome.
 
 import logging
 
+import pandas as pd
 import pytest
 
 from ijump import is_clustering
@@ -304,3 +305,32 @@ def test_more_collisions_than_letters_still_yield_unique_names():
     assert column["ISAba12_1"] == "ISAba12.a"
     assert column["ISAba12_26"] == "ISAba12.z"
     assert column["ISAba12_27"] == "ISAba12.aa"
+
+
+# --- table input ------------------------------------------------------------
+
+
+def test_a_table_with_two_rows_of_one_name_is_rejected():
+    """Everything downstream keys on ``is_name`` -- linkage here, ``is_coords``
+    later -- so a duplicate would drop a row instead of failing."""
+    table = pd.DataFrame(
+        [
+            ["ISAba12_1", "NODE_1", "100", "1138"],
+            ["ISAba12_1", "NODE_1", "5000", "6038"],
+        ],
+        columns=["is_name", "contig", "start", "stop"],
+    )
+
+    with pytest.raises(ValueError, match="ISAba12_1"):
+        is_clustering.loci_from_table(table)
+
+
+def test_table_rows_become_loci_with_inclusive_lengths():
+    table = pd.DataFrame(
+        [["ISAba12_1", "NODE_1", "100", "1138"]],
+        columns=["is_name", "contig", "start", "stop"],
+    )
+
+    (locus,) = is_clustering.loci_from_table(table)
+
+    assert locus == is_clustering.Locus("ISAba12_1", "NODE_1", 100, 1039)

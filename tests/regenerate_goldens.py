@@ -16,7 +16,6 @@ couple of minutes.
 """
 
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -27,12 +26,12 @@ import golden_support as gs  # noqa: E402
 
 
 def regenerate_parser_golden():
+    reasons = gs.missing_parser_requirements()
+    if reasons:
+        raise SystemExit("cannot regenerate the parser golden:\n  " + "\n  ".join(reasons))
+
     with tempfile.TemporaryDirectory() as tmp:
-        result = subprocess.run(
-            ["ijump", "isfinder-db-parse", "-b", str(gs.ISFINDER_BLAST_OUT), "-o", tmp],
-            capture_output=True,
-            text=True,
-        )
+        result = gs.run_isfinder_db_parse(tmp)
         if result.returncode != 0:
             raise SystemExit(f"isfinder-db-parse failed:\n{result.stderr}")
         gs.ISFINDER_GOLDEN_DIR.mkdir(parents=True, exist_ok=True)

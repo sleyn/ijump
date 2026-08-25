@@ -38,3 +38,13 @@ Headered since the annotation columns were added; four-column headerless tables 
 and are still read. In code it is `is_table.py`, `ISClipped.is_table`, and — for the
 coordinate columns alone — `ISClipped.is_coords`.
 _Avoid_: mobile elements coordinates file, IS coordinates file, IS list
+
+**Cluster**:
+The set of IS table rows that are copies of one mobile element, computed from sequence
+similarity rather than from the rows' names — single linkage at ≥95% identity over ≥80% of
+the shorter element. A cluster is named for its longest member's base IS name (`ISAba12`),
+suffixed `.a`/`.b` only when two clusters would otherwise share a name. It is the `cluster`
+column of the IS table, written by `ijump isfinder-db-parse` and editable by hand.
+_Avoid_: group (the ISFinder group is separate annotation and never merges anything),
+family, IS type, merge key
+

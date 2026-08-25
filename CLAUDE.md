@@ -42,7 +42,9 @@ each still parsing its own argv independently (this repo predates the unified CL
 layer is deliberately thin — it does not reinterpret any target's flags):
 - `ijump run` → `ijump.ijump:main` — the main detection pipeline
 - `ijump combine-results` → `ijump.combine_results:main` — merges per-sample report tables
-- `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses ISFinder BLAST outfmt-6 output
+- `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses ISFinder BLAST outfmt-6
+  output into the IS table (`is_table.py`), grouping copies of one element by sequence
+  similarity (`is_clustering.py`)
 
 **Pipeline core**: `ISClipped` in `src/ijump/isclipped.py` drives both workflows and owns most
 detection state across its methods (see `docs/agents/ast-grep.md`'s state-coupling matrix for which
