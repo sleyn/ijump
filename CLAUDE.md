@@ -37,13 +37,12 @@ junction has one part mapped to the reference and the clipped remainder matching
 Full algorithm write-up: `docs/algorithm.md`. Domain vocabulary (avoid drifting to synonyms it
 explicitly rejects): `CONTEXT.md`.
 
-**Entry point**: `ijump` console script → `src/ijump/cli.py` dispatches to one of four subcommands,
+**Entry point**: `ijump` console script → `src/ijump/cli.py` dispatches to one of three subcommands,
 each still parsing its own argv independently (this repo predates the unified CLI and the dispatch
 layer is deliberately thin — it does not reinterpret any target's flags):
 - `ijump run` → `ijump.ijump:main` — the main detection pipeline
 - `ijump combine-results` → `ijump.combine_results:main` — merges per-sample report tables
 - `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses ISFinder BLAST outfmt-6 output
-- `ijump isfinder-parse` → `ijump.isfinder_parser:main` — parses an ISFinder BLAST HTML results page
 
 **Pipeline core**: `ISClipped` in `src/ijump/isclipped.py` drives both workflows and owns most
 detection state across its methods (see `docs/agents/ast-grep.md`'s state-coupling matrix for which

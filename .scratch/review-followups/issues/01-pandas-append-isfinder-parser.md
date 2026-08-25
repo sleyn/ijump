@@ -68,17 +68,24 @@ review.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** wontfix
 
 - [x] All three `DataFrame.append` sites rewritten with `pd.concat`.
 - [x] Empty-accumulator index/dtype/column-order behaviour explicitly checked, not assumed.
 - [x] `ast-grep scan .` clean for `pandas-dataframe-append`.
 - [x] `rules/pandas-dataframe-append.yml`'s stale `note:` corrected.
 - [x] A test covers the parsing path and would catch a `pd.concat` shape regression.
-- [ ] `isfinder-parse` verified end to end under pandas 2.x. (Not practical to run here — see Comments.)
+- [ ] `isfinder-parse` verified end to end under pandas 2.x. Moot:
+      `isfinder-annotation 02` deleted the module, so there is nothing left to verify.
 - [x] `ruff`/`mypy` still pass clean on `src/ijump/`.
 
 ## Comments
+
+- **Superseded by `isfinder-annotation 02`.** That ticket deleted
+  `isfinder_parser.py` outright — the ISFinder web site that produced its input
+  has been down for months — so the one remaining verification item can never be
+  ticked and the ticket is closed `wontfix`. The `pd.concat` rewrite this ticket
+  did land was real work; it simply no longer has code to protect.
 
 - **Empty-accumulator behaviour, checked not assumed.** Set up both a
   pandas==1.3.5 environment (via `uv run --no-project -p 3.10 --with

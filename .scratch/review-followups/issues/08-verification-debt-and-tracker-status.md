@@ -85,12 +85,11 @@ use across packaging 01-07 but appear nowhere in
 - `grep -rn "^\*\*Status:\*\*" .scratch/*/issues/` yields only labels present in
   `docs/agents/triage-labels.md`.
 
-**Blocked by:** 01 and 02.
+**Blocked by:** 02 (01 is closed `wontfix`).
 
-- **01** — this is an expensive one-shot manual pass, and `isfinder-parse`
-  currently crashes under the pandas version the recipe resolves. Verifying the
-  environment before that fix lands means either certifying a build with a broken
-  subcommand or doing the whole pass twice.
+- **01** — no longer a blocker: `isfinder-annotation 02` deleted the
+  `isfinder-parse` subcommand entirely, so there is no crashing subcommand left to
+  certify around and 01 is closed `wontfix`.
 - **02** — the corrected pytest baseline is what this ticket records. Doing it
   first would mean writing down the wrong numbers again.
 

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Top-level ``ijump`` console-script dispatcher.
 
-Before this module existed, iJump shipped as four independent scripts that
-users invoked directly (``python3 ijump.py ...``, ``python3
-combine_results.py ...``, and so on). This module wires those same four
+Before this module existed, iJump shipped as several independent scripts
+that users invoked directly (``python3 ijump.py ...``, ``python3
+combine_results.py ...``, and so on). This module wires those same
 entry points up as subcommands of a single installed ``ijump`` command,
 mirroring conventions like ``git`` or ``uv``:
 
     ijump run                 -> ijump.ijump:main()
     ijump combine-results     -> ijump.combine_results:main()
     ijump isfinder-db-parse   -> ijump.isfinder_db_parcer:main()
-    ijump isfinder-parse      -> ijump.isfinder_parser:main()
 
 Each target module's ``main()`` still builds and parses its own argparse
 (or getopt) command line exactly as it did as a standalone script. This
@@ -31,7 +30,6 @@ _SUBCOMMAND_MODULES = {
     "run": "ijump.ijump",
     "combine-results": "ijump.combine_results",
     "isfinder-db-parse": "ijump.isfinder_db_parcer",
-    "isfinder-parse": "ijump.isfinder_parser",
 }
 
 # Short help text shown in `ijump --help`'s subcommand listing.
@@ -41,7 +39,6 @@ _SUBCOMMAND_HELP = {
     "isfinder-db-parse": (
         "Parse a BLAST (outfmt 6) search of a genome against the ISFinder database."
     ),
-    "isfinder-parse": "Parse an ISFinder BLAST HTML results page.",
 }
 
 

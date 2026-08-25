@@ -114,12 +114,11 @@ docker run --rm ijump --help
 (`--platform linux/amd64` is required when building on an Apple
 Silicon/arm64 host -- see the tradeoff note below for why.)
 
-`ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`,
-`isfinder-parse`) are the image's `ENTRYPOINT`, so any flags after the
-image name go straight to the console script. Input files (BAM, reference
-FASTA, GFF, mobile-elements coordinates file) are user-supplied at runtime,
-not baked into the image -- mount them (and an output directory) as
-volumes:
+`ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`) are
+the image's `ENTRYPOINT`, so any flags after the image name go straight to
+the console script. Input files (BAM, reference FASTA, GFF, mobile-elements
+coordinates file) are user-supplied at runtime, not baked into the image --
+mount them (and an output directory) as volumes:
 
 ```
 docker run --rm \
@@ -337,9 +336,7 @@ For example:
 ISAcsp3	NODE_1	2980551	2981283
 ```
 
-If you don't have file with coordinates of mobile elements you can:
-
-1) Preferred. Do manual BLAST against standalone ISFinder database. Database could be downloaded from:
+If you don't have file with coordinates of mobile elements you can do a manual BLAST against the standalone ISFinder database. The database could be downloaded from:
 
 - [ISFinder original GitHub](https://github.com/thanhleviet/ISfinder-sequences)
 - [My Fork](https://github.com/sleyn/ISfinder-sequences) with already built BLASTn database.
@@ -355,16 +352,7 @@ Parse the output table with the **isfinder-db-parse** subcommand:
 ijump isfinder-db-parse -b <BLAST output in outfmt 6 format> -o <Output directory>
 ```
 
-2) Find them from ISFinder website using their [BLAST](https://isfinder.biotoul.fr/blast.php) against your reference contigs.
-
-It will return you  html page of hits that you can download and parse with the **isfinder-parse** subcommand:
-```
-ijump isfinder-parse -i <ISfinder BLAST HTML page>
-```
-
-Both parsers will find non-overlapping hits with empirical E-value threshold 1E-30.
-
-**NOTE:** It was observed that if the contig FASTA header (the line starting with ">") is long then ISFinder BLAST does not produce "Query=" string with the contig name.  This line is critical for `isfinder_parse.py` work. If the script reports empty table please change header by using sorter contig names or removing auxiliary information.
+The parser will find non-overlapping hits with empirical E-value threshold 1E-30.
 
 <a name="ref_fasta"></a>
 #### Reference Fasta

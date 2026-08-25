@@ -18,9 +18,9 @@ ast-grep test       # check the rules still do what they claim
 Two rules, each with test cases and a committed snapshot:
 
 - **`pandas-dataframe-append`** — `DataFrame.append` was removed in pandas 2.0.
-  Zero hits today: the three `isfinder_parser.py` sites (ticket 01) and the
-  `isclipped.py` one (pre-dating this doc, resolved during the isclipped
-  refactor) have all been hand-rewritten to `pd.concat`. `README.md` no longer
+  Zero hits today: the `isclipped.py` site (pre-dating this doc, resolved during
+  the isclipped refactor) was hand-rewritten to `pd.concat`, and the three
+  `isfinder_parser.py` sites went away with that module (ticket 02). `README.md` no longer
   pins a pandas version, so a hit here would be a live break, not just an
   upgrade blocker.
 - **`identity-compare-literal`** — `is` against a string/number literal. Zero hits

@@ -35,7 +35,7 @@ wrong spec. Don't add a third ambiguous namespace.
 
 | NN | Summary | Blocked by | Status |
 | -- | ------- | ---------- | ------ |
-| 01 | `DataFrame.append` breaks `isfinder-parse` under pandas 2 | — | ready-for-agent |
+| 01 | `DataFrame.append` breaks `isfinder-parse` under pandas 2 | — | wontfix (module deleted by `isfinder-annotation 02`) |
 | 02 | Fix `test_no_results_paths` and correct the false baseline | — | ready-for-agent |
 | 03 | Clear `tests/` lint findings, widen the pre-commit/CI gates | — | ready-for-agent |
 | 04 | Drop the dead `min_match` parameter and dead local | — | ready-for-agent |
