@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from ijump.junction_pairing import find_pairs
+from ijump.junction_pairing import NO_JUNCTION, find_pairs
 
 POS_L = np.array([311753, 311755, 311759, 311773, 311788, 992367, 3352696, 3790412])
 POS_L_COUNT = np.array([1, 190, 1, 1, 1, 1, 1, 1])
@@ -50,19 +50,19 @@ def test_find_pair_matches_pinned_golden_output():
                 992367,
                 3352696,
                 3790412,
-                0,
-                0,
-                0,
-                0,
+                NO_JUNCTION,
+                NO_JUNCTION,
+                NO_JUNCTION,
+                NO_JUNCTION,
             ],
             "Position_r": [
                 311763,
                 311758,
                 311760,
                 311762,
-                0,
-                0,
-                0,
+                NO_JUNCTION,
+                NO_JUNCTION,
+                NO_JUNCTION,
                 3790421,
                 311761,
                 318981,
@@ -144,7 +144,7 @@ def test_right_only_input_is_written_as_right_orphans():
 
     expected = pd.DataFrame(
         {
-            "Position_l": [0, 0, 0],
+            "Position_l": [NO_JUNCTION] * 3,
             "Position_r": ONE_SIDED_POS,
             "Count_mapped_to_IS_l": [0, 0, 0],
             "Count_mapped_to_IS_r": ONE_SIDED_COUNT,
@@ -164,7 +164,7 @@ def test_left_only_input_is_written_as_left_orphans():
     expected = pd.DataFrame(
         {
             "Position_l": ONE_SIDED_POS,
-            "Position_r": [0, 0, 0],
+            "Position_r": [NO_JUNCTION] * 3,
             "Count_mapped_to_IS_l": ONE_SIDED_COUNT,
             "Count_mapped_to_IS_r": [0, 0, 0],
             "Chrom": CHROM,
@@ -196,5 +196,5 @@ def test_one_sided_exit_writes_an_orphan_the_way_the_main_path_does():
         EMPTY, ONE_SIDED_POS, EMPTY, ONE_SIDED_COUNT, CHROM_LEN, MAX_IS_DUP_LEN, CHROM
     )
 
-    right_rows = main_path.query("Position_l == 0").reset_index(drop=True)
+    right_rows = main_path.query("Position_l == @NO_JUNCTION").reset_index(drop=True)
     pdt.assert_frame_equal(right_rows, early_return, check_dtype=False)

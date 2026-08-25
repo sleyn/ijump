@@ -3,6 +3,20 @@
 import numpy as np
 import pandas as pd
 
+# What a row carries on the side that has no junction.
+#
+# Positions here are 0-based, so 0 is the first base of a contig -- a real
+# coordinate, and a reachable one: an IS copy the assembler cut at a contig
+# boundary leaves a fragment at the very start of the contig, and a read clipped
+# there reports its junction at 0. Absence therefore cannot be spelled 0 without
+# swallowing that junction, which is what used to happen
+# (junction-pairing-orphans 02).
+#
+# The written file is unaffected. It is 1-based, where 0 is not a position at
+# all, so absence is written there as 0 -- unambiguously -- by
+# ``isclipped.convert_zero_one_base``.
+NO_JUNCTION = -1
+
 
 # A pairs-table row is written as a bare positional list, so which column a value
 # lands in is carried by nothing but its place in that list. The right arm of the
@@ -14,13 +28,31 @@ def _pair_row(pos_l, pos_r, count_l, count_r, chrom):
 
 
 def _left_orphan_row(pos, count, chrom):
-    """A left junction with no right partner: right columns stay zero."""
-    return _pair_row(pos, 0, count, 0, chrom)
+    """A left junction with no right partner."""
+    return _pair_row(pos, NO_JUNCTION, count, 0, chrom)
 
 
 def _right_orphan_row(pos, count, chrom):
-    """A right junction with no left partner: left columns stay zero."""
-    return _pair_row(0, pos, 0, count, chrom)
+    """A right junction with no left partner."""
+    return _pair_row(NO_JUNCTION, pos, 0, count, chrom)
+
+
+def _empty_pairs_frame(n_rows, chrom):
+    """A frame of ``n_rows`` rows for the writers below to fill in.
+
+    Positions start at NO_JUNCTION so that a row nobody writes to is absent on
+    both sides, which is what lets the main path tell its unused rows from a
+    junction at position 0.
+    """
+    return pd.DataFrame(
+        {
+            "Position_l": [NO_JUNCTION] * n_rows,
+            "Position_r": [NO_JUNCTION] * n_rows,
+            "Count_mapped_to_IS_l": [0] * n_rows,
+            "Count_mapped_to_IS_r": [0] * n_rows,
+            "Chrom": chrom,
+        }
+    )
 
 
 # Make clusters of left and right insertions junctions from positions.
@@ -45,15 +77,7 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
     # part of junctions.
     if pos_l.size == 0 or pos_r.size == 0:
         n_pairs = pos_l.size + pos_r.size
-        pairs_df = pd.DataFrame(
-            {
-                "Position_l": [0] * n_pairs,
-                "Position_r": [0] * n_pairs,
-                "Count_mapped_to_IS_l": [0] * n_pairs,
-                "Count_mapped_to_IS_r": [0] * n_pairs,
-                "Chrom": chrom,
-            }
-        )
+        pairs_df = _empty_pairs_frame(n_pairs, chrom)
 
         # Nothing to pair, so every junction is an orphan on its own side --
         # written the same way the main path below writes the orphans it finds.
@@ -96,15 +120,7 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
     # We will use maximum number of rows (if all positions do not have pairs).
     n_pairs = np.sum(closeness_matrix.shape)
 
-    pairs_df = pd.DataFrame(
-        {
-            "Position_l": [0] * n_pairs,
-            "Position_r": [0] * n_pairs,
-            "Count_mapped_to_IS_l": [0] * n_pairs,
-            "Count_mapped_to_IS_r": [0] * n_pairs,
-            "Chrom": chrom,
-        }
-    )
+    pairs_df = _empty_pairs_frame(n_pairs, chrom)
 
     # Build clusters of close positions.
     # Clusters are attributed to the left joints.
@@ -188,7 +204,13 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
             pos_r[pos_r_index_orphan], pos_r_count[pos_r_index_orphan], chrom
         )
 
-    # Remove empty rows.
-    pairs_df = pairs_df.query("Position_l > 0 or Position_r > 0")
+    # Drop the rows nobody wrote to. The frame is sized for the worst case --
+    # every junction on both sides an orphan -- and the writers above fill it
+    # from the front: one row per left junction, then one per right orphan. So
+    # the used rows are the leading `df_offset + n_right_orphans` of them, and
+    # slicing takes exactly those. Selecting them by value instead ("keep rows
+    # with a position above zero") is what dropped a junction at position 0,
+    # which is a coordinate and not an absence.
+    n_written = df_offset + int(np.sum(pos_r_orphan != -1))
 
-    return pairs_df
+    return pairs_df.iloc[:n_written]

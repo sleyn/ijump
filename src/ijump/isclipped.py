@@ -13,7 +13,7 @@ from sklearn.cluster import AgglomerativeClustering
 
 from ijump import circos, clipped_read_search, frequency_estimation, gff, is_table, region_summary
 from ijump.clipped_read_search import NoInsertionsFound
-from ijump.junction_pairing import find_pairs
+from ijump.junction_pairing import NO_JUNCTION, find_pairs
 
 # SAM flag bits average_depth() excludes when accumulating coverage:
 # UNMAP(0x4) | SECONDARY(0x100) | QCFAIL(0x200) | DUP(0x400). This is
@@ -63,18 +63,23 @@ def check_junctions_presence(junc_tbl, outdir, est_mode):
 
 
 # Claculate distance between insertion positions.
+# An orphan has no span to measure, so it falls back to the default. Position 0
+# is a coordinate, not an orphan -- see junction_pairing.NO_JUNCTION.
 def interpos_distance(pos_l, pos_r):
-    if pos_l == 0:
-        return 5
-    elif pos_r == 0:
+    if pos_l == NO_JUNCTION or pos_r == NO_JUNCTION:
         return 5
     else:
         return abs(pos_r - pos_l) + 5
 
 
 # Assign Keep status to one pair.
+# Regions can begin at 0, so an absent side has to be skipped rather than
+# compared -- as position 0 it fell inside such a region and kept the pair on
+# evidence that was not there.
 def keep_pair(pair, region_starts, region_ends):
     for position in pair:
+        if position == NO_JUNCTION:
+            continue
         compare_starts = region_starts <= position
         compare_ends = region_ends >= position
         if np.any(np.all([compare_starts, compare_ends], axis=0)):
@@ -95,8 +100,10 @@ def filter_pairs(pairs_tbl, region_tbl):
 
 
 # Convert coordinate system of a list from 0-base to 1-base.
+# This is also where absence changes spelling: NO_JUNCTION becomes 0, which in a
+# 1-based file is not a position and so reads as absent without ambiguity.
 def convert_zero_one_base(coordinates_column):
-    return list(map(lambda x: x + 1 if x > 0 else 0, coordinates_column))
+    return list(map(lambda x: 0 if x == NO_JUNCTION else x + 1, coordinates_column))
 
 
 # specify class for clipped reads
@@ -199,13 +206,16 @@ class ISClipped:
 
     # Initialize a pairs table.
     # Used in a precise mode to collect information of insertion coordinates in reference.
+    # Positions here are in the pipeline's 0-based space, so an absent side is
+    # NO_JUNCTION rather than 0 -- see junction_pairing.NO_JUNCTION. (The empty
+    # *output* table below is 1-based, where 0 is the right spelling.)
     @staticmethod
     def _pairs_table_init():
         return pd.DataFrame(  # prototype of pairs table
             {
                 "IS_name": ["-"],
-                "Position_l": [0],
-                "Position_r": [0],
+                "Position_l": [NO_JUNCTION],
+                "Position_r": [NO_JUNCTION],
                 "Count_mapped_to_IS_l": [0],
                 "Count_mapped_to_IS_r": [0],
                 "Chrom": ["-"],
@@ -565,7 +575,7 @@ class ISClipped:
             pos = position.Position
             ins_pos_distance = position.Dist
 
-            if pos == 0:
+            if pos == NO_JUNCTION:
                 continue
 
             for read in self.aln.fetch(chrom, pos, pos + 1):

@@ -6,6 +6,8 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
+from ijump.junction_pairing import NO_JUNCTION
+
 
 # Calculate frequency of IS insertion based on frequencies of boundaries junctions.
 def _calc_freq_precise(freq_l, freq_r):
@@ -20,10 +22,10 @@ def _calc_freq_precise(freq_l, freq_r):
 # Make read count matrices.
 def _read_count_mtx(pairs_df, orientation):
     if orientation == "left":
-        pos_df = pairs_df.query("Position_l > 0").copy()
+        pos_df = pairs_df.query("Position_l != @NO_JUNCTION").copy()
         pos_df = pos_df.rename(columns={"Position_l": "Position", "Count_mapped_to_IS_l": "Count"})
     elif orientation == "right":
-        pos_df = pairs_df.query("Position_r > 0").copy()
+        pos_df = pairs_df.query("Position_r != @NO_JUNCTION").copy()
         pos_df = pos_df.rename(columns={"Position_r": "Position", "Count_mapped_to_IS_r": "Count"})
     else:
         raise ValueError('the parameter should be "left" or "right"')
@@ -140,7 +142,7 @@ def estimate_frequencies(
     pairs_df["N_clipped_l"] = pairs_df.apply(
         lambda pair: (
             counts_l[pos_l[pair.Chrom][pair.Position_l], is_names_l[pair.IS_name]]
-            if pair.Position_l > 0
+            if pair.Position_l != NO_JUNCTION
             else 0
         ),
         axis=1,
@@ -153,7 +155,7 @@ def estimate_frequencies(
     pairs_df["N_clipped_r"] = pairs_df.apply(
         lambda pair: (
             counts_r[pos_r[pair.Chrom][pair.Position_r], is_names_r[pair.IS_name]]
-            if pair.Position_r > 0
+            if pair.Position_r != NO_JUNCTION
             else 0
         ),
         axis=1,
@@ -198,7 +200,7 @@ def estimate_frequencies(
     ].apply(
         lambda x: (
             x.N_overlap_l_corrected - x.N_clipped_r_corrected
-            if x.Position_r > x.Position_l > 0
+            if x.Position_r > x.Position_l > NO_JUNCTION
             else x.N_overlap_l_corrected
         ),
         axis=1,
@@ -209,7 +211,7 @@ def estimate_frequencies(
     ].apply(
         lambda x: (
             x.N_overlap_r_corrected - x.N_clipped_l_corrected
-            if x.Position_r > x.Position_l > 0
+            if x.Position_r > x.Position_l > NO_JUNCTION
             else x.N_overlap_r_corrected
         ),
         axis=1,

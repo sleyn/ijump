@@ -13,11 +13,12 @@ import pandas as pd
 import pandas.testing as pdt
 
 from ijump.frequency_estimation import estimate_frequencies
+from ijump.junction_pairing import NO_JUNCTION
 
 PAIRS_DF = pd.DataFrame(
     {
-        "Position_l": [100, 150, 0],
-        "Position_r": [200, 0, 250],
+        "Position_l": [100, 150, NO_JUNCTION],
+        "Position_r": [200, NO_JUNCTION, 250],
         "Count_mapped_to_IS_l": [5, 3, 0],
         "Count_mapped_to_IS_r": [4, 0, 2],
         "Chrom": ["chrA", "chrA", "chrA"],
@@ -54,8 +55,8 @@ def test_estimate_frequencies_matches_pinned_golden_output():
 
     expected = pd.DataFrame(
         {
-            "Position_l": [100, 150, 0],
-            "Position_r": [200, 0, 250],
+            "Position_l": [100, 150, NO_JUNCTION],
+            "Position_r": [200, NO_JUNCTION, 250],
             "Count_mapped_to_IS_l": [5, 3, 0],
             "Count_mapped_to_IS_r": [4, 0, 2],
             "Chrom": ["chrA", "chrA", "chrA"],
