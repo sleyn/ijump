@@ -59,7 +59,7 @@ the writer's signature will have to be too.
 call site, so doing this first would force ticket 06 to re-chase a site that had
 just moved. Ticket 06 is small; take it first.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `ISClipped` grows a method that writes the Circos files from its own state.
 - [x] `main()` reduced to the gating condition plus one call; no attribute walk remains.
@@ -125,3 +125,15 @@ Verification performed:
   3-line comment above `write_circos_files` is slightly more
   self-justifying than strictly necessary — left as-is since it documents
   the adapter's intent per the ticket's own framing.
+
+
+**Status corrected 2026-08-25.** The work above landed in `4cf46c3` with every box ticked,
+but the `Status:` line stayed at `ready-for-agent`, so the ticket kept appearing on the agent
+frontier. Re-verified in the current tree before relabelling: `grep -n "is_processing\."
+src/ijump/ijump.py` returns only `iscollect`, `set_is_boundaries`, `run` and
+`write_circos_files` — the eight-attribute walk and the `gff.ann_pos` hop are gone — and the
+`--circos`/average-mode gate is still in `main()`.
+
+`write_circos_files` has since grown one argument (`self.is_clusters`, isfinder-annotation
+07, when the report started naming clusters). That is the adapter doing exactly what this
+ticket built it for: the writer's signature changed and `main()` did not have to know.

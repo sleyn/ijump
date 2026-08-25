@@ -5,7 +5,6 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -188,6 +187,10 @@ class ISClipped:
         # reports so a later multi-sample merge can tell that its samples share
         # one cluster vocabulary (see annotation_stamp).
         self.is_table_fingerprint = ""
+        # Average depth per region, keyed by (chrom, start, stop). See
+        # average_depth for why this is a dict here rather than a cache on the
+        # method.
+        self._depth_by_region = {}
         # List of lengths for matched segments
         # Used to calculate correction coefficients
         # Populated by clipped_read_search.search's forward (direction=1) call.
@@ -791,12 +794,31 @@ class ISClipped:
         return RunResult(insertions_found=True)
 
     # Calculate average depth of the region.
-    # NOTE (ticket 06): caching on an instance method via `lru_cache` keeps a
-    # reference to `self` for the cache's lifetime, which can leak memory if
-    # many ISClipped instances are created. Flagged rather than restructured,
-    # per ticket 06's scope (tooling-config only, no design changes).
-    @lru_cache(maxsize=128)  # noqa: B019
+    #
+    # Cached because a region's depth is asked for once per IS entry in the
+    # per-region report and again when Circos draws, and the answer cannot
+    # change within a run -- the alignment is open read-only.
+    #
+    # The cache is a plain dict on the instance rather than an `lru_cache` on the
+    # method. An lru_cache lives on the *class*, so it held every ISClipped that
+    # ever answered a query -- with its alignment handle and its tables --
+    # for the life of the process (ruff's B019). A dict of coordinates to floats
+    # holds no reference back to self, so it neither leaks nor forms a cycle for
+    # the collector to clean up later: the pipeline dies when its last real
+    # reference does.
+    #
+    # Unbounded, where the lru_cache held 128 entries. One float per region is
+    # nothing beside the alignment already open, and 128 was in any case far too
+    # few to help: Circos measures every annotated region -- 7670 of them on the
+    # test genome -- so entries were evicted long before a second caller asked
+    # for them again.
     def average_depth(self, chrom, start, stop):
+        region = (chrom, start, stop)
+        if region not in self._depth_by_region:
+            self._depth_by_region[region] = self._measure_average_depth(chrom, start, stop)
+        return self._depth_by_region[region]
+
+    def _measure_average_depth(self, chrom, start, stop):
         # Mean coverage over *covered* positions in [start, stop) -- matches
         # pysamstats.load_coverage(..., pad=False)'s denominator, which emits
         # a row only for reference positions some read actually covers, not
