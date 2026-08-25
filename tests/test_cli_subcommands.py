@@ -12,7 +12,7 @@ from ijump import cli
 # How argparse renders the full choice list. Asserting on the rendered list
 # (rather than each name in turn) is what makes "exactly three" a real check:
 # a fourth subcommand would change this string.
-RENDERED_CHOICES = "{run,combine-results,isfinder-db-parse}"
+RENDERED_CHOICES = "{run,combine-results,isfinder-db-parse,migrate-is-table}"
 
 
 def test_help_lists_exactly_the_three_supported_subcommands(capsys):

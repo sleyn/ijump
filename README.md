@@ -395,6 +395,26 @@ So the parser logs a warning naming both elements for every pair that shares a c
 without meeting the threshold itself. Read those warnings, and edit the `cluster` column
 before running the pipeline if two of them are different elements.
 
+<a name="migrate"></a>
+##### Migrating an existing table
+
+If you already have an IS table — a hand-curated one, or one from an older iJump — it does
+not have to be regenerated. `migrate-is-table` keeps every coordinate exactly as written and
+fills in the annotation the current format wants:
+
+```
+ijump migrate-is-table -i <Existing IS table> -r <Reference fasta> -d <ISFinder BLAST database> -o <Output directory>
+```
+
+Family and group cannot be recovered from a four-column file — it never carried them — so
+each locus is searched against the ISFinder database to recover them, which is why the
+database is required. A locus that matches nothing keeps its coordinates and is clustered
+with the rest, carrying no family or group; the run warns and names it. Clustering and the
+origin-spanning flags then run by exactly the same rules as `isfinder-db-parse`, because it
+is the same code.
+
+The `--cluster-identity` and `--cluster-coverage` flags mean what they mean above.
+
 The cluster is what both modes group by — precise mode pairs junctions per cluster, average
 mode reports one entry per cluster — so a table without one (a legacy four-column table, or
 one with the column left blank) stops a run before it starts, naming `ijump migrate-is-table`

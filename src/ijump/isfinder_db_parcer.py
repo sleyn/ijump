@@ -5,27 +5,7 @@ from os.path import join as join_path
 
 import pandas as pd
 
-from . import is_clustering, is_table, origin_spanning
-
-
-def _in_range(low, high, unit):
-    """An argparse type for a threshold, rejecting values outside its scale.
-
-    The two thresholds are on different scales -- identity is a percent, coverage
-    a fraction, because that is how BLAST reports each -- and an out-of-scale
-    value does not fail, it just silently answers wrongly: ``--cluster-coverage
-    80`` would leave every element in a cluster of its own.
-    """
-
-    def parse(value):
-        number = float(value)
-        if not low <= number <= high:
-            raise argparse.ArgumentTypeError(
-                f"{value} is not {unit}; expected a value between {low} and {high}"
-            )
-        return number
-
-    return parse
+from . import is_annotation, is_clustering, is_table
 
 
 def main():
@@ -49,14 +29,14 @@ def main():
     )
     parser.add_argument(
         "--cluster-identity",
-        type=_in_range(0, 100, "a percent"),
+        type=is_clustering.threshold_type(0, 100, "a percent"),
         default=is_clustering.IDENTITY_DEFAULT,
         help="Minimum %% identity for two elements to share a cluster "
         f"(default: {is_clustering.IDENTITY_DEFAULT}).",
     )
     parser.add_argument(
         "--cluster-coverage",
-        type=_in_range(0, 1, "a fraction"),
+        type=is_clustering.threshold_type(0, 1, "a fraction"),
         default=is_clustering.COVERAGE_DEFAULT,
         help="Minimum fraction of the shorter element the alignment has to span "
         f"(default: {is_clustering.COVERAGE_DEFAULT}).",
@@ -141,20 +121,12 @@ def main():
         }
     )
 
-    # Which of these rows are copies of one mobile element is a question about
-    # their sequences, not about the names above: the name is the nearest
-    # database entry, and two fragments of one element land on different
-    # entries while two distinct elements can land on the same one.
-    blast_out["cluster"] = is_clustering.annotate(
+    blast_out = is_annotation.annotate_and_cluster(
         blast_out,
         args.ref,
         identity=args.cluster_identity,
         coverage=args.cluster_coverage,
     )
-
-    # A copy the assembler cut in half at a contig seam is two rows of the table.
-    # Clustering has already united them; this says so on the rows themselves.
-    blast_out[["wraps_origin", "element_id"]] = origin_spanning.annotate(blast_out, args.ref)
 
     is_table.write_is_table(blast_out, join_path(args.outdir, "ISTable_processing.txt"))
 

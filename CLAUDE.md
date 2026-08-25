@@ -45,6 +45,12 @@ layer is deliberately thin — it does not reinterpret any target's flags):
 - `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses ISFinder BLAST outfmt-6
   output into the IS table (`is_table.py`), grouping copies of one element by sequence
   similarity (`is_clustering.py`)
+- `ijump migrate-is-table` → `ijump.migrate_is_table:main` — annotates an existing
+  (legacy four-column) IS table in place of regenerating it, preserving its coordinates
+
+The IS-table back-ends differ only in where the four locus columns come from; everything
+after that — clustering and the origin-spanning flags — is `is_annotation.annotate_and_cluster`,
+shared so they cannot drift on what a cluster is.
 
 **Pipeline core**: `ISClipped` in `src/ijump/isclipped.py` drives both workflows and owns most
 detection state across its methods (see `docs/agents/ast-grep.md`'s state-coupling matrix for which

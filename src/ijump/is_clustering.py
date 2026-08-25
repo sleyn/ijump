@@ -26,6 +26,7 @@ from an unwanted one; the operator reads the log and edits the cluster column
 before running the pipeline.
 """
 
+import argparse
 import logging
 import os
 import re
@@ -50,6 +51,27 @@ COVERAGE_DEFAULT = 0.8
 # trailing underscore and digits, so the 11 database names carrying an underscore
 # of their own (``ISBj2_B``) keep it.
 _COPY_SUFFIX = re.compile(r"_\d+$")
+
+
+def threshold_type(low: float, high: float, unit: str):
+    """An argparse type for a cluster threshold, rejecting values off its scale.
+
+    The two thresholds are on different scales -- identity is a percent, coverage
+    a fraction, because that is how BLAST reports each -- and an out-of-scale
+    value does not fail, it just silently answers wrongly: ``--cluster-coverage
+    80`` would leave every element in a cluster of its own. Shared by every
+    back-end's CLI so they cannot disagree on what a threshold is.
+    """
+
+    def parse(value):
+        number = float(value)
+        if not low <= number <= high:
+            raise argparse.ArgumentTypeError(
+                f"{value} is not {unit}; expected a value between {low} and {high}"
+            )
+        return number
+
+    return parse
 
 
 @dataclass(frozen=True)
@@ -266,8 +288,8 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
 
         database = os.path.join(workdir, "loci")
         out_file = os.path.join(workdir, "loci_vs_loci.out")
-        _run(["makeblastdb", "-in", query, "-dbtype", "nucl", "-out", database])
-        _run(
+        run_blast_command(["makeblastdb", "-in", query, "-dbtype", "nucl", "-out", database])
+        run_blast_command(
             [
                 "blastn",
                 "-task",
@@ -405,7 +427,12 @@ def _suffix(index: int) -> str:
 # --- BLAST ------------------------------------------------------------------
 
 
-def _run(command: List[str]) -> None:
+def run_blast_command(command: List[str]) -> None:
+    """Run one BLAST+ command, turning its failures into logged errors.
+
+    Public because every back-end that searches shares it -- see
+    migrate_is_table.search_database.
+    """
     try:
         subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except FileNotFoundError:

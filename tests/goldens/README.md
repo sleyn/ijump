@@ -26,6 +26,19 @@ with every other base masked to `N` — so extraction and the all-vs-all search 
 what they would on the real assembly, and the parser golden is byte-identical either way.
 Rebuild it with `python tests/fixtures/isfinder/make_reference_fixture.py`.
 
+`tests/fixtures/isfinder/legacy_is_table.txt` is the same 13 loci in the legacy four-column
+format — a byte copy of the four columns the golden table shares with it. It is what
+`tests/test_migrate_is_table.py` migrates, so that the migration back-end is checked against
+what the primary back-end produces from the same genome.
+
+`tests/fixtures/isfinder/isfinder_db.fna` is a **stand-in** for the ISFinder database, which
+is not ours to redistribute. It carries one entry per element, built from the golden's own
+loci and named the way real subject ids are. It stands in for extraction, search, best-hit
+selection and subject-id splitting — but not for `pident`, since a locus searched against a
+database whose entry *is* that locus matches itself at 100%. Rebuild it with
+`python tests/fixtures/isfinder/make_isfinder_db_fixture.py`; the script's docstring has the
+full reasoning.
+
 The parser tier **skips** where BLAST+ is missing: clustering runs an all-vs-all `blastn`
 over the extracted elements. Its inputs are still all committed.
 

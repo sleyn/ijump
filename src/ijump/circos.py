@@ -48,7 +48,7 @@ def write_files(
     _is_colours = dict()
     # Loci of each cluster, in table order: what a link from that cluster is
     # drawn from.
-    _cluster_loci = dict()
+    _cluster_loci: dict = {}
     for is_name, cluster in clusters.items():
         _cluster_loci.setdefault(cluster, []).append(is_name)
     for cluster_ind, cluster in enumerate(_cluster_loci):

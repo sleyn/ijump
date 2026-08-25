@@ -10,6 +10,7 @@ mirroring conventions like ``git`` or ``uv``:
     ijump run                 -> ijump.ijump:main()
     ijump combine-results     -> ijump.combine_results:main()
     ijump isfinder-db-parse   -> ijump.isfinder_db_parcer:main()
+    ijump migrate-is-table    -> ijump.migrate_is_table:main()
 
 Each target module's ``main()`` still builds and parses its own argparse
 (or getopt) command line exactly as it did as a standalone script. This
@@ -30,6 +31,7 @@ _SUBCOMMAND_MODULES = {
     "run": "ijump.ijump",
     "combine-results": "ijump.combine_results",
     "isfinder-db-parse": "ijump.isfinder_db_parcer",
+    "migrate-is-table": "ijump.migrate_is_table",
 }
 
 # Short help text shown in `ijump --help`'s subcommand listing.
@@ -38,6 +40,9 @@ _SUBCOMMAND_HELP = {
     "combine-results": "Combine per-sample iJump report tables into one summary table.",
     "isfinder-db-parse": (
         "Parse a BLAST (outfmt 6) search of a genome against the ISFinder database."
+    ),
+    "migrate-is-table": (
+        "Add family, group and cluster annotation to a legacy four-column IS table."
     ),
 }
 
