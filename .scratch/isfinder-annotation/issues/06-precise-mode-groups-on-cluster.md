@@ -35,5 +35,6 @@ ticket must land after the fallback path is reachable in the same release.
   `Position_l` with a zero count, so both rows reported frequency 0.0. Grouped with
   `ISAba12` the group now has junctions on both sides, the ordinary path runs, and the two
   rows report real frequencies (0.0096 and 0.0026). The orphan-only branch is still wrong
-  for any cluster whose junctions are all right-handed; not fixed here, needs its own
-  ticket.
+  for any cluster whose junctions are all right-handed — `ISAba12` and `ISAba53` on
+  `NODE_2` still take it. Filed as
+  `.scratch/junction-pairing-orphans/issues/01-right-only-groups-written-into-the-left-column.md`.
