@@ -39,7 +39,9 @@ Contains information about junctions for each read. File contains following colu
 	 unique identifier
 
 * *IS name*  
-	 mobile element name
+	 the [locus](../CONTEXT.md) whose sequence the read's clipped part matched — an IS table
+	 row (`ISAba18_1`), not the cluster. The per-region report collapses these to the element;
+	 this file is one row per read, so it keeps the locus the match was against.
 
 * *IS pos*  
 	 what part of the read matches mobile element
@@ -148,7 +150,9 @@ Alignment was made with [bwa-mem](http://bio-bwa.sourceforge.net/)
 
 BAM file manipulations were performed with [samtools](http://samtools.sourceforge.net/)
 
-Results are following:
+Results are following. **This run predates cluster reporting**, so it shows one row per
+called locus — `IS5_1`, `IS5_4`, `IS5_9`, `IS5_10` and the rest are copies of one element,
+and each carries only its own share of the evidence:
 
 | IS Name | Annotation   | Chromosome | Start   | Stop    | Frequency | Depth       |
 |---------|--------------|------------|---------|---------|-----------|-------------|
@@ -167,7 +171,11 @@ Results are following:
 | IS5_10  | BW25113_3671 | CP009273.1 | 3844456 | 3846145 | 4.35%     | 966         |
 
 We see that some reads were aligned to other copies of IS5 element. However majority of reads were aligned correctly.
-If we summarize all frequences for each affected gene we will get results close to the expected:
+
+Splitting one element's evidence across its copies like that is what the `cluster` column
+now prevents: a current run puts these rows under a single `IS5` entry per region, so the
+per-gene summation below is no longer something you do by hand — it is what the report
+already contains. The comparison against the simulated truth still stands:
 
 | Gene         | Start   | Stop    | Observed | Expected |
 |--------------|---------|---------|----------|----------|

@@ -238,5 +238,7 @@ def test_the_subcommand_writes_a_table_the_reader_accepts(reference, tmp_path):
 
     assert list(written.columns) == list(is_table.COLUMNS)
     assert len(written) == 13
-    # The point of the whole back-end: a table `ijump run` will take.
-    assert len(is_table.cluster_by_name(written)) == 13
+    # The point of the whole back-end: a table `ijump run` will take. What matters
+    # is that this does not raise -- it is the check both estimation modes make,
+    # and it rejects a table with any cluster left empty.
+    assert set(is_table.cluster_by_name(written)) == set(written["is_name"])

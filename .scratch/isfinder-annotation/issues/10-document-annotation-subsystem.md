@@ -64,3 +64,43 @@ nowhere. Added, with the reason coverage is measured on the shorter locus. `Clus
 `Locus` and `Origin-spanning element` were already present and are used consistently;
 `remnant` is left as accepted prose rather than rejected, since the code and README both use
 it deliberately.
+
+**Review follow-ups.** Both axes ran; between them they found one contradiction I introduced,
+several inaccuracies, and three stale files this sweep had missed.
+
+- **Two docs I wrote in the same commit disagreed.** `docs/algorithm.md` and `CLAUDE.md`
+  called `isfinder-db-parse` "the only back-end that recovers family/group/pident from its
+  input" while the README correctly said `isescan-convert` writes ISEScan's family. Only
+  `group` and `pident` are ISFinder-only; corrected in both.
+- **The CHANGELOG contradicted the README on which files carry the annotation stamp** — it
+  implied `ijump_sum_by_reg.txt` does. It does not; the stamped pair is
+  `ijump_report_by_is_reg.txt` and `ijump_junction_pairs.txt`.
+- **A third breaking change was unlisted**: `isfinder-db-parse` now requires `-r/--ref`,
+  because filling the cluster column means reading the loci out of the reference. Any
+  existing invocation fails without it. Also added: the two threshold flags, and ticket 03's
+  subject-id fix, which changes the emitted `is_name` for the eleven database entries whose
+  own name contains an underscore.
+- **Vocabulary drift the glossary should have caught.** The README's Clusters section said
+  "two elements share a cluster", making a cluster a set of elements — inverting the
+  definition. `CONTEXT.md` rejects "element" for a table row; those are loci. Fixed there,
+  in the shared `--cluster-*` help text, and in `CONTEXT.md`'s own Cluster entry, which said
+  "shorter element". The input list still called the IS table "File with mobile elements
+  coordinates", a name the glossary explicitly rejects.
+- **`cluster` meant two things in `docs/algorithm.md`** — the element grouping, and the
+  agglomerative grouping of junction positions in precise mode. The second is "position
+  cluster" now, with a note up front.
+- **Three stale files this sweep had missed.** `docs/Average.md`'s worked example shows
+  per-locus rows (`IS5_9`, `IS5_10`, …) that a current run collapses, and then walks the
+  reader through summing them by hand — which is now what the tool does; it is framed as a
+  pre-clustering run. `ijump_junctions.txt`'s *IS name* was documented as "mobile element
+  name" in both mode docs when it is the locus the read matched. And
+  `docs/agents/ast-grep.md`'s recipes still ran against root-relative `isclipped.py`, so
+  they failed as written.
+- **Two hardcoded counts in `docs/agents/ast-grep.md` had rotted** (38 vs 17, 22 vs 43).
+  Rather than re-bake numbers that rot, the examples now state the *kind* of error and tell
+  the reader to run both commands.
+
+**Not done, needs filing.** The spec's out-of-scope note on the 75% overlap rule
+("worth its own investigation, not a rider on this work") is described in `docs/algorithm.md`
+as behaviour but has no ticket, unlike the union deferral which is durably recorded in the
+README. `/to-tickets` is user-invocation only, so this needs one command from the maintainer.

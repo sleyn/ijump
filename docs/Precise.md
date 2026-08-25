@@ -118,7 +118,9 @@ Contains information about junctions for each read. File contains following colu
 	 unique identifier
 
 * *IS name*  
-	 mobile element name
+	 the [locus](../CONTEXT.md) whose sequence the read's clipped part matched — an IS table
+	 row (`ISAba18_1`), not the cluster. The per-region report collapses these to the element;
+	 this file is one row per read, so it keeps the locus the match was against.
 
 * *IS pos*  
 	 what part of the read matches mobile element

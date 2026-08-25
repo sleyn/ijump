@@ -67,12 +67,17 @@ A **back-end** reads some input and produces the four locus columns — `is_name
 
 | Back-end | Reads | Notes |
 |---|---|---|
-| `isfinder-db-parse` | an ISFinder BLAST outfmt-6 search of the genome | The only one whose input carries `family`, `group` and `pident`. Keeps non-overlapping hits at E ≤ 1e-30, where a hit overlapping an existing call by ≥75% of its length is dropped |
+| `isfinder-db-parse` | an ISFinder BLAST outfmt-6 search of the genome | The only one whose input carries `group` and `pident`. Keeps non-overlapping hits at E ≤ 1e-30, where a hit overlapping an existing call by ≥75% of its length is dropped |
 | `migrate-is-table` | an IS table that already exists | Coordinates preserved exactly; family and group re-derived by searching each locus against the ISFinder database |
 | `isescan-convert` | ISEScan's `.tsv` results | iJump reads ISEScan output and never runs it. ISEScan's own `cluster` column is a different notion and is not used as one |
 
 Everything after those four columns is shared (`is_annotation.annotate_and_cluster`), so the
 back-ends cannot disagree about it:
+
+> **Two senses of "cluster".** In the IS table and everywhere downstream, a *cluster* is a
+> set of loci that are one mobile element — the sense used here and in `CONTEXT.md`. Precise
+> mode also clusters *junction positions* on a chromosome (Steps 5B and 8B); those are
+> called **position clusters** below to keep them apart.
 
 1. **Clustering** (`is_clustering.py`). Each locus is extracted from the reference and
    aligned against every other with `blastn`. Two loci are linked when the alignment is
@@ -197,7 +202,7 @@ The correction factors account for two systematic biases:
 
 *Implemented in `isclipped.py` → `make_gene_side_regions()`*
 
-BLAST hits from Step 3 that fall within IS element boundaries are removed. The remaining hit positions represent putative insertion sites in the genome. These positions are clustered independently per chromosome using **hierarchical agglomerative clustering** (single linkage, distance threshold = 30 bp). Each resulting cluster defines a compact **reference region** (min − 5 bp to max + 5 bp) likely to contain one or more IS insertions.
+BLAST hits from Step 3 that fall within IS element boundaries are removed. The remaining hit positions represent putative insertion sites in the genome. These positions are grouped into **position clusters** independently per chromosome using **hierarchical agglomerative clustering** (single linkage, distance threshold = 30 bp) — a grouping of coordinates, unrelated to the IS table's `cluster` column. Each one defines a compact **reference region** (min − 5 bp to max + 5 bp) likely to contain one or more IS insertions.
 
 ### Step 6B — Backward Clipped Read Collection (Ref→IS)
 
@@ -218,9 +223,9 @@ The same BLAST pipeline as Step 3 is applied to the backward reads. Here the uni
 Junctions are grouped by the IS table's `cluster` column — the copies and fragments of one mobile element, computed by aligning the called loci against each other (see [Clusters](../README.md#clusters)). A read clipped at one copy cannot be told from one clipped at another, so the copies have to be collapsed before pairing. A table with no `cluster` column stops a precise run up front, naming `ijump migrate-is-table` as the remedy. For each (cluster, chromosome) group, left and right junction positions are paired to identify the two edges of a single insertion event:
 
 1. A **closeness matrix** $C$ is constructed where $C_{ij} = 1$ if left position $i$ and right position $j$ are within `max_is_dup_len` = 20 bp of each other (the expected target-site duplication length). Wrap-around proximity near contig ends is also checked.
-2. Positions are grouped into clusters based on overlapping proximity columns.
-3. Within each cluster, positions are sorted by supporting read count (descending).
-4. Positions are greedily paired: each left junction is matched to the closest-count right junction from the same cluster (penalising cross-cluster matches by 10 000).
+2. Positions are grouped into **position clusters** based on overlapping proximity columns — again coordinates, not the IS table's `cluster`.
+3. Within each position cluster, positions are sorted by supporting read count (descending).
+4. Positions are greedily paired: each left junction is matched to the closest-count right junction from the same position cluster (penalising matches across them by 10 000).
 5. Left or right junctions with no partner become **orphan** observations, with the missing side set to `NO_JUNCTION`. Positions here are 0-based, so 0 is the first base of a contig and cannot double as "absent" — a junction there is a real one. The written file is 1-based, where 0 *is* unambiguously absent, and that is what `convert_zero_one_base` spells it as.
 
 ### Step 9B — Depth Counting at Junction Positions

@@ -36,17 +36,22 @@ Grep matches text; a Python identifier is not text. Concretely, while mapping
 `ISClipped` state:
 
 ```bash
-grep -c 'self\.pairs_df' isclipped.py    # 38 — wrong
+grep -c 'self\.pairs_df' src/ijump/isclipped.py
 ```
 
-Four of those are `self.pairs_df_path`, a different attribute. ast-grep matching
-`self.$ATTR` returns 34, across exactly 3 methods. For a refactor whose whole
-question is *which methods share which state*, phantom coupling points you at the
-wrong seam. Use ast-grep whenever the answer depends on the code's structure;
-grep is still fine for "where is this string".
+Some of those lines are `self.pairs_df_path` — a different attribute that merely
+starts with the same characters. ast-grep matching the attribute access itself
+does not count them, and reports which methods each hit sits in. For a refactor
+whose whole question is *which methods share which state*, phantom coupling
+points you at the wrong seam. (Run both; the counts move as the file does, which
+is exactly why they are not written down here.)
 
-The same trap in reverse: `$DF.append($$$)` returns 22 hits in this repo, 21 of
-them ordinary list appends. Precision comes from writing the *shape* of the idiom
+Use ast-grep whenever the answer depends on the code's structure; grep is still
+fine for "where is this string".
+
+The same trap in reverse: `$DF.append($$$)` matches every `.append` in the repo,
+nearly all of them ordinary list appends rather than the pandas idiom you were
+looking for. Precision comes from writing the *shape* of the idiom
 (`$X = $X.append($$$)`), not the name.
 
 ## Recipe: the state-coupling matrix
@@ -63,7 +68,7 @@ severity: info
 rule:
   pattern: self.$ATTR
   inside: {kind: function_definition, stopBy: end, has: {field: name, pattern: $METHOD}}
-' isclipped.py --json=compact
+' src/ijump/isclipped.py --json=compact
 ```
 
 Swap `self.$ATTR` for `self.$ATTR = $$$V` to get writers only; the difference
@@ -90,10 +95,10 @@ Six of the eight have a single writer — a clear producer, easy to reason about
 The two with *two* writers are the hazard, and looking at them pays off:
 
 ```
-isclipped.py:89,91      self.min_match = 150 ; self.av_read_len = 150
-isclipped.py:1079-1080  self.min_match = min(self.match_lengths)
+src/ijump/isclipped.py:89,91      self.min_match = 150 ; self.av_read_len = 150
+src/ijump/isclipped.py:1079-1080  self.min_match = min(self.match_lengths)
                         self.av_read_len = self.read_lengths / self.n_reads_analyzed
-isclipped.py:1198-1199  self.min_match = min(self.match_lengths)
+src/ijump/isclipped.py:1198-1199  self.min_match = min(self.match_lengths)
                         self.av_read_len = self.read_lengths / self.n_reads_analyzed
 ```
 
@@ -109,7 +114,7 @@ The `ast-grep-outline` skill also installed. It is the cheapest way to orient in
 a large file:
 
 ```bash
-ast-grep outline isclipped.py                  # class + its 38 methods
+ast-grep outline src/ijump/isclipped.py        # the class and its methods
 ast-grep outline . --items imports             # dependency direction
 ```
 

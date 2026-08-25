@@ -327,7 +327,7 @@ was used and nothing was published as part of this work.
 ### Input
 
 iJump requires four files for input:
- 1. File with mobile elements coordinates
+ 1. IS table — the mobile elements and their coordinates
  2. Reference DNA contigs fasta file.
  3. GFF file with reference genome annotations.
  4. BAM file of aligned Illumina reads.
@@ -398,25 +398,26 @@ ijump isfinder-db-parse -b <BLAST output in outfmt 6 format> -r <Reference fasta
 ```
 
 The parser will find non-overlapping hits with empirical E-value threshold 1E-30. The
-reference fasta is the genome the BLAST search was run against; each called element is
+reference fasta is the genome the BLAST search was run against; each called locus is
 extracted from it and compared with all the others to fill in the `cluster` column.
 
 <a name="clusters"></a>
 ##### Clusters
 
-`is_name` is the nearest ISFinder database entry plus a copy number, which is not a
-reliable way to tell which rows are the same mobile element. Two fragments of one element
-can land on different database entries and get different names, while two elements 15%
-apart can land on the same entry and share one. So iJump groups the rows by aligning the
-elements against each other: two elements share a cluster when they align at **≥95%
-identity over ≥80% of the shorter** of the two, and clusters are closed under single
-linkage — a fragment reaches a parent it shares no alignment with, through a sibling that
-aligns to both.
+A **cluster** is the set of table rows — *loci* — that are copies of one mobile element.
+
+`is_name` is the nearest ISFinder database entry plus a copy number, which is not a reliable
+way to tell which loci are the same element. Two fragments of one element can land on
+different database entries and get different names, while two distinct elements 15% apart
+can land on the same entry and share one. So iJump groups the loci by aligning them against
+each other: two loci share a cluster when they align at **≥95% identity over ≥80% of the
+shorter** of the two, and clusters are closed under single linkage — a fragment reaches a
+parent it shares no alignment with, through a sibling that aligns to both.
 
 Both thresholds are flags: `--cluster-identity` (percent, default 95) and
 `--cluster-coverage` (fraction, default 0.8).
 
-Coverage is measured on the *shorter* element on purpose: a read clipped at a 76 bp
+Coverage is measured on the *shorter* locus on purpose: a read clipped at a 76 bp
 remnant of an element cannot be told from one clipped at a full copy of it, so the remnant
 belongs with its parent.
 

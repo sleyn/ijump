@@ -56,8 +56,7 @@ belongs in that core, never in a back-end — the point of the split is that thr
 cannot drift on what a cluster is. `is_annotation.add_cluster_arguments` likewise gives all
 three the same threshold flags:
 - `ijump isfinder-db-parse` → `ijump.isfinder_db_parcer:main` — parses an ISFinder BLAST
-  outfmt-6 search of the genome; the only back-end that recovers `family`/`group`/`pident`
-  from its input
+  outfmt-6 search of the genome; the only back-end whose input carries `group` and `pident`
 - `ijump migrate-is-table` → `ijump.migrate_is_table:main` — annotates an IS table that
   already exists rather than regenerating it, preserving its coordinates exactly and
   re-deriving family and group from a fresh locus-versus-database search

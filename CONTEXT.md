@@ -44,7 +44,7 @@ _Avoid_: mobile elements coordinates file, IS coordinates file, IS list
 **Cluster**:
 The set of IS table rows that are copies of one mobile element, computed from sequence
 similarity rather than from the rows' names — single linkage at ≥95% identity over ≥80% of
-the shorter element. A cluster is named for its longest member's base IS name (`ISAba12`),
+the shorter locus. A cluster is named for its longest member's base IS name (`ISAba12`),
 suffixed `.a`/`.b` only when two clusters would otherwise share a name. It is the `cluster`
 column of the IS table, written by every back-end that produces one and editable by hand.
 _Avoid_: group (the ISFinder group is separate annotation and never merges anything),
@@ -53,7 +53,7 @@ family, IS type, merge key
 **Locus**:
 One row of the IS table — a single copy of a mobile element as called in the reference,
 with its own name, contig and coordinates. Several loci can be one **Cluster**: a full copy
-and its own truncated fragments are separate loci of one element.
+and the **Fragment** loci of that same element are separate rows.
 _Avoid_: hit, IS copy, element (an element may span several loci), region
 
 **Fragment**:

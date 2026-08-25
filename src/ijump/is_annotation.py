@@ -33,14 +33,14 @@ def add_cluster_arguments(parser: argparse.ArgumentParser) -> None:
         "--cluster-identity",
         type=is_clustering.threshold_type(0, 100, "a percent"),
         default=is_clustering.IDENTITY_DEFAULT,
-        help="Minimum %% identity for two elements to share a cluster "
+        help="Minimum %% identity for two loci to share a cluster "
         f"(default: {is_clustering.IDENTITY_DEFAULT}).",
     )
     parser.add_argument(
         "--cluster-coverage",
         type=is_clustering.threshold_type(0, 1, "a fraction"),
         default=is_clustering.COVERAGE_DEFAULT,
-        help="Minimum fraction of the shorter element the alignment has to span "
+        help="Minimum fraction of the shorter locus the alignment has to span "
         f"(default: {is_clustering.COVERAGE_DEFAULT}).",
     )
 

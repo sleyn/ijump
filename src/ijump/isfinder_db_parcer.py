@@ -23,7 +23,7 @@ def main():
         type=str,
         action="store",
         required=True,
-        help="Reference FASTA the BLAST search was run against. Each called element "
+        help="Reference FASTA the BLAST search was run against. Each called locus "
         "is extracted from it and compared with all the others, so copies of one "
         "mobile element share a cluster.",
     )
