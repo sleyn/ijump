@@ -1,7 +1,7 @@
-# 01 — Right-only junction groups are written into the left column
+# 01 — Right-only junctions are written into the left column
 
 **What to build:** A cluster whose junctions on a contig are all right-handed is reported
-as right-junction orphans carrying their real counts and frequencies, instead of as left
+as right orphans carrying their real counts and frequencies, instead of as left
 orphans with zero counts and frequency `0.0`.
 
 `find_pairs` returns early when one side has no junctions at all, and that early return has
@@ -15,7 +15,7 @@ Downstream, frequency estimation reads a right junction's evidence out of the ri
 columns, finds zeros there, and reports `0.0`. So the defect does not merely mislabel a
 row — it silently zeroes a real detection.
 
-**This is live, not latent.** On the reference sample five (cluster, contig) groups are
+**This is live, not latent.** On the reference sample five (cluster, contig) pairings are
 one-sided and two of them are right-only: `ISAba12` and `ISAba53` on `NODE_2`. Those are
 the seven rows in the pinned precise-mode golden that report `Frequency 0.0` at positions
 451, 145216, 145218, 145219, 145220, 145221 and 145222.
@@ -33,7 +33,7 @@ that.
 
 **Status:** done
 
-- [x] A right-only group is written as right-junction orphans: position in `Position_r`, count in `Count_mapped_to_IS_r`, both left columns zero
+- [x] Right-only input is written as right orphans: position in `Position_r`, count in `Count_mapped_to_IS_r`, both left columns zero
 - [x] The left-only arm is unchanged
 - [x] Unit coverage pins both arms of the early return — today's `find_pairs` test exercises only the two-sided path
 - [x] The precise-mode end-to-end golden is re-pinned, and the diff is confined to the seven `ISAba12`/`ISAba53` rows on `NODE_2`
@@ -51,3 +51,9 @@ that.
   near-fixed ISAba12 insertion the pipeline was reporting as absent. The other six land
   between 0.0034 and 0.207.
 - The precise-mode `ijump_junctions.txt` golden is unchanged; only the pairs table moved.
+- Downstream, `combine_results` renames `Position_l`/`Position_r` to `Start`/`Stop` and has
+  its own handling for rows where one of the two is 0. The seven rows now reach it in the
+  shape it expects for a right orphan instead of masquerading as left orphans.
+- The five write sites in `find_pairs` built their rows as bare positional lists, which is
+  how the swapped columns went unnoticed. They now go through `_pair_row` /
+  `_left_orphan_row` / `_right_orphan_row`, so the column order is written down once.

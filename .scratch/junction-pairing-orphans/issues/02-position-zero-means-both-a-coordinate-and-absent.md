@@ -27,7 +27,7 @@ the assembler cut at a contig boundary has a span starting at the contig's first
 whether it is reachable before deciding how much to change — if it is not, saying so in a
 comment on the sentinel is a legitimate outcome.
 
-**Blocked by:** 01 — Right-only junction groups are written into the left column. Both
+**Blocked by:** 01 — Right-only junctions are written into the left column. Both
 tickets rewrite the same early-return arm, so they are sequenced rather than concurrent.
 
 **Status:** ready-for-agent

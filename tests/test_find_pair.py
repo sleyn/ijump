@@ -121,15 +121,15 @@ def test_find_pair_leaves_its_input_arrays_untouched():
     np.testing.assert_array_equal(pos_r_count, POS_R_COUNT)
 
 
-# One-sided groups: a cluster whose junctions on a contig all point the same way.
-# ``find_pairs`` returns early for these -- there is nothing to pair -- and the
-# early return has one arm per side (junction-pairing-orphans 01).
+# One-sided input: every junction on the contig points the same way, so there is
+# nothing to pair and ``find_pairs`` returns early. That exit has one arm per
+# side (junction-pairing-orphans 01).
 ONE_SIDED_POS = np.array([451, 145216, 145218])
 ONE_SIDED_COUNT = np.array([1, 7, 3])
 EMPTY = np.array([], dtype=np.int64)
 
 
-def test_right_only_group_is_written_as_right_junction_orphans():
+def test_right_only_input_is_written_as_right_orphans():
     """A right junction belongs in the right columns.
 
     The right-only arm used to write position and count into ``Position_l`` and
@@ -154,7 +154,7 @@ def test_right_only_group_is_written_as_right_junction_orphans():
     pdt.assert_frame_equal(pairs_df, expected, check_dtype=False)
 
 
-def test_left_only_group_is_written_as_left_junction_orphans():
+def test_left_only_input_is_written_as_left_orphans():
     """The left-only arm was already right; pinned so the fix to its sibling
     cannot be applied to both."""
     pairs_df = find_pairs(
@@ -173,9 +173,11 @@ def test_left_only_group_is_written_as_left_junction_orphans():
     pdt.assert_frame_equal(pairs_df, expected, check_dtype=False)
 
 
-def test_a_one_sided_group_matches_how_the_main_path_writes_the_same_orphan():
+def test_one_sided_exit_writes_an_orphan_the_way_the_main_path_does():
     """The two exits have to agree: an unpaired right junction looks the same
     whether or not the contig happened to carry left junctions elsewhere.
+    Both build their rows through ``_right_orphan_row``, so this holds that
+    shared shape rather than two copies of it.
 
     Driven through the main path by adding a left junction far enough away that
     nothing pairs, then comparing the right rows the two exits produce.

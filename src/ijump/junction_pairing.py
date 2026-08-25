@@ -4,6 +4,25 @@ import numpy as np
 import pandas as pd
 
 
+# A pairs-table row is written as a bare positional list, so which column a value
+# lands in is carried by nothing but its place in that list. The right arm of the
+# one-sided exit below spent its life writing a right junction into the left pair
+# of columns for exactly that reason (junction-pairing-orphans 01). These three
+# builders name the columns once so no write site has to get the order right.
+def _pair_row(pos_l, pos_r, count_l, count_r, chrom):
+    return [pos_l, pos_r, count_l, count_r, chrom]
+
+
+def _left_orphan_row(pos, count, chrom):
+    """A left junction with no right partner: right columns stay zero."""
+    return _pair_row(pos, 0, count, 0, chrom)
+
+
+def _right_orphan_row(pos, count, chrom):
+    """A right junction with no left partner: left columns stay zero."""
+    return _pair_row(0, pos, 0, count, chrom)
+
+
 # Make clusters of left and right insertions junctions from positions.
 # Outputs table of right and left positions of of junctions pairs with counts of clipped
 # reads accounted to each junction.
@@ -36,20 +55,18 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
             }
         )
 
-        # Each junction becomes an orphan on its own side, written the way the
-        # main path below writes the orphans it finds -- a right junction into
-        # the right columns, a left one into the left. The right arm used to
-        # mirror the left arm instead, putting a right junction's position and
-        # count in Position_l/Count_mapped_to_IS_l and leaving the right columns
-        # zero. Frequency estimation reads a right junction's evidence out of
-        # the right columns, so those rows reported 0.0 for insertions that were
-        # really there (junction-pairing-orphans 01).
+        # Nothing to pair, so every junction is an orphan on its own side --
+        # written the same way the main path below writes the orphans it finds.
         if pos_r.size == 0:
             for pos_l_index, pos in enumerate(pos_l):
-                pairs_df.iloc[pos_l_index, :] = [pos, 0, pos_l_count[pos_l_index], 0, chrom]
+                pairs_df.iloc[pos_l_index, :] = _left_orphan_row(
+                    pos, pos_l_count[pos_l_index], chrom
+                )
         else:
             for pos_r_index, pos in enumerate(pos_r):
-                pairs_df.iloc[pos_r_index, :] = [0, pos, 0, pos_r_count[pos_r_index], chrom]
+                pairs_df.iloc[pos_r_index, :] = _right_orphan_row(
+                    pos, pos_r_count[pos_r_index], chrom
+                )
 
         return pairs_df
 
@@ -145,13 +162,13 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
                 np.abs(pos_r_count - pos_l_count[pos_l_index])
                 + ~(closeness_matrix[pos_l_index, :] == 1) * 10000
             )
-            pairs_df.iloc[pos_l_index, :] = [
+            pairs_df.iloc[pos_l_index, :] = _pair_row(
                 pos_l_cur,
                 pos_r[pos_r_index],
                 pos_l_count[pos_l_index],
                 pos_r_count[pos_r_index],
                 chrom,
-            ]
+            )
 
             closeness_matrix[:, pos_r_index] = 0
 
@@ -159,19 +176,17 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
 
         # Write orhphan peaks.
         else:
-            pairs_df.iloc[pos_l_index, :] = [pos_l_cur, 0, pos_l_count[pos_l_index], 0, chrom]
+            pairs_df.iloc[pos_l_index, :] = _left_orphan_row(
+                pos_l_cur, pos_l_count[pos_l_index], chrom
+            )
 
     df_offset = len(pos_l)
 
     # Add right orphan peaks.
     for shift, pos_r_index_orphan in enumerate(pos_r_orphan[pos_r_orphan != -1]):
-        pairs_df.iloc[df_offset + shift, :] = [
-            0,
-            pos_r[pos_r_index_orphan],
-            0,
-            pos_r_count[pos_r_index_orphan],
-            chrom,
-        ]
+        pairs_df.iloc[df_offset + shift, :] = _right_orphan_row(
+            pos_r[pos_r_index_orphan], pos_r_count[pos_r_index_orphan], chrom
+        )
 
     # Remove empty rows.
     pairs_df = pairs_df.query("Position_l > 0 or Position_r > 0")
