@@ -16,6 +16,7 @@ and as ``int`` in others, and text is the form that survives a round trip throug
 the file unchanged.
 """
 
+import hashlib
 import os
 from typing import Dict, Tuple, Union
 
@@ -46,6 +47,11 @@ LEGACY_COLUMNS = COLUMNS[:4]
 # Named in the error below rather than left for the reader to find, because that
 # error is the only thing standing between a legacy table and a working run.
 MIGRATE_SUBCOMMAND = "ijump migrate-is-table"
+
+
+# How a report names the IS table it was built from. Short enough to read in a
+# file header, long enough that two different tables will not collide.
+FINGERPRINT_LENGTH = 16
 
 
 class MissingClusterColumn(Exception):
@@ -158,3 +164,22 @@ def _has_header(path: Path) -> bool:
         first_line = table_file.readline()
     fields = first_line.rstrip("\n").split("\t")
     return fields[: len(LEGACY_COLUMNS)] == list(LEGACY_COLUMNS)
+
+
+def fingerprint(table: pd.DataFrame) -> str:
+    """A short digest identifying which IS table a run was annotated against.
+
+    Cluster names are *derived* from the loci, not fixed labels, so the same name
+    can mean different elements in two runs annotated against different tables or
+    different references. Reports carry this digest so a multi-sample merge can
+    tell that its samples share one vocabulary before it joins them on it
+    (isfinder-annotation 07).
+
+    Taken over the canonical columns only, so that reading a legacy table into
+    the wider shape -- which fills the annotation columns with empty strings --
+    gives the same answer as reading a headered table that omits them. Extra
+    columns a reader does not know about are left out for the same reason: they
+    do not change what the cluster names mean.
+    """
+    canonical = table[list(COLUMNS)].to_csv(sep="\t", header=True, index=False)
+    return hashlib.sha256(canonical.encode()).hexdigest()[:FINGERPRINT_LENGTH]

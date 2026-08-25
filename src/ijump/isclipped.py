@@ -11,7 +11,15 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
-from ijump import circos, clipped_read_search, frequency_estimation, gff, is_table, region_summary
+from ijump import (
+    circos,
+    clipped_read_search,
+    frequency_estimation,
+    gff,
+    is_table,
+    region_summary,
+    report_provenance,
+)
 from ijump.clipped_read_search import NoInsertionsFound
 from ijump.junction_pairing import NO_JUNCTION, find_pairs
 
@@ -169,12 +177,17 @@ class ISClipped:
         # out of it deliberately -- callers index and unpack this positionally
         # (see circos.write_circos_input), so its width is part of its contract.
         self.is_coords = dict()
-        # IS name => cluster, derived from is_table. The grouping precise mode
-        # pairs junctions on. Built once per run -- by run() up front for
-        # precise mode, so a table that carries no cluster stops the run before
-        # the work rather than after it, and lazily by search_insert_pos for a
-        # caller that drives the pairing step on its own.
+        # IS name => cluster, derived from is_table. What both modes group by:
+        # precise mode pairs junctions per cluster, average mode reports one
+        # column per cluster. Built once per run by run() up front, so a table
+        # that carries no cluster stops the run before the work rather than
+        # after it -- and lazily by search_insert_pos for a caller that drives
+        # the pairing step on its own.
         self.is_clusters = None
+        # Digest of the IS table this run is annotated against, stamped on the
+        # reports so a later multi-sample merge can tell that its samples share
+        # one cluster vocabulary (see report_provenance).
+        self.is_table_fingerprint = ""
         # List of lengths for matched segments
         # Used to calculate correction coefficients
         # Populated by clipped_read_search.search's forward (direction=1) call.
@@ -309,7 +322,7 @@ class ISClipped:
     # Create summary dataframe. Shape is shared with region_summary's
     # per-region builder -- see region_summary.sum_by_reg_tbl_init.
     def sum_by_reg_tbl_init(self):
-        return region_summary.sum_by_reg_tbl_init(self.is_coords)
+        return region_summary.sum_by_reg_tbl_init(self.is_clusters)
 
     # Collect information about IS elements.
     def iscollect(self, file):
@@ -603,13 +616,17 @@ class ISClipped:
         self.sum_by_reg_tbl_init().to_csv(
             os.path.join(outdir, "ijump_sum_by_reg.txt"), sep="\t", index=False
         )
-        self.report_table_init().to_csv(
-            os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep="\t", index=False
+        report_provenance.write_report(
+            self.report_table_init(),
+            os.path.join(outdir, "ijump_report_by_is_reg.txt"),
+            self.is_table_fingerprint,
         )
 
         if mode == EstimationMode.PRECISE:
-            self.pairs_table_empty().to_csv(
-                os.path.join(outdir, "ijump_junction_pairs.txt"), sep="\t", index=False
+            report_provenance.write_report(
+                self.pairs_table_empty(),
+                os.path.join(outdir, "ijump_junction_pairs.txt"),
+                self.is_table_fingerprint,
             )
 
     # Run the full average/precise pipeline and write every output file it
@@ -619,12 +636,13 @@ class ISClipped:
     def run(self, mode):
         outdir = os.path.dirname(self.pairs_df_path)
 
-        # Precise mode pairs junctions per cluster, so a table without one has
-        # nothing to pair on. Checked here rather than at the pairing step, so a
-        # legacy table stops the run before minutes of read collection and BLAST
-        # rather than after them.
-        if mode == EstimationMode.PRECISE:
-            self.is_clusters = is_table.cluster_by_name(self.is_table)
+        # Both modes group by cluster -- precise mode pairs junctions per cluster,
+        # average mode reports one column per cluster -- so a table without one
+        # has nothing to group on. Checked here rather than at the point of use,
+        # so a legacy table stops the run before minutes of read collection and
+        # BLAST rather than after them.
+        self.is_clusters = is_table.cluster_by_name(self.is_table)
+        self.is_table_fingerprint = is_table.fingerprint(self.is_table)
 
         try:
             # Collect clipped reads and search insertion positions in Reference.
@@ -653,7 +671,7 @@ class ISClipped:
                 # Reformat GFF representation
                 self.gff.pos_to_ann()
                 self.sum_by_region = region_summary.summarize_by_region(
-                    self.junctions, self.is_coords, self.gff.ann_pos
+                    self.junctions, self.is_clusters, self.gff.ann_pos
                 )
                 self.sum_by_region.to_csv(
                     os.path.join(outdir, "ijump_sum_by_reg.txt"), sep="\t", index=False
@@ -668,8 +686,10 @@ class ISClipped:
                     self.blast_min,
                     self.average_depth,
                 )
-                self.report_table.to_csv(
-                    os.path.join(outdir, "ijump_report_by_is_reg.txt"), sep="\t", index=False
+                report_provenance.write_report(
+                    self.report_table,
+                    os.path.join(outdir, "ijump_report_by_is_reg.txt"),
+                    self.is_table_fingerprint,
                 )
             elif mode == EstimationMode.PRECISE:
                 # Make table of regions in the reference genome where extract clipped
@@ -759,7 +779,9 @@ class ISClipped:
                 self.pairs_df["Position_r"] = convert_zero_one_base(
                     self.pairs_df["Position_r"].tolist()
                 )
-                self.pairs_df.to_csv(self.pairs_df_path, sep="\t", index=False)
+                report_provenance.write_report(
+                    self.pairs_df, self.pairs_df_path, self.is_table_fingerprint
+                )
         except NoInsertionsFound as e:
             message = str(e)
             logging.info(message)
@@ -813,6 +835,7 @@ class ISClipped:
             self.report_table,
             self.sum_by_region,
             self.is_coords,
+            self.is_clusters,
             self.ref_len,
             self.data_folder,
             self.cutoff,

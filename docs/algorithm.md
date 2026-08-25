@@ -114,7 +114,7 @@ Each filtered BLAST hit becomes one row in the **junction table** with fields:
 
 *Implemented in `isclipped.py` → `summary_junctions_by_region()`*
 
-Junctions flagged as within-IS artefacts are removed. For each remaining junction, the GFF annotation it falls within is looked up. Supporting read counts are accumulated in a wide-format summary table indexed by genomic region, with one column per IS element.
+Junctions flagged as within-IS artefacts are removed. For each remaining junction, the GFF annotation it falls within is looked up. Supporting read counts are accumulated in a wide-format summary table indexed by genomic region, with one column per **cluster** — one per mobile element, not one per called locus. A read clipped at one locus of an element cannot be told from one clipped at another, so a column per locus splits one insertion's evidence across as many columns as the assembly called fragments of that element.
 
 ### Step 6A — Frequency Estimation
 
@@ -323,7 +323,7 @@ pandas is the universal data layer. Every internal table (clipped reads, junctio
 | `.groupby().aggregate(['min','max'])` | `make_gene_side_regions:588` | Extract region boundaries (min/max position) from clustered junction points |
 | `.groupby().transform(_hclust)` | `make_gene_side_regions:583` | Apply hierarchical clustering independently per chromosome |
 | `.groupby().count().reset_index()` | `search_insert_pos:829` | Count reads per unique (position, IS, orientation) combination |
-| `pd.melt(id_vars=..., var_name=..., value_name=...)` | `report_average:1200` | Pivot the wide sum-by-region table (IS elements as columns) to long format for frequency calculation |
+| `pd.melt(id_vars=..., var_name=..., value_name=...)` | `report_average:1200` | Pivot the wide sum-by-region table (clusters as columns) to long format for frequency calculation |
 | `.groupby().agg('sum')` | `combine_results.py:349` | Collapse IS element copies (IS1_1 + IS1_2 → IS1) by summing frequencies |
 | `reduce(lambda df1, df2: pd.merge(..., how='outer'), dfs)` | `combine_results.py:107` | Iterative outer-join of all per-sample report DataFrames into one wide comparative table |
 

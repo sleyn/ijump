@@ -26,6 +26,10 @@ import ijump.circos as circos
 
 REF_LEN = {"contig_1": 10000, "contig_2": 5000}
 IS_COORDS = {"IS1": ["contig_1", "500", "600"], "IS2": ["contig_2", "1000", "1100"]}
+# One cluster per locus: these fixtures predate clusters, and mapping each name to
+# itself keeps the pinned output meaningful while the signature grows the argument
+# (isfinder-annotation 07). The multi-locus case is covered separately below.
+CLUSTERS = {"IS1": "IS1", "IS2": "IS2"}
 REPORT_TABLE = pd.DataFrame(
     {
         "IS Name": ["IS1", "IS2", "IS1"],
@@ -115,6 +119,7 @@ def test_write_files_matches_pinned_golden_output(tmp_path):
         REPORT_TABLE,
         SUM_BY_REGION,
         IS_COORDS,
+        CLUSTERS,
         REF_LEN,
         data_folder,
         CUTOFF,
@@ -123,3 +128,63 @@ def test_write_files_matches_pinned_golden_output(tmp_path):
     )
 
     _assert_matches_golden(data_folder)
+
+
+def test_one_cluster_of_several_loci_is_drawn_from_every_locus(tmp_path):
+    """The report names the element that jumped, and any of its copies could be
+    the one that did -- that indistinguishability is what put them in one cluster.
+    The diagram shows every candidate rather than picking one, and colours them as
+    the single element they are.
+    """
+    data_folder = str(tmp_path) + "/"
+    is_coords = {
+        "IS17_1": ["contig_1", "500", "600"],
+        "IS17_2": ["contig_1", "900", "950"],
+        "ISAlw13_1": ["contig_2", "1000", "1100"],
+    }
+    clusters = {"IS17_1": "ISAba12", "IS17_2": "ISAba12", "ISAlw13_1": "ISAlw13"}
+    report_table = pd.DataFrame(
+        {
+            "IS Name": ["ISAba12"],
+            "Annotation": ["geneA"],
+            "Chromosome": ["contig_1"],
+            "Start": [2000],
+            "Stop": [2100],
+            "Frequency": [0.5],
+            "Depth": [40],
+        }
+    )
+    sum_by_region = pd.DataFrame(
+        {
+            "ann": ["geneA"],
+            "chrom": ["contig_1"],
+            "start": [2000],
+            "stop": [2100],
+            "ISAba12": [30],
+            "ISAlw13": [0],
+        }
+    )
+
+    circos.write_files(
+        report_table,
+        sum_by_region,
+        is_coords,
+        clusters,
+        REF_LEN,
+        data_folder,
+        CUTOFF,
+        fake_av_depth,
+        GFF_ANN_POS,
+    )
+
+    assert _read(data_folder, "links.txt") == (
+        "contig_1 500 600 contig_1 2000 2000 color=lgreen\n"
+        "contig_1 900 950 contig_1 2000 2000 color=lgreen\n"
+    )
+    # Labels stay per-locus -- that is where the elements physically are -- but
+    # both loci of one element carry its colour.
+    assert _read(data_folder, "text.txt").startswith(
+        "contig_1 500 500 IS17_1 color=vvdgreen\n"
+        "contig_1 900 900 IS17_2 color=vvdred\n"
+        "contig_2 1000 1000 ISAlw13_1 color=vvdblue\n"
+    )

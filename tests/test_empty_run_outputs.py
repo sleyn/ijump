@@ -18,6 +18,8 @@ version of this test, which pinned that behaviour.
 import pandas as pd
 import pytest
 
+from ijump import report_provenance
+
 FILES_BY_MODE = {
     "average": [
         "reads.txt",
@@ -50,5 +52,17 @@ def test_empty_run_writes_full_file_set_with_no_rows(run_ijump, estimation_mode)
     for filename in FILES_BY_MODE[estimation_mode]:
         file_path = outdir / filename
         assert file_path.exists(), f"{filename} was not written"
-        table = pd.read_csv(file_path, sep="\t")
+        table = _read(file_path)
         assert len(table) == 0, f"{filename} has data rows"
+
+
+# The two files combine_results merges carry a leading line naming the IS table
+# the run was annotated against (isfinder-annotation 07); the rest are plain TSVs.
+STAMPED = {"ijump_report_by_is_reg.txt", "ijump_junction_pairs.txt"}
+
+
+def _read(file_path):
+    if file_path.name in STAMPED:
+        table, _ = report_provenance.read_report(file_path)
+        return table
+    return pd.read_csv(file_path, sep="\t")

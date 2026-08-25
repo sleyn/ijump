@@ -19,7 +19,10 @@ import pandas.testing as pdt
 
 from ijump.region_summary import report_average, summarize_by_region
 
-IS_COORDS = {"IS1": ["tiny_contig", "1", "10"], "IS2": ["tiny_contig", "1", "10"]}
+# One cluster per locus: these fixtures predate clusters, and mapping each name
+# to itself keeps the pinned values meaningful while the argument changes shape
+# (isfinder-annotation 07).
+ONE_CLUSTER_EACH = {"IS1": "IS1", "IS2": "IS2"}
 
 GFF_ANN_POS = {
     "tiny_contig": {
@@ -50,7 +53,7 @@ def test_summarize_by_region_matches_pinned_golden_output_for_single_hit_path():
         }
     )
 
-    result = summarize_by_region(junctions, IS_COORDS, GFF_ANN_POS)
+    result = summarize_by_region(junctions, ONE_CLUSTER_EACH, GFF_ANN_POS)
 
     expected = pd.DataFrame(
         {
@@ -159,7 +162,7 @@ def test_summarize_by_region_accumulates_counts_across_multiple_hits_in_one_regi
         }
     )
 
-    result = summarize_by_region(junctions, IS_COORDS, GFF_ANN_POS)
+    result = summarize_by_region(junctions, ONE_CLUSTER_EACH, GFF_ANN_POS)
 
     expected = pd.DataFrame(
         {
@@ -174,3 +177,57 @@ def test_summarize_by_region_accumulates_counts_across_multiple_hits_in_one_regi
     ).astype(object)
 
     pdt.assert_frame_equal(result, expected)
+
+
+# Two loci of one element plus a second element -- the reference genome's shape,
+# where IS17_1, IS17_2 and ISAba12_1 are one ISAba12-like copy and two of its own
+# fragments (isfinder-annotation 07).
+CLUSTERS = {"IS17_1": "ISAba12", "ISAba12_1": "ISAba12", "ISAlw13_1": "ISAlw13"}
+
+
+def test_summarize_by_region_emits_one_column_per_cluster():
+    """Columns are the elements that jumped, not the loci they were called at.
+
+    A read clipped at one locus of an element cannot be told from one clipped at
+    another, so counting them in separate columns splits one insertion's evidence
+    across three.
+    """
+    junctions = _junctions(
+        [("IS17_1", 820), ("ISAba12_1", 830), ("ISAlw13_1", 850)],
+    )
+
+    result = summarize_by_region(junctions, CLUSTERS, GFF_ANN_POS)
+
+    assert list(result.columns) == ["ann", "chrom", "start", "stop", "ISAba12", "ISAlw13"]
+
+
+def test_junctions_at_different_loci_of_one_element_accumulate_in_one_column():
+    junctions = _junctions([("IS17_1", 820), ("ISAba12_1", 825), ("IS17_1", 830)])
+
+    result = summarize_by_region(junctions, CLUSTERS, GFF_ANN_POS)
+
+    assert result.loc["geneA", "ISAba12"] == 3
+    assert result.loc["geneA", "ISAlw13"] == 0
+
+
+def test_report_average_names_the_cluster_not_the_locus():
+    junctions = _junctions([("IS17_1", 820), ("ISAba12_1", 825)])
+
+    summary = summarize_by_region(junctions, CLUSTERS, GFF_ANN_POS)
+    report = report_average(summary, [140], 3000, 20, 20, _stub_average_depth)
+
+    assert report["IS Name"].tolist() == ["ISAba12"]
+    # One row carrying both junctions, not two rows of one each.
+    assert len(report) == 1
+
+
+def _junctions(is_name_and_position):
+    """A junction table carrying just what summarize_by_region reads."""
+    return pd.DataFrame(
+        {
+            "IS name": [is_name for is_name, _ in is_name_and_position],
+            "Chrom": ["tiny_contig"] * len(is_name_and_position),
+            "Position": [position for _, position in is_name_and_position],
+            "Note": ["x"] * len(is_name_and_position),
+        }
+    )

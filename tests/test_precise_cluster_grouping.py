@@ -85,12 +85,14 @@ def test_cli_precise_run_on_a_legacy_table_reports_the_remedy(run_ijump):
     assert is_table.MIGRATE_SUBCOMMAND in result.stdout
 
 
-def test_cli_average_run_still_accepts_a_legacy_table(run_ijump):
-    """Only precise mode groups on the cluster, so average mode is not
-    retired here -- that is isfinder-annotation 07's call to make."""
+def test_cli_average_run_also_refuses_a_legacy_table(run_ijump):
+    """Average mode reports one column per cluster too (isfinder-annotation 07),
+    so it needs the column for the same reason precise mode does. It accepted a
+    legacy table between tickets 06 and 07."""
     result, _ = run_ijump("average", isel="is_coords.txt")
 
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1
+    assert is_table.MIGRATE_SUBCOMMAND in result.stdout
 
 
 def test_a_junction_on_an_element_absent_from_the_table_is_not_dropped(tmp_path):

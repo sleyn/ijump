@@ -72,9 +72,14 @@ Contains information about junctions for each read. File contains following colu
 
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
+The file begins with a line naming the IS table the run was annotated against
+(`# ijump-is-table: <digest>`); `ijump combine-results` reads it to check that the samples
+it is merging share one annotation.
+
 File contains following columns:
 * *IS Name*  
-	 mobile element name
+	 the [cluster](../README.md#clusters) — the mobile element, not the individual locus it
+	 was called at. Several loci of one element report under one name.
 
 * *Annotation*  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
@@ -110,8 +115,9 @@ Wide format of frequency estimation. Table shows raw counts of reads that suppor
 * *stop*  
 	 end coordinate of affected region
 
-* *mobile element names*  
-	 raw reads that support junctions
+* *cluster names*  
+	 one column per [cluster](../README.md#clusters) — per mobile element, not per called
+	 locus — holding the raw count of reads supporting junctions of that element
 
 #### CIRCOS files
 

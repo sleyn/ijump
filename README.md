@@ -395,10 +395,10 @@ So the parser logs a warning naming both elements for every pair that shares a c
 without meeting the threshold itself. Read those warnings, and edit the `cluster` column
 before running the pipeline if two of them are different elements.
 
-The cluster is what precise mode groups junctions on, so a table without one — a legacy
-four-column table, or one with the column left blank — stops a precise run before it
-starts, naming `ijump migrate-is-table` as the remedy. Average mode does not read the
-column and still accepts such a table.
+The cluster is what both modes group by — precise mode pairs junctions per cluster, average
+mode reports one entry per cluster — so a table without one (a legacy four-column table, or
+one with the column left blank) stops a run before it starts, naming `ijump migrate-is-table`
+as the remedy.
 
 <a name="origin-spanning"></a>
 ##### Origin-spanning elements
@@ -520,6 +520,32 @@ optional arguments:
                         to separate each insertion event.
   --version             Print iJump version and exit.
 ```
+
+### Reports name elements, not called loci
+
+**Breaking change.** The per-region report and the region summary carry one entry per
+[cluster](#clusters) — one per mobile element — where they used to carry one per row of the
+IS table. On the reference genome the three entries `IS17_1`, `IS17_2` and `ISAba12_1`
+become the single entry `ISAba12`: they are one copy and two of its own fragments, and
+splitting one insertion's evidence across three entries both understated every frequency
+and could hide an insertion under the reporting cutoff entirely.
+
+Anyone reading `ijump_report_by_is_reg.txt` or `ijump_sum_by_reg.txt` by IS name — a script
+selecting `IS17_1`, or a column index into the region summary — is broken by this and needs
+updating to the cluster names. `ijump combine-results` handles it for you.
+
+Both files now begin with a line naming the IS table the run was annotated against:
+
+```
+# ijump-is-table: c5775ee72813f8c2
+```
+
+Cluster names are derived from the loci rather than fixed labels, so the same name can mean
+different elements in two runs annotated against different tables. `ijump combine-results`
+joins samples on those names, so it reads this line and **refuses to merge samples whose
+annotations disagree** rather than lining up names that mean different things. A report
+written before this change carries no such line and is refused with a message saying to
+rerun the sample.
 
 ### Compare samples
 

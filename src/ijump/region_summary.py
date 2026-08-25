@@ -7,43 +7,57 @@ import numpy as np
 import pandas as pd
 
 
-# Create an empty summary-by-region dataframe with one column per IS element.
+# The columns a region summary carries, in order: the fixed region columns, then
+# one per cluster.
+#
+# One column per *cluster*, not per locus. A read clipped at one locus of an
+# element is indistinguishable from one clipped at another, so a column per locus
+# splits one insertion's evidence across as many columns as the assembly happened
+# to call fragments of that element -- three, on the reference genome, where
+# IS17_1, IS17_2 and ISAba12_1 are one copy and two of its own fragments
+# (isfinder-annotation 07).
+#
+# `clusters` maps each IS name to its cluster (is_table.cluster_by_name). Column
+# order follows the IS table's row order, deduplicated.
+def region_columns(clusters):
+    return ["ann", "chrom", "start", "stop"] + list(dict.fromkeys(clusters.values()))
+
+
+# Create an empty summary-by-region dataframe with one column per cluster.
 # Shared by the no-results path (ISClipped._write_empty_outputs, via
 # ISClipped.sum_by_reg_tbl_init) and the populated path (summarize_by_region
 # below), so the two output files can never disagree on shape.
-def sum_by_reg_tbl_init(is_coords):
-    sbrcolumns = ["ann", "chrom", "start", "stop"]
-    sbrcolumns.extend(list(is_coords.keys()))
-    return pd.DataFrame(columns=sbrcolumns)
+def sum_by_reg_tbl_init(clusters):
+    return pd.DataFrame(columns=region_columns(clusters))
 
 
 # Make summary table: for each annotated region, count supporting junctions
-# per IS element.
-def summarize_by_region(junctions, is_coords, gff_ann_pos) -> pd.DataFrame:
+# per cluster.
+def summarize_by_region(junctions, clusters, gff_ann_pos) -> pd.DataFrame:
     logging.info("Create summary table by region")
     sum_by_region = pd.DataFrame()
     junc_temp = junctions.loc[junctions["Note"] != "IS element"]
-    f_columns = ["ann", "chrom", "start", "stop"]
-    f_columns.extend(list(is_coords.keys()))
+    f_columns = region_columns(clusters)
+    cluster_names = f_columns[4:]
     for i in range(len(junc_temp)):
         pos = junc_temp.iloc[i]["Position"]
         chrom = junc_temp.iloc[i]["Chrom"]
+        cluster = clusters[junc_temp.iloc[i]["IS name"]]
         for ann_id, item in gff_ann_pos[chrom].items():  #
             if item[2] <= pos <= item[3]:
                 if ann_id not in sum_by_region.index:
-                    temp = sum_by_reg_tbl_init(is_coords)
+                    temp = sum_by_reg_tbl_init(clusters)
                     temp.at[0, "ann_id"] = ann_id
                     temp.at[0, "ann"] = item[0]
                     temp.at[0, "chrom"] = item[1]
                     temp.at[0, "start"] = item[2]
                     temp.at[0, "stop"] = item[3]
-                    temp.loc[0, list(is_coords.keys())] = 0
-                    temp.at[0, junc_temp.iloc[i]["IS name"]] = 1
+                    temp.loc[0, cluster_names] = 0
+                    temp.at[0, cluster] = 1
                     temp = temp.set_index("ann_id")
                     sum_by_region = pd.concat([sum_by_region, temp], sort=True)
                 else:
-                    is_name = junc_temp.iloc[i]["IS name"]
-                    sum_by_region.loc[ann_id, is_name] += 1
+                    sum_by_region.loc[ann_id, cluster] += 1
                 break
     sum_by_region = sum_by_region[f_columns]
     return sum_by_region
@@ -62,6 +76,10 @@ def report_average(
     logging.info("Create report table")
     min_match = min(match_lengths)  # find minimum match length
     av_read_len = read_lengths / n_reads_analyzed  # find average read length
+    # "IS Name" carries the cluster -- the element that jumped. The column keeps
+    # its name because it is the join key combine_results merges samples on and
+    # the header of a documented output; what changed is that one name no longer
+    # means one called locus.
     report_table = pd.melt(
         sum_by_region,
         id_vars=("ann", "chrom", "start", "stop"),

@@ -224,3 +224,52 @@ def test_cluster_by_name_rejects_duplicate_names(tmp_path):
 
     with pytest.raises(ValueError, match="IS17_1"):
         is_table.cluster_by_name(is_table.read_is_table(table))
+
+
+def test_fingerprint_is_equal_for_equal_tables(tmp_path):
+    """Two runs against the same IS table agree on its fingerprint, which is what
+    lets combine_results tell that their cluster names mean the same elements."""
+    rows = (
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba12\t98.6\n"
+        "ISAba1_1\tNODE_2\t112397\t113576\tIS4\tIS10\tISAba1\t100\n"
+    )
+    first, second = tmp_path / "a.txt", tmp_path / "b.txt"
+    first.write_text(rows)
+    second.write_text(rows)
+
+    assert is_table.fingerprint(is_table.read_is_table(first)) == is_table.fingerprint(
+        is_table.read_is_table(second)
+    )
+
+
+def test_fingerprint_changes_when_a_cluster_changes(tmp_path):
+    """An operator editing the cluster column changes what the names mean, so
+    reports either side of that edit must not be merged."""
+    before = tmp_path / "before.txt"
+    before.write_text(
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba12\t98.6\n"
+    )
+    after = tmp_path / "after.txt"
+    after.write_text(
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba53\t98.6\n"
+    )
+
+    assert is_table.fingerprint(is_table.read_is_table(before)) != is_table.fingerprint(
+        is_table.read_is_table(after)
+    )
+
+
+def test_fingerprint_ignores_a_legacy_table_being_read_into_the_wider_shape(tmp_path):
+    """Reading fills absent columns with empty strings; that is a property of the
+    reader, not of the table, so it must not move the fingerprint."""
+    headered = tmp_path / "headered.txt"
+    headered.write_text("is_name\tcontig\tstart\tstop\nIS1\tNODE_1\t900\t1000\n")
+    legacy = tmp_path / "legacy.txt"
+    legacy.write_text("IS1\tNODE_1\t900\t1000\n")
+
+    assert is_table.fingerprint(is_table.read_is_table(headered)) == is_table.fingerprint(
+        is_table.read_is_table(legacy)
+    )

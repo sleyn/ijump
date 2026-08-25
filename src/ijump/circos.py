@@ -19,10 +19,16 @@ import re
 # enumerated there. `average_depth_fn` is a callable (chrom, start, stop) -> depth, not a
 # scalar depth value -- named with the `_fn` suffix to keep that distinct from a plain
 # average-depth number.
+# `clusters` maps each IS name in `is_coords` to its cluster. Both are needed and
+# they answer different questions: the report and the region summary name
+# *clusters* (isfinder-annotation 07), while a diagram has to draw at coordinates,
+# which only the loci have. Labels and links therefore stay per-locus; colour and
+# the histogram's columns follow the cluster.
 def write_files(
     report_table,
     sum_by_region,
     is_coords,
+    clusters,
     ref_len,
     data_folder,
     cutoff,
@@ -37,8 +43,14 @@ def write_files(
     _circos_colors = ("green", "red", "blue", "purple", "orange", "yellow", "grey")
     # Colors assigned to each chromosome
     _ref_colours = dict()
-    # Colours assigned to each IS element
+    # Colours assigned to each cluster -- one colour per element, so the loci of
+    # one element are not drawn as though they were unrelated.
     _is_colours = dict()
+    # Loci of each cluster, in table order: what a link from that cluster is
+    # drawn from.
+    _cluster_loci = dict()
+    for is_name, cluster in clusters.items():
+        _cluster_loci.setdefault(cluster, []).append(is_name)
 
     # Karyotype file
     with open(os.path.join(data_folder, "karyotype.txt"), "w") as karyotype:
@@ -74,8 +86,10 @@ def write_files(
                 + _circos_colors[col_ind % len(_circos_colors)]
                 + "\n"
             )
-            _is_colours[is_name] = _circos_colors[col_ind % len(_circos_colors)]
             col_ind += 1
+
+        for cluster_ind, cluster in enumerate(_cluster_loci):
+            _is_colours[cluster] = _circos_colors[cluster_ind % len(_circos_colors)]
 
         # List to remove duplicates
         text_regions = list()
@@ -98,30 +112,35 @@ def write_files(
         for i in range(len(report_table)):
             # Draw only lines with cutoff more than specified
             if report_table.iloc[i]["Frequency"] >= cutoff:
-                is_name = report_table.iloc[i]["IS Name"]
-                # Slice rather than unpack the whole entry: the IS table it
-                # comes from grows columns over time, and Circos wants the
-                # coordinate triple, not everything the table knows.
-                is_chrom, is_start, is_stop = is_coords[is_name][:3]
+                cluster = report_table.iloc[i]["IS Name"]
                 j_chrom = report_table.iloc[i]["Chromosome"]
                 j_pos = str(report_table.iloc[i]["Start"])
-                colour = "l" + _is_colours[is_name]
-                links.write(
-                    is_chrom
-                    + " "
-                    + is_start
-                    + " "
-                    + is_stop
-                    + " "
-                    + j_chrom
-                    + " "
-                    + j_pos
-                    + " "
-                    + j_pos
-                    + " color="
-                    + colour
-                    + "\n"
-                )
+                colour = "l" + _is_colours[cluster]
+                # One link per locus of the cluster. The report names the element
+                # that jumped, and any of its copies could be the one that did --
+                # that indistinguishability is why they share a cluster at all --
+                # so the diagram shows every candidate rather than picking one.
+                for is_name in _cluster_loci[cluster]:
+                    # Slice rather than unpack the whole entry: the IS table it
+                    # comes from grows columns over time, and Circos wants the
+                    # coordinate triple, not everything the table knows.
+                    is_chrom, is_start, is_stop = is_coords[is_name][:3]
+                    links.write(
+                        is_chrom
+                        + " "
+                        + is_start
+                        + " "
+                        + is_stop
+                        + " "
+                        + j_chrom
+                        + " "
+                        + j_pos
+                        + " "
+                        + j_pos
+                        + " color="
+                        + colour
+                        + "\n"
+                    )
 
     # Histogram file
     with open(data_folder + "histogram.txt", "w") as histogram:
@@ -135,7 +154,7 @@ def write_files(
 
             # Recalculate junction counts to depth.
             h_columns = ["chrom", "start", "stop"]
-            h_columns_is = [x for x in is_coords.keys()]
+            h_columns_is = list(_cluster_loci)
 
             for h in h_columns_is:
                 if depth > 0:
@@ -176,11 +195,10 @@ def write_files(
         conf = re.sub("XXX		#histogram", data_folder + "histogram.txt", conf)
         conf = re.sub("XXX		#depth", data_folder + "depth.txt", conf)
 
-        # Make fill_color string for a histogram.
-        hist_colors = ""
-        for is_name in is_coords.keys():
-            hist_colors += _is_colours[is_name] + ", "
-        hist_colors = hist_colors[:-2]
+        # Make fill_color string for a histogram. One colour per stacked bar, and
+        # the bars are the histogram's columns -- clusters, in the same order
+        # h_columns_is takes them.
+        hist_colors = ", ".join(_is_colours[cluster] for cluster in _cluster_loci)
 
         conf = re.sub("XXX		#stacked_colors", hist_colors, conf)
 

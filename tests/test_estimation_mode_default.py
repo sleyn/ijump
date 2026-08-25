@@ -14,6 +14,7 @@ asserts the full average-mode file set is written.
 import pandas as pd
 import pytest
 
+from ijump import report_provenance
 from ijump.ijump import parse_args
 from ijump.isclipped import EstimationMode
 
@@ -47,5 +48,10 @@ def test_omitted_estimation_mode_writes_full_average_mode_output_set(run_ijump):
     for filename in filenames:
         file_path = outdir / filename
         assert file_path.exists(), f"{filename} was not written"
-        table = pd.read_csv(file_path, sep="\t")
+        # ijump_report_by_is_reg.txt carries the leading line naming the IS table
+        # the run was annotated against (isfinder-annotation 07).
+        if filename == "ijump_report_by_is_reg.txt":
+            table, _ = report_provenance.read_report(file_path)
+        else:
+            table = pd.read_csv(file_path, sep="\t")
         assert len(table) == 0, f"{filename} has data rows"

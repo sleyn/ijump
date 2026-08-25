@@ -8,7 +8,22 @@ from os import path
 
 import pandas as pd
 
-from ijump import gff
+from ijump import gff, report_provenance
+
+
+# Read one report, dropping the line naming the IS table it was built from.
+def _read_report(report):
+    table, _ = report_provenance.read_report(report)
+    return table
+
+
+# Refuse a set of reports that were not all annotated against one IS table.
+def _check_one_annotation(reports):
+    fingerprint_by_report = {}
+    for report in reports:
+        _, fingerprint = report_provenance.read_report(report)
+        fingerprint_by_report[path.basename(report)] = fingerprint
+    report_provenance.check_one_annotation(fingerprint_by_report)
 
 
 # Read and ijump report tables
@@ -52,19 +67,26 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
     # Read all variants
     report_dfs = []
 
+    # Every report is joined to the others on IS identity below, and IS names are
+    # cluster names -- derived from whichever IS table annotated that run, not
+    # fixed labels. Samples annotated against different tables would be lined up
+    # on names that mean different elements, so that is refused here, before any
+    # of them is read as data (isfinder-annotation 07).
+    _check_one_annotation(list(report_files) + list(a_sample_files if clonal_workflow else []))
+
     for report in report_files:
         sample_name = re.search(r"ijump_(.+)\.txt", path.basename(report)).group(1)
         print(f"Reading {report}")
         if mode == "average":
             report_dfs.append(
-                pd.read_csv(report, sep="\t")
+                _read_report(report)
                 .query("Depth > 10")
                 .drop(columns="Depth")
                 .rename(columns={"Frequency": sample_name})
             )
         elif mode == "precise":
             report_dfs.append(
-                pd.read_csv(report, sep="\t")[
+                _read_report(report)[
                     ["Position_l", "Position_r", "Chrom", "IS_name", "Depth", "Frequency"]
                 ]
                 .query("Depth > 10")
@@ -87,14 +109,14 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
             print(f"Reading {a_sample}")
             if mode == "average":
                 report_dfs.append(
-                    pd.read_csv(a_sample, sep="\t")
+                    _read_report(a_sample)
                     .query("Depth > 10")
                     .drop(columns="Depth")
                     .rename(columns={"Frequency": sample_name})
                 )
             elif mode == "precise":
                 report_dfs.append(
-                    pd.read_csv(a_sample, sep="\t")[
+                    _read_report(a_sample)[
                         ["Position_l", "Position_r", "Chrom", "IS_name", "Depth", "Frequency"]
                     ]
                     .query("Depth > 10")
