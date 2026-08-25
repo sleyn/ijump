@@ -8,6 +8,26 @@ import pandas as pd
 from . import is_clustering, is_table
 
 
+def _in_range(low, high, unit):
+    """An argparse type for a threshold, rejecting values outside its scale.
+
+    The two thresholds are on different scales -- identity is a percent, coverage
+    a fraction, because that is how BLAST reports each -- and an out-of-scale
+    value does not fail, it just silently answers wrongly: ``--cluster-coverage
+    80`` would leave every element in a cluster of its own.
+    """
+
+    def parse(value):
+        number = float(value)
+        if not low <= number <= high:
+            raise argparse.ArgumentTypeError(
+                f"{value} is not {unit}; expected a value between {low} and {high}"
+            )
+        return number
+
+    return parse
+
+
 def main():
     parser = argparse.ArgumentParser(description="Parse BLAST output Genome vs ISFinder.")
     parser.add_argument(
@@ -29,14 +49,14 @@ def main():
     )
     parser.add_argument(
         "--cluster-identity",
-        type=float,
+        type=_in_range(0, 100, "a percent"),
         default=is_clustering.IDENTITY_DEFAULT,
         help="Minimum %% identity for two elements to share a cluster "
         f"(default: {is_clustering.IDENTITY_DEFAULT}).",
     )
     parser.add_argument(
         "--cluster-coverage",
-        type=float,
+        type=_in_range(0, 1, "a fraction"),
         default=is_clustering.COVERAGE_DEFAULT,
         help="Minimum fraction of the shorter element the alignment has to span "
         f"(default: {is_clustering.COVERAGE_DEFAULT}).",

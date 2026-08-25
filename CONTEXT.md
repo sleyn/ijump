@@ -48,3 +48,9 @@ column of the IS table, written by `ijump isfinder-db-parse` and editable by han
 _Avoid_: group (the ISFinder group is separate annotation and never merges anything),
 family, IS type, merge key
 
+**Locus**:
+One row of the IS table — a single copy of a mobile element as called in the reference,
+with its own name, contig and coordinates. Several loci can be one **Cluster**: a full copy
+and its own truncated fragments are separate loci of one element.
+_Avoid_: hit, IS copy, element (an element may span several loci), region
+

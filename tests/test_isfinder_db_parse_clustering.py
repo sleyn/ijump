@@ -77,17 +77,33 @@ def test_lowering_the_identity_flag_merges_isaba53_into_isaba12(tmp_path):
 
 
 def test_the_coverage_flag_reaches_the_linkage_rule(tmp_path):
-    """No pair on this genome aligns over only *part* of the shorter locus --
-    every one of them covers it whole -- so nothing short of an unreachable
-    coverage moves the answer here. That still pins the flag as wired: raise it
-    past 1 and every locus stands alone.
+    """Every element of the reference genome stands alone once no alignment can
+    meet the coverage floor, which pins the flag as wired through to the rule.
 
-    The threshold's actual behaviour is pinned on measured numbers in
-    ``test_is_clustering.py``.
+    The threshold's behaviour is pinned on measured numbers in
+    ``test_is_clustering.py`` and, through the real search, by the test above.
     """
-    assigned = clusters(parse(tmp_path, extra_args=["--cluster-coverage", "1.01"]))
+    assigned = clusters(parse(tmp_path, extra_args=["--cluster-coverage", "1.0"]))
+    default = clusters(parse(tmp_path))
 
-    assert len(set(assigned.values())) == len(assigned)
+    assert assigned == default, "every link on this genome covers the shorter element whole"
+
+
+@pytest.mark.parametrize(
+    "flag,value",
+    [
+        # Coverage is a fraction because that is the scale the rule uses.
+        # A percent there would not fail, it would quietly answer wrongly: 80
+        # is a coverage no alignment can reach, leaving every element alone.
+        ("--cluster-coverage", "80"),
+        ("--cluster-identity", "150"),
+    ],
+)
+def test_a_threshold_on_the_wrong_scale_is_rejected(tmp_path, flag, value):
+    result = golden_support.run_isfinder_db_parse(tmp_path, extra_args=[flag, value])
+
+    assert result.returncode != 0
+    assert flag in result.stderr
 
 
 def test_a_reference_that_does_not_carry_the_called_contigs_is_an_error(tmp_path):

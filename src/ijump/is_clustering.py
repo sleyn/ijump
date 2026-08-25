@@ -153,7 +153,7 @@ def cluster_loci(
 
     # Order clusters the way they are named, so the result does not depend on
     # dictionary insertion order.
-    clusters.sort(key=lambda cluster: _representative_rank(cluster.representative))
+    clusters.sort(key=lambda cluster: _coordinate_key(cluster.representative))
     return clusters
 
 
@@ -175,7 +175,7 @@ def name_clusters(clusters: Sequence[Cluster]) -> List[str]:
         (index for index, name in enumerate(wanted) if name in collisions),
         key=lambda index: (
             -len(clusters[index].members),
-            _representative_rank(clusters[index].representative),
+            _coordinate_key(clusters[index].representative),
         ),
     )
 
@@ -248,6 +248,12 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
     the ``blastn`` binary's megablast default: the shortest loci here are under
     100 bp, and a seed of 28 would need an exact 28-mer to find them at all. Extra
     weak hits are harmless -- the identity and coverage thresholds discard them.
+
+    ``-max_target_seqs`` is raised to the number of loci. Its default of 500
+    truncates the per-query hit list, and a truncated list here is not a slower
+    answer but a wrong one: single linkage would silently lose an edge on a
+    genome carrying more than 500 called elements, which is the conflation this
+    whole module exists to prevent.
     """
     if len(sequences) < 2:
         return []
@@ -274,6 +280,8 @@ def all_vs_all_search(sequences: Dict[str, str]) -> List[Hit]:
                 out_file,
                 "-outfmt",
                 "6 qseqid sseqid pident length",
+                "-max_target_seqs",
+                str(len(sequences)),
                 "-word_size",
                 "11",
                 "-dust",
@@ -373,7 +381,9 @@ def _by_representative(members: List[Locus]) -> List[Locus]:
     return sorted(members, key=lambda locus: (-locus.length, locus.contig, locus.start))
 
 
-def _representative_rank(locus: Locus) -> Tuple[str, int]:
+def _coordinate_key(locus: Locus) -> Tuple[str, int]:
+    """Where a locus sits, as a sort key -- the last tie-break in every ordering
+    here, so that two runs over the same table agree on cluster names."""
     return (locus.contig, locus.start)
 
 
