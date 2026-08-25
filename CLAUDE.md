@@ -16,6 +16,10 @@ pip install -e . --no-deps        # editable install, resolves via conda's pysam
 
 - Run all tests: `pytest` (from repo root; `pytest.ini` sets `testpaths = tests`)
 - Run a single test file/case: `pytest tests/test_isclipped.py::test_name`
+- Characterization goldens live in `tests/goldens/` (see its README). The end-to-end tier is
+  marked `e2e`, needs the large inputs in `Test/` (or `$IJUMP_E2E_DATA`), and skips without
+  them; deselect it with `pytest -m "not e2e"`. Re-pin an intended change with
+  `python tests/regenerate_goldens.py` and review the resulting diff.
 - Lint/format: `ruff check src/ijump tests` / `ruff format src/ijump tests` (mypy: `mypy src/ijump tests`)
 - Install the pre-commit hook once per clone: `pre-commit install` (runs ruff --fix, ruff format, mypy on `git commit`); run over everything with `pre-commit run --all-files`
 - `uv build` works standalone (doesn't need the runtime deps to resolve) for producing a wheel/sdist

@@ -1,10 +1,7 @@
 import subprocess
-from pathlib import Path
 
 import pytest
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+from golden_support import FIXTURES_DIR, REPO_ROOT
 
 
 @pytest.fixture
