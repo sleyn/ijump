@@ -5,7 +5,7 @@ from os.path import join as join_path
 
 import pandas as pd
 
-from . import is_clustering, is_table
+from . import is_clustering, is_table, origin_spanning
 
 
 def _in_range(low, high, unit):
@@ -151,6 +151,10 @@ def main():
         identity=args.cluster_identity,
         coverage=args.cluster_coverage,
     )
+
+    # A copy the assembler cut in half at a contig seam is two rows of the table.
+    # Clustering has already united them; this says so on the rows themselves.
+    blast_out[["wraps_origin", "element_id"]] = origin_spanning.annotate(blast_out, args.ref)
 
     is_table.write_is_table(blast_out, join_path(args.outdir, "ISTable_processing.txt"))
 

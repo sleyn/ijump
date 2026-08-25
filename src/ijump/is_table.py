@@ -26,7 +26,18 @@ Path = Union[str, "os.PathLike[str]"]
 
 # Column order of the table as written. The first four are the legacy columns and
 # keep their positions, so a legacy table is the new table minus its tail.
-COLUMNS = ("is_name", "contig", "start", "stop", "family", "group", "cluster", "pident")
+COLUMNS = (
+    "is_name",
+    "contig",
+    "start",
+    "stop",
+    "family",
+    "group",
+    "cluster",
+    "pident",
+    "wraps_origin",
+    "element_id",
+)
 
 # Columns a legacy headerless table carries, in order.
 LEGACY_COLUMNS = COLUMNS[:4]

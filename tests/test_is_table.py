@@ -120,8 +120,19 @@ def test_a_headered_table_missing_an_annotation_column_reads_it_as_empty(tmp_pat
 def test_written_table_reads_back_unchanged(tmp_path):
     written = pd.DataFrame(
         [
-            ["ISAba18_1", "NODE_2", "93700", "95008", "IS3", "IS51", "ISAba18", "100"],
-            ["ISBj2_B_1", "NODE_2", "1", "2", "IS5", "IS5", "ISBj2_B", "98.2"],
+            ["ISAba18_1", "NODE_2", "93700", "95008", "IS3", "IS51", "ISAba18", "100", "no", ""],
+            [
+                "ISBj2_B_1",
+                "NODE_2",
+                "1",
+                "2",
+                "IS5",
+                "IS5",
+                "ISBj2_B",
+                "98.2",
+                "yes",
+                "ISBj2_B_origin1",
+            ],
         ],
         columns=list(is_table.COLUMNS),
     )

@@ -54,3 +54,10 @@ with its own name, contig and coordinates. Several loci can be one **Cluster**: 
 and its own truncated fragments are separate loci of one element.
 _Avoid_: hit, IS copy, element (an element may span several loci), region
 
+**Origin-spanning element**:
+One copy of a mobile element called as two **Locus** rows because the assembler broke its
+contig in the middle of it — one row ending at the contig's last base, one starting at its
+first. Both rows are kept as they are; they carry `wraps_origin` and a shared `element_id`
+in the **IS table**, which say the boundary is the assembly's, not the genome's. Detection
+needs the two rows to share a **Cluster** and a contig and to sit at its opposite ends.
+_Avoid_: wrapped element, circular junction, split IS, broken contig

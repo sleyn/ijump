@@ -16,11 +16,11 @@ inside an IS copy, which is information currently invisible everywhere in the ou
 
 **Blocked by:** 04 — Similarity clusters computed and written to the table.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Loci in a shared cluster that abut opposite ends of the same contig are detected
-- [ ] Each such row carries an origin-spanning flag and an element id shared with its counterpart
-- [ ] Both coordinate rows are preserved unchanged; no row is emitted with start greater than stop
-- [ ] Loci that merely sit near a contig end without a counterpart at the origin are not flagged
-- [ ] On the reference genome the two `IS17` fragments are flagged and share one element id
-- [ ] The new term is added to the domain glossary
+- [x] Loci in a shared cluster that abut opposite ends of the same contig are detected
+- [x] Each such row carries an origin-spanning flag and an element id shared with its counterpart
+- [x] Both coordinate rows are preserved unchanged; no row is emitted with start greater than stop
+- [x] Loci that merely sit near a contig end without a counterpart at the origin are not flagged
+- [x] On the reference genome the two `IS17` fragments are flagged and share one element id
+- [x] The new term is added to the domain glossary

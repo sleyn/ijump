@@ -329,18 +329,20 @@ iJump requires four files for input:
 The IS table — the file with mobile element coordinates — is a tab-separated table with a
 header row:
 ```
-is_name	contig	start	stop	family	group	cluster	pident
+is_name	contig	start	stop	family	group	cluster	pident	wraps_origin	element_id
 ```
 
 For example:
 ```
-is_name	contig	start	stop	family	group	cluster	pident
-ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	ISAcsp3	99.454
+is_name	contig	start	stop	family	group	cluster	pident	wraps_origin	element_id
+ISAcsp3_1	NODE_1	2980551	2981283	IS3	IS3	ISAcsp3	99.454	no	
 ```
 
 `family`, `group` and `pident` are the ISFinder family and group of the element and the
 percent identity of the hit it was called from. `cluster` groups the rows that are copies
-of one mobile element — see [Clusters](#clusters) below. All four are filled in by the
+of one mobile element — see [Clusters](#clusters) below. `wraps_origin` and `element_id`
+mark the copies an assembler broke at a contig boundary — see
+[Origin-spanning elements](#origin-spanning) below. All of them are filled in by the
 **isfinder-db-parse** subcommand below; if you write the table by hand you may leave them
 empty.
 
@@ -392,6 +394,21 @@ elements merges them — and nothing in the alignment says whether a given chain
 So the parser logs a warning naming both elements for every pair that shares a cluster
 without meeting the threshold itself. Read those warnings, and edit the `cluster` column
 before running the pipeline if two of them are different elements.
+
+<a name="origin-spanning"></a>
+##### Origin-spanning elements
+
+A circular replicon has to be broken somewhere to be written out as a linear contig, and
+the break can land inside an IS copy. That copy is then called as two rows: one ending at
+the last base of the contig, one starting at its first. Both rows are kept — they are
+separate spans and the junction search needs both — but each is marked `wraps_origin=yes`
+and carries an `element_id` shared with its other half, so the table says the assembly,
+not the genome, put a boundary through the middle of an element.
+
+Two rows are marked only when they share a cluster *and* a contig and sit at its opposite
+ends — within 20 bases of one, since the alignment that called a fragment can fray a base
+or two short of the boundary. An element merely near the end of a contig, with nothing at
+the origin to join, is not marked.
 
 <a name="ref_fasta"></a>
 #### Reference Fasta
