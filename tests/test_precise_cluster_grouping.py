@@ -91,3 +91,13 @@ def test_cli_average_run_still_accepts_a_legacy_table(run_ijump):
     result, _ = run_ijump("average", isel="is_coords.txt")
 
     assert result.returncode == 0, result.stderr
+
+
+def test_a_junction_on_an_element_absent_from_the_table_is_not_dropped(tmp_path):
+    """``.map`` answers NaN for an unlisted name, and the groupby that follows
+    would drop the row without a word. The table is the authority on which loci
+    exist, so a junction outside it is a contradiction, not a silent skip."""
+    isc = _pipeline(IS_TABLE.query('is_name != "ISAba1_1"'), tmp_path)
+
+    with pytest.raises(is_table.MissingClusterColumn, match="ISAba1_1"):
+        isc.search_insert_pos()

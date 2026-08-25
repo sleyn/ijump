@@ -119,7 +119,19 @@ def cluster_by_name(table: pd.DataFrame) -> Dict[str, str]:
     fragments of one mobile element, whatever their names say. A row with the
     cluster left empty -- every row of a legacy table, or one cell an operator
     blanked by hand -- raises rather than being grouped on its name.
+
+    Two rows sharing an ``is_name`` raise too, for the reason
+    ``is_clustering.loci_from_table`` rejects them: a dict keyed on the name
+    would keep the last row's cluster and drop the other silently.
     """
+    names = [str(row.is_name) for row in table.itertuples(index=False)]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(
+            "IS table has more than one row named: " + ", ".join(duplicates) + ". "
+            "Element names have to be unique."
+        )
+
     missing = [
         str(row.is_name) for row in table.itertuples(index=False) if not str(row.cluster).strip()
     ]

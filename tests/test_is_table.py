@@ -210,3 +210,17 @@ def test_cluster_by_name_rejects_a_row_with_the_cluster_left_blank(tmp_path):
 
     assert "ISAba1_1" in str(excinfo.value)
     assert is_table.MIGRATE_SUBCOMMAND in str(excinfo.value)
+
+
+def test_cluster_by_name_rejects_duplicate_names(tmp_path):
+    """A dict keyed on the name would keep the last row's cluster and drop the
+    other without a word -- the same reason clustering rejects duplicates."""
+    table = tmp_path / "ISTable_processing.txt"
+    table.write_text(
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba12\t98.6\n"
+        "IS17_1\tNODE_1\t2\t77\tIS5\tIS903\tISAba53\t100\n"
+    )
+
+    with pytest.raises(ValueError, match="IS17_1"):
+        is_table.cluster_by_name(is_table.read_is_table(table))

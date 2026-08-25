@@ -160,6 +160,12 @@ class ISClipped:
         # out of it deliberately -- callers index and unpack this positionally
         # (see circos.write_circos_input), so its width is part of its contract.
         self.is_coords = dict()
+        # IS name => cluster, derived from is_table. The grouping precise mode
+        # pairs junctions on. Built once per run -- by run() up front for
+        # precise mode, so a table that carries no cluster stops the run before
+        # the work rather than after it, and lazily by search_insert_pos for a
+        # caller that drives the pairing step on its own.
+        self.is_clusters = None
         # List of lengths for matched segments
         # Used to calculate correction coefficients
         # Populated by clipped_read_search.search's forward (direction=1) call.
@@ -495,7 +501,16 @@ class ISClipped:
         # copies have to be collapsed before pairing. Which loci are one element
         # is the IS table's cluster column -- computed from the sequences
         # themselves (is_clustering.py), not guessed from the names.
-        position_tbl["IS"] = position_tbl["IS name"].map(is_table.cluster_by_name(self.is_table))
+        if self.is_clusters is None:
+            self.is_clusters = is_table.cluster_by_name(self.is_table)
+
+        unknown = sorted(set(position_tbl["IS name"]) - set(self.is_clusters))
+        if unknown:
+            raise is_table.MissingClusterColumn(
+                "Junctions were attributed to IS elements the IS table does not list: "
+                + ", ".join(unknown)
+            )
+        position_tbl["IS"] = position_tbl["IS name"].map(self.is_clusters)
         position_tbl = (
             position_tbl.groupby(["Chrom", "Position", "IS", "Orientation"])["Position"]
             .count()
@@ -597,7 +612,7 @@ class ISClipped:
         # legacy table stops the run before minutes of read collection and BLAST
         # rather than after them.
         if mode == EstimationMode.PRECISE:
-            is_table.cluster_by_name(self.is_table)
+            self.is_clusters = is_table.cluster_by_name(self.is_table)
 
         try:
             # Collect clipped reads and search insertion positions in Reference.

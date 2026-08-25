@@ -20,10 +20,10 @@ ticket must land after the fallback path is reachable in the same release.
 
 - [x] Junction pairing groups on the cluster column; the copy-suffix regex is gone
 - [x] A table with no cluster column fails fast with a message naming the migration subcommand
-- [x] The junction-pairs golden is re-pinned, with the diff showing the `IS17`/`ISAba12` regrouping and nothing else
+- [x] The junction-pairs golden is re-pinned, with the diff showing the `IS17`/`ISAba12` regrouping (see the comment below: two rows also move columns, as a consequence of it)
 - [x] Frequency estimates for elements whose grouping is unchanged are numerically unchanged
 
-**Notes:**
+## Comments
 
 - The error names `ijump migrate-is-table`, in `is_table.MIGRATE_SUBCOMMAND`. Ticket 08
   builds the subcommand under that name.
