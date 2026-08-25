@@ -170,7 +170,7 @@ The same BLAST pipeline as Step 3 is applied to the backward reads. Here the uni
 
 *Implemented in `isclipped.py` → `search_insert_pos()` → `_find_pair()`*
 
-IS element copy suffixes (e.g. `IS1_1`, `IS1_2`) are stripped so all copies of the same IS family are grouped together. For each (IS element family, chromosome) group, left and right junction positions are paired to identify the two edges of a single insertion event:
+Junctions are grouped by the IS table's `cluster` column — the copies and fragments of one mobile element, computed by aligning the called loci against each other (see [Clusters](../README.md#clusters)). A read clipped at one copy cannot be told from one clipped at another, so the copies have to be collapsed before pairing. A table with no `cluster` column stops a precise run up front, naming `ijump migrate-is-table` as the remedy. For each (cluster, chromosome) group, left and right junction positions are paired to identify the two edges of a single insertion event:
 
 1. A **closeness matrix** $C$ is constructed where $C_{ij} = 1$ if left position $i$ and right position $j$ are within `max_is_dup_len` = 20 bp of each other (the expected target-site duplication length). Wrap-around proximity near contig ends is also checked.
 2. Positions are grouped into clusters based on overlapping proximity columns.

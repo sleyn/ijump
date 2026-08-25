@@ -18,9 +18,13 @@ def run_ijump(tmp_path):
     leave anything behind in the repo.
     """
 
-    def _run(estimation_mode, extra_args=()):
+    def _run(estimation_mode, extra_args=(), isel="is_coords_clustered.txt"):
         """estimation_mode=None omits --estimation_mode entirely, exercising
-        the CLI's default rather than an explicitly-passed value."""
+        the CLI's default rather than an explicitly-passed value.
+
+        ``isel`` names the IS table fixture to run against. The default carries
+        a cluster column, which precise mode requires (isfinder-annotation 06);
+        pass ``is_coords.txt`` for the legacy four-column table."""
         label = estimation_mode if estimation_mode is not None else "default"
         outdir = tmp_path / f"out_{label}"
         workdir = tmp_path / f"wd_{label}"
@@ -34,7 +38,7 @@ def run_ijump(tmp_path):
             "--gff",
             str(FIXTURES_DIR / "tiny.gff"),
             "--isel",
-            str(FIXTURES_DIR / "is_coords.txt"),
+            str(FIXTURES_DIR / isel),
             "--outdir",
             str(outdir),
             "--wd",

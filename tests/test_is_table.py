@@ -160,3 +160,53 @@ def test_iscollect_keeps_coordinates_to_three_fields_for_both_formats(tmp_path, 
         assert isc.is_coords[name] == ["tiny_contig", "900", "1000"]
 
     assert isc.is_table is not None
+
+
+def test_cluster_by_name_maps_every_row(tmp_path):
+    """The cluster column is the grouping key precise mode pairs on, so it is
+    read back as a plain ``is_name -> cluster`` lookup."""
+    table = tmp_path / "ISTable_processing.txt"
+    table.write_text(
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba12\t98.6\n"
+        "IS17_2\tNODE_2\t2\t77\tIS5\tIS903\tISAba12\t100\n"
+        "ISAba12_1\tNODE_1\t2983841\t2984879\tIS5\tIS903\tISAba12\t98.5\n"
+        "ISAba1_1\tNODE_2\t112397\t113576\tIS4\tIS10\tISAba1\t100\n"
+    )
+
+    clusters = is_table.cluster_by_name(is_table.read_is_table(table))
+
+    assert clusters == {
+        "IS17_1": "ISAba12",
+        "IS17_2": "ISAba12",
+        "ISAba12_1": "ISAba12",
+        "ISAba1_1": "ISAba1",
+    }
+
+
+def test_cluster_by_name_rejects_a_legacy_table_naming_the_migration_subcommand(fixtures_dir):
+    """A four-column table carries no cluster to group on. The error has to hand
+    the operator the remedy, or it strands a working setup."""
+    legacy = is_table.read_is_table(fixtures_dir / "is_coords.txt")
+
+    with pytest.raises(is_table.MissingClusterColumn) as excinfo:
+        is_table.cluster_by_name(legacy)
+
+    assert is_table.MIGRATE_SUBCOMMAND in str(excinfo.value)
+
+
+def test_cluster_by_name_rejects_a_row_with_the_cluster_left_blank(tmp_path):
+    """An operator editing the table by hand can blank one cell. Guessing what
+    that row belongs to is exactly what this ticket removes."""
+    table = tmp_path / "ISTable_processing.txt"
+    table.write_text(
+        "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"
+        "IS17_1\tNODE_2\t147994\t148137\tIS5\tIS903\tISAba12\t98.6\n"
+        "ISAba1_1\tNODE_2\t112397\t113576\tIS4\tIS10\t\t100\n"
+    )
+
+    with pytest.raises(is_table.MissingClusterColumn) as excinfo:
+        is_table.cluster_by_name(is_table.read_is_table(table))
+
+    assert "ISAba1_1" in str(excinfo.value)
+    assert is_table.MIGRATE_SUBCOMMAND in str(excinfo.value)

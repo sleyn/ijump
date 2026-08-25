@@ -3,7 +3,6 @@
 
 import logging
 import os
-import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
@@ -491,12 +490,12 @@ class ISClipped:
     def search_insert_pos(self):
         logging.info("Serach for junction pairs")
         position_tbl = self.junctions[self.junctions["IS name"] != "-"].copy()
-        # It is much better to work with when IS elements collapsed by their copy
-        # than to work with each copy separately.
-        # Remove copy tags from the IS element names like "_1", "_2".
-        position_tbl["IS"] = position_tbl["IS name"].apply(
-            lambda x: re.search(r"(.+)_\d+", x).group(1)
-        )
+        # Junctions are paired per element, not per called locus: a read clipped
+        # at one copy is indistinguishable from one clipped at another, so the
+        # copies have to be collapsed before pairing. Which loci are one element
+        # is the IS table's cluster column -- computed from the sequences
+        # themselves (is_clustering.py), not guessed from the names.
+        position_tbl["IS"] = position_tbl["IS name"].map(is_table.cluster_by_name(self.is_table))
         position_tbl = (
             position_tbl.groupby(["Chrom", "Position", "IS", "Orientation"])["Position"]
             .count()
@@ -592,6 +591,13 @@ class ISClipped:
     # letting NoInsertionsFound cross this method's boundary.
     def run(self, mode):
         outdir = os.path.dirname(self.pairs_df_path)
+
+        # Precise mode pairs junctions per cluster, so a table without one has
+        # nothing to pair on. Checked here rather than at the pairing step, so a
+        # legacy table stops the run before minutes of read collection and BLAST
+        # rather than after them.
+        if mode == EstimationMode.PRECISE:
+            is_table.cluster_by_name(self.is_table)
 
         try:
             # Collect clipped reads and search insertion positions in Reference.

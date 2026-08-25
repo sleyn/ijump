@@ -17,7 +17,7 @@ the file unchanged.
 """
 
 import os
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 
 import pandas as pd
 
@@ -41,6 +41,21 @@ COLUMNS = (
 
 # Columns a legacy headerless table carries, in order.
 LEGACY_COLUMNS = COLUMNS[:4]
+
+# How an operator turns a table with no cluster assignment into one that has it.
+# Named in the error below rather than left for the reader to find, because that
+# error is the only thing standing between a legacy table and a working run.
+MIGRATE_SUBCOMMAND = "ijump migrate-is-table"
+
+
+class MissingClusterColumn(Exception):
+    """An IS table carries no cluster where the caller requires one.
+
+    Raised rather than filled in: the cluster is the answer to which loci a
+    clipped read cannot tell apart, and nothing in the table's other columns
+    answers that. Guessing it from the IS name is exactly what
+    isfinder-annotation 06 removed.
+    """
 
 
 def parse_subject_id(sseqid: str) -> Tuple[str, str, str]:
@@ -95,6 +110,29 @@ def read_is_table(path: Path) -> pd.DataFrame:
     for column in COLUMNS[len(LEGACY_COLUMNS) :]:
         table[column] = ""
     return table[list(COLUMNS)]
+
+
+def cluster_by_name(table: pd.DataFrame) -> Dict[str, str]:
+    """Map each row's ``is_name`` to its ``cluster``.
+
+    The lookup callers group on: two rows sharing a cluster are copies or
+    fragments of one mobile element, whatever their names say. A row with the
+    cluster left empty -- every row of a legacy table, or one cell an operator
+    blanked by hand -- raises rather than being grouped on its name.
+    """
+    missing = [
+        str(row.is_name) for row in table.itertuples(index=False) if not str(row.cluster).strip()
+    ]
+    if missing:
+        raise MissingClusterColumn(
+            "The IS table has no cluster assigned for: "
+            + ", ".join(missing)
+            + ". The cluster column says which loci are copies of one element, and "
+            "grouping cannot be inferred from the IS names. Produce a table that "
+            f"carries it with `{MIGRATE_SUBCOMMAND}`, or fill the column in by hand."
+        )
+
+    return {str(row.is_name): str(row.cluster) for row in table.itertuples(index=False)}
 
 
 def _has_header(path: Path) -> bool:

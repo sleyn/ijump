@@ -19,6 +19,7 @@ share one annotate-and-cluster core rather than reimplementing the rules three t
 
 **Status:** ready-for-agent
 
+- [ ] The subcommand is named `migrate-is-table` — 06's error already points at it
 - [ ] A subcommand accepts an old-format table, a reference FASTA and the ISFinder database, and emits a new-format table
 - [ ] Input coordinates and contig assignments are carried through byte-identically
 - [ ] Family and group are re-derived from a fresh locus-versus-database search

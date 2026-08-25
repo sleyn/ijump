@@ -10,6 +10,7 @@ import sys
 
 import pysam
 
+from ijump import is_table
 from ijump.isclipped import EstimationMode, ISClipped
 
 # Define a path to output directory that will be available to all functions.
@@ -200,7 +201,13 @@ def main():
     is_processing.set_is_boundaries(args.radius)
 
     # Run the average/precise pipeline and write its output files.
-    result = is_processing.run(args.estimation_mode)
+    # A table precise mode cannot group on is a setup problem with a known
+    # remedy, so it is reported as that rather than as a traceback.
+    try:
+        result = is_processing.run(args.estimation_mode)
+    except is_table.MissingClusterColumn as e:
+        logging.error(str(e))
+        sys.exit(1)
     if not result.insertions_found:
         logging.info(result.message)
         sys.exit(0)

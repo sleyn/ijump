@@ -395,6 +395,11 @@ So the parser logs a warning naming both elements for every pair that shares a c
 without meeting the threshold itself. Read those warnings, and edit the `cluster` column
 before running the pipeline if two of them are different elements.
 
+The cluster is what precise mode groups junctions on, so a table without one — a legacy
+four-column table, or one with the column left blank — stops a precise run before it
+starts, naming `ijump migrate-is-table` as the remedy. Average mode does not read the
+column and still accepts such a table.
+
 <a name="origin-spanning"></a>
 ##### Origin-spanning elements
 
