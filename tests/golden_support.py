@@ -165,8 +165,13 @@ def missing_e2e_requirements():
     return reasons
 
 
-def run_e2e_pipeline(mode, run_dir):
+def run_e2e_pipeline(mode, run_dir, is_table_path=None):
     """Run one estimation mode over the large inputs inside ``run_dir``.
+
+    ``is_table_path`` overrides the IS table the run consumes. The goldens pass
+    nothing and get the parser tier's own golden, which is the chaining described
+    above; a test checking that some *other* back-end's table drives a run passes
+    its own (isfinder-annotation 09).
 
     The reference FASTA (and any BLAST database already built beside it) is
     copied into ``run_dir`` first, so a missing database is rebuilt there
@@ -196,7 +201,7 @@ def run_e2e_pipeline(mode, run_dir):
         "--gff",
         str(data_dir / E2E_INPUTS["gff"]),
         "--isel",
-        str(E2E_IS_TABLE),
+        str(is_table_path if is_table_path is not None else E2E_IS_TABLE),
         "--outdir",
         str(run_dir / "out"),
         "--wd",

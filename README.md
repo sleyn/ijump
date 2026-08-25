@@ -115,7 +115,7 @@ docker run --rm ijump --help
 Silicon/arm64 host -- see the tradeoff note below for why.)
 
 `ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`,
-`migrate-is-table`) are
+`migrate-is-table`, `isescan-convert`) are
 the image's `ENTRYPOINT`, so any flags after the image name go straight to
 the console script. Input files (BAM, reference FASTA, GFF, mobile-elements
 coordinates file) are user-supplied at runtime, not baked into the image --
@@ -395,6 +395,41 @@ elements merges them — and nothing in the alignment says whether a given chain
 So the parser logs a warning naming both elements for every pair that shares a cluster
 without meeting the threshold itself. Read those warnings, and edit the `cluster` column
 before running the pipeline if two of them are different elements.
+
+<a name="isescan"></a>
+##### Using ISEScan instead
+
+**iJump reads ISEScan's output; it never runs ISEScan.** Run ISEScan yourself and pass its
+tab-separated results:
+
+```
+ijump isescan-convert -i <ISEScan .tsv results> -r <Reference fasta> -o <Output directory>
+```
+
+Reading rather than running was a cost decision: ISEScan is x64-only (needing emulation on
+arm64), wants a library symlink workaround, and took about fourteen minutes on the test
+genome. Reading its output puts that burden only on operators who choose it.
+
+The two annotations are complementary, which is why both exist. On the test genome ISEScan
+finds three copies of an element with **no ISFinder database hit at all** — an element
+absent from ISFinder and actively jumping is invisible to an ISFinder-only table. In the
+other direction ISEScan needs terminal repeats plus an ORF, so a 76 bp remnant is
+structurally invisible to it.
+
+Two things to know about the result:
+
+- ISEScan reports no element name, so each locus is named for ISEScan's own cluster id plus
+  a copy number (`IS701_225_1`). Elements ISEScan calls `new` keep that family rather than
+  being dropped.
+- **ISEScan's `cluster` column and iJump's are different things.** iJump's is recomputed
+  from the sequences by the rule [above](#clusters), so the two can disagree — on the test
+  genome ISEScan's three `new_269` calls become two iJump clusters, because one of them is
+  only 90.7% identical to the others. Edit the column if you disagree.
+
+Running both back-ends and taking the union would be the best annotation available for the
+test genome, but where both fire they disagree on span (977 bp against 2299 bp for one
+locus, and span drives the boundary search windows). That needs a documented rule for the
+conflict, which is a scientific judgement; it is deferred, not rejected.
 
 <a name="migrate"></a>
 ##### Migrating an existing table

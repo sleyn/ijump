@@ -47,6 +47,8 @@ layer is deliberately thin — it does not reinterpret any target's flags):
   similarity (`is_clustering.py`)
 - `ijump migrate-is-table` → `ijump.migrate_is_table:main` — annotates an existing
   (legacy four-column) IS table in place of regenerating it, preserving its coordinates
+- `ijump isescan-convert` → `ijump.isescan_convert:main` — converts ISEScan's `.tsv`
+  results into an IS table. iJump **reads** ISEScan output and never invokes ISEScan
 
 The IS-table back-ends differ only in where the four locus columns come from; everything
 after that — clustering and the origin-spanning flags — is `is_annotation.annotate_and_cluster`,

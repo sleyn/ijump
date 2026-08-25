@@ -39,6 +39,12 @@ database whose entry *is* that locus matches itself at 100%. Rebuild it with
 `python tests/fixtures/isfinder/make_isfinder_db_fixture.py`; the script's docstring has the
 full reasoning.
 
+`tests/fixtures/isescan/isescan_results.tsv` is a byte copy of a real ISEScan run over the
+same assembly (`Test/ISEScan/`, gitignored). It is what `tests/test_isescan_convert.py`
+converts. Note `reference.fna.gz` unmasks **every back-end's** loci, ISEScan's included —
+`new_269` has no ISFinder counterpart, and a span masked to `N` would cluster against
+nothing.
+
 The parser tier **skips** where BLAST+ is missing: clustering runs an all-vs-all `blastn`
 over the extracted elements. Its inputs are still all committed.
 

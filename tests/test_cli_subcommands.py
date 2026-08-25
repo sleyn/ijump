@@ -13,7 +13,7 @@ from ijump import cli
 # How argparse renders the full choice list. Asserting on the rendered list
 # (rather than each name in turn) is what makes "exactly these" a real check:
 # adding or removing one changes this string.
-RENDERED_CHOICES = "{run,combine-results,isfinder-db-parse,migrate-is-table}"
+RENDERED_CHOICES = "{run,combine-results,isfinder-db-parse,migrate-is-table,isescan-convert}"
 
 
 def test_help_lists_exactly_the_supported_subcommands(capsys):
