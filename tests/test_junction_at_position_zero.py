@@ -29,8 +29,8 @@ def test_a_read_clipped_at_the_first_base_of_a_contig_yields_position_zero():
 
     ``get_reference_positions`` is 0-based, so a left-clipped read whose aligned
     part starts at the contig's first base reports its junction at 0. This is the
-    origin-spanning shape: the assembler's break lands inside an IS copy, leaving
-    a fragment at the very start of the contig (isfinder-annotation 05). The
+    origin-spanning shape: the assembler's break lands inside an element, leaving
+    a locus at the very start of the contig (isfinder-annotation 05). The
     reference genome comes within one base of it -- ``IS17_2`` starts at base 2
     of ``NODE_2``.
     """

@@ -6,9 +6,9 @@ import pandas as pd
 # What a row carries on the side that has no junction.
 #
 # Positions here are 0-based, so 0 is the first base of a contig -- a real
-# coordinate, and a reachable one: an IS copy the assembler cut at a contig
-# boundary leaves a fragment at the very start of the contig, and a read clipped
-# there reports its junction at 0. Absence therefore cannot be spelled 0 without
+# coordinate, and a reachable one: an origin-spanning element leaves a locus at
+# the very start of its contig, and a read clipped there reports its junction at
+# 0. Absence therefore cannot be spelled 0 without
 # swallowing that junction, which is what used to happen
 # (junction-pairing-orphans 02).
 #
@@ -16,6 +16,11 @@ import pandas as pd
 # all, so absence is written there as 0 -- unambiguously -- by
 # ``isclipped.convert_zero_one_base``.
 NO_JUNCTION = -1
+
+# What `pos_r_orphan` below holds for a right junction that found a partner. It
+# is an index into pos_r, not a coordinate -- the same literal as NO_JUNCTION and
+# a wholly unrelated meaning, so it is named rather than left to read as one.
+PAIRED = -1
 
 
 # A pairs-table row is written as a bare positional list, so which column a value
@@ -188,7 +193,7 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
 
             closeness_matrix[:, pos_r_index] = 0
 
-            pos_r_orphan[pos_r_index] = -1
+            pos_r_orphan[pos_r_index] = PAIRED
 
         # Write orhphan peaks.
         else:
@@ -199,7 +204,7 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
     df_offset = len(pos_l)
 
     # Add right orphan peaks.
-    for shift, pos_r_index_orphan in enumerate(pos_r_orphan[pos_r_orphan != -1]):
+    for shift, pos_r_index_orphan in enumerate(pos_r_orphan[pos_r_orphan != PAIRED]):
         pairs_df.iloc[df_offset + shift, :] = _right_orphan_row(
             pos_r[pos_r_index_orphan], pos_r_count[pos_r_index_orphan], chrom
         )
@@ -211,6 +216,6 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
     # slicing takes exactly those. Selecting them by value instead ("keep rows
     # with a position above zero") is what dropped a junction at position 0,
     # which is a coordinate and not an absence.
-    n_written = df_offset + int(np.sum(pos_r_orphan != -1))
+    n_written = df_offset + int(np.sum(pos_r_orphan != PAIRED))
 
-    return pairs_df.iloc[:n_written]
+    return pairs_df.iloc[:n_written].copy()

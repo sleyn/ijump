@@ -73,9 +73,11 @@ def interpos_distance(pos_l, pos_r):
 
 
 # Assign Keep status to one pair.
-# Regions can begin at 0, so an absent side has to be skipped rather than
-# compared -- as position 0 it fell inside such a region and kept the pair on
-# evidence that was not there.
+# An absent side is not evidence, so it is skipped rather than compared. Under
+# the old encoding it was compared, and since regions can begin at 0
+# (`max(x - 5, 0)`) an absent side spelled 0 fell inside one and kept the pair on
+# evidence that was not there. NO_JUNCTION being negative would fall outside
+# every region anyway; this states the rule rather than relying on that.
 def keep_pair(pair, region_starts, region_ends):
     for position in pair:
         if position == NO_JUNCTION:

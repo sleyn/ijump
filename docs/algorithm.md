@@ -176,7 +176,7 @@ Junctions are grouped by the IS table's `cluster` column — the copies and frag
 2. Positions are grouped into clusters based on overlapping proximity columns.
 3. Within each cluster, positions are sorted by supporting read count (descending).
 4. Positions are greedily paired: each left junction is matched to the closest-count right junction from the same cluster (penalising cross-cluster matches by 10 000).
-5. Left or right junctions with no partner become **orphan** observations with the missing coordinate set to 0.
+5. Left or right junctions with no partner become **orphan** observations, with the missing side set to `NO_JUNCTION`. Positions here are 0-based, so 0 is the first base of a contig and cannot double as "absent" — a junction there is a real one. The written file is 1-based, where 0 *is* unambiguously absent, and that is what `convert_zero_one_base` spells it as.
 
 ### Step 9B — Depth Counting at Junction Positions
 

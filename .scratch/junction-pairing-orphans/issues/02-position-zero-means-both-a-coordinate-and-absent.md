@@ -45,7 +45,9 @@ tickets rewrite the same early-return arm, so they are sequenced rather than con
 part starts at the contig's first base reports its junction at 0. Pinned as
 `test_a_read_clipped_at_the_first_base_of_a_contig_yields_position_zero`. That is the
 origin-spanning shape the ticket pointed at, and the reference genome comes within one base
-of producing it: `IS17_2` starts at base 2 of `NODE_2`.
+of producing it: `IS17_2` starts at base 2 of `NODE_2`. A real run confirms reads are
+actually fetched there — `Test/Junctions/ijump.log` logs the collection windows
+`0 202` and `0 277` on `NODE_2` for `IS17_2`.
 
 **It was worse than the ticket described.** The one-sided exit does keep such a row, but
 every consumer downstream tests the sentinel too, so the row survives with its evidence
@@ -63,7 +65,9 @@ Two consequences beyond the pairing itself, both previously silent:
 
 - `keep_pair` compares each side of a pair against the regions of interest, and regions can
   begin at 0 (`max(x - 5, 0)`). An absent side spelled 0 fell inside such a region and kept
-  the pair on evidence that was not there.
+  the pair on evidence that was not there. Fixed by the encoding itself — a negative marker
+  falls outside every region — so the explicit skip added there states the rule rather than
+  carrying it.
 - The main path's trailing "remove empty rows" filter selected by value — keep rows with a
   position above zero — which is what dropped a real junction at 0. The frame is filled
   from the front, so the used rows are a leading slice; it now takes that slice.
