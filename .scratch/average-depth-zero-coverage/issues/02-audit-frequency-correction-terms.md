@@ -43,3 +43,28 @@ terms have not yet been validated:
   change?
 
 Needs triage/scoping before it's ready for an agent to implement.
+
+## Comments
+
+**The `min_match`/`av_read_len` scoping half is resolved —
+`.scratch/precise-mode-frequency-audit/issues/02-min-match-was-a-fragile-bare-minimum.md`
+(2026-08-25).** `min_match`/`av_read_len` model the *aligner's* own
+minimum-placeable-match-length behaviour — a property of the aligner and the
+read-length distribution, applied uniformly genome-wide by construction, not
+a property of any individual IS element or region — so the answer to "should
+they be scoped more locally" is no: local scoping would model something that
+isn't physically real, and would starve an already-noisy per-read statistic
+down to the handful of reads supporting one junction or region. The real
+defect was the point estimator: `min()` let a single outlier read set the
+correction applied to every region in the run. Replaced with the 1st
+percentile of `match_lengths`, keeping the global scope. Landed in both
+`region_summary.report_average` (this function) and
+`frequency_estimation.estimate_frequencies` — precise mode's frequency
+formula does the identical `min_match`/`av_read_len` computation and was
+affected by the same finding (`precise-mode-frequency-audit/01` also found
+precise mode missing the `blast_min` term entirely, a separate defect).
+
+**Still open**: the `blast_min`/`av_read_len` sampling-bias question itself
+(what bias each term is meant to correct for, beyond "adds back reads
+excluded by the BLAST/aligner gates") and the third bullet (`Depth = 0` /
+`NaN` interaction) — neither was investigated in the 2026-08-25 session.

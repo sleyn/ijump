@@ -74,7 +74,11 @@ def report_average(
     average_depth,
 ) -> pd.DataFrame:
     logging.info("Create report table")
-    min_match = min(match_lengths)  # find minimum match length
+    # 1st percentile rather than the bare minimum: match_lengths is a per-read
+    # statistic pooled across the whole run, and a single outlier read (a
+    # spuriously short matched segment) would otherwise set the correction
+    # applied to every region's frequency (average-depth-zero-coverage 02).
+    min_match = np.percentile(match_lengths, 1)
     av_read_len = read_lengths / n_reads_analyzed  # find average read length
     # "IS Name" carries the cluster -- the element that jumped. The column keeps
     # its name because it is the join key combine_results merges samples on and

@@ -101,23 +101,21 @@ def find_pairs(pos_l, pos_r, pos_l_count, pos_r_count, chrom_len, max_is_dup_len
 
     # Store close positions in the matrix where rows are left positions and columns
     # are right positions.
-    # The value is 1 if two positions are closer then max_is_dup_len value.
+    # The value is 1 if two positions are closer then max_is_dup_len value, where
+    # "closer" accounts for wraparound at the contig's circular boundary: a left
+    # junction near position 0 and a right junction near chrom_len can be a
+    # genuine close pair (an origin-spanning insertion), so distance is measured
+    # both ways round the contig and the shorter one is used. This used to be
+    # special-cased for only the single smallest-left/largest-right and
+    # largest-left/smallest-right pair, which silently missed every other
+    # near-boundary pair when more than one junction sat close to either end.
     closeness_matrix = np.zeros((pos_l.size, pos_r.size))
-
-    # Check if any position close to the contig ends.
-    if pos_r[-1] - pos_l[0] > chrom_len / 2:
-        if chrom_len - (pos_r[-1] - pos_l[0]) <= max_is_dup_len:
-            closeness_matrix[0, -1] = 1
-
-    if pos_l[-1] - pos_r[0] > chrom_len / 2:
-        if chrom_len - (pos_l[-1] - pos_r[0]) <= max_is_dup_len:
-            closeness_matrix[-1, 0] = 1
 
     # Populate closeness matrix.
     for pos_index, pos in enumerate(pos_l):
-        closeness_matrix[pos_index] = (
-            np.ones_like(pos_r) * (np.abs(pos_r - pos) < max_is_dup_len)
-        ).astype(np.intp)
+        linear_dist = np.abs(pos_r - pos)
+        circular_dist = np.minimum(linear_dist, chrom_len - linear_dist)
+        closeness_matrix[pos_index] = (circular_dist < max_is_dup_len).astype(np.intp)
 
     # Assign clusters and sort in each cluster by junction representation in descending order.
 

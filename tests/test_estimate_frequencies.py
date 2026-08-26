@@ -40,6 +40,7 @@ CL_READ_COV_OVERLAP = {"chrA": {100: 2, 150: 1, 200: 3, 250: 0}}
 MATCH_LENGTHS = [140, 145, 150]
 READ_LENGTHS = 3000
 N_READS_ANALYZED = 20
+BLAST_MIN = 10
 
 
 def test_estimate_frequencies_matches_pinned_golden_output():
@@ -51,6 +52,7 @@ def test_estimate_frequencies_matches_pinned_golden_output():
         MATCH_LENGTHS,
         READ_LENGTHS,
         N_READS_ANALYZED,
+        BLAST_MIN,
     )
 
     expected = pd.DataFrame(
@@ -67,20 +69,20 @@ def test_estimate_frequencies_matches_pinned_golden_output():
             "N_clipped_r": [2.0, 0.0, 1.0],
             "N_overlap_l": [2, 1, 0],
             "N_overlap_r": [3, 0, 0],
-            "N_clipped_l_correction": [28.000000000000007, 14.000000000000004, 0.0],
-            "N_clipped_r_correction": [28.000000000000007, 0.0, 14.000000000000004],
-            "N_overlap_l_correction": [28.000000000000007, 14.000000000000004, 0.0],
-            "N_overlap_r_correction": [42.00000000000001, 0.0, 0.0],
-            "N_clipped_l_corrected": [30.000000000000007, 15.000000000000004, 0.0],
-            "N_overlap_l_corrected": [30.000000000000007, 15.000000000000004, 0.0],
-            "N_clipped_r_corrected": [30.000000000000007, 0.0, 15.000000000000004],
-            "N_overlap_r_corrected": [45.00000000000001, 0.0, 0.0],
-            "N_overlap_formula_l": [0.0, 15.000000000000004, 0.0],
-            "N_overlap_formula_r": [15.0, 0.0, 0.0],
-            "Frequency_l": [0.7481296758104738, 0.4155124653739612, 0.0],
-            "Frequency_r": [0.5649717514124294, 0.0, 0.8287292817679558],
-            "Frequency": [0.6565507136114517, 0.4155124653739612, 0.8287292817679558],
-            "Depth": [46.50000000000001, 36.00000000000001, 18.000000000000004],
+            "N_clipped_l_correction": [30.323232323232297, 15.161616161616148, 0.0],
+            "N_clipped_r_correction": [30.323232323232297, 0.0, 15.161616161616148],
+            "N_overlap_l_correction": [30.323232323232297, 15.161616161616148, 0.0],
+            "N_overlap_r_correction": [45.48484848484844, 0.0, 0.0],
+            "N_clipped_l_corrected": [32.3232323232323, 16.16161616161615, 0.0],
+            "N_overlap_l_corrected": [32.3232323232323, 16.16161616161615, 0.0],
+            "N_clipped_r_corrected": [32.3232323232323, 0.0, 16.16161616161615],
+            "N_overlap_r_corrected": [48.48484848484844, 0.0, 0.0],
+            "N_overlap_formula_l": [0.0, 16.16161616161615, 0.0],
+            "N_overlap_formula_r": [16.161616161616145, 0.0, 0.0],
+            "Frequency_l": [0.76192290292626, 0.4206209416651331, 0.0],
+            "Frequency_r": [0.5712347596351237, 0.0, 0.8390581572185221],
+            "Frequency": [0.6665788312806918, 0.4206209416651331, 0.8390581572185221],
+            "Depth": [49.40404040404037, 38.3232323232323, 19.16161616161615],
         }
     )
 
@@ -98,6 +100,7 @@ def test_estimate_frequencies_does_not_mutate_input_pairs_df():
         MATCH_LENGTHS,
         READ_LENGTHS,
         N_READS_ANALYZED,
+        BLAST_MIN,
     )
 
     pdt.assert_frame_equal(PAIRS_DF, original)

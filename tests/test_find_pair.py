@@ -173,6 +173,41 @@ def test_left_only_input_is_written_as_left_orphans():
     pdt.assert_frame_equal(pairs_df, expected, check_dtype=False)
 
 
+# Wraparound at a contig's circular boundary: three left/right pairs are each
+# close through the origin (within MAX_IS_DUP_LEN), but only one of the three is
+# the single most-extreme pair (smallest left vs. largest right, or vice versa).
+# The old code special-cased only that one pair and silently orphaned the other
+# two -- a real loss for origin-spanning elements (CONTEXT.md), which is exactly
+# where junctions cluster near both ends of a contig.
+WRAP_POS_L = np.array([1, 5, 999995])
+WRAP_POS_R = np.array([3, 999990, 999998])
+WRAP_COUNT = np.array([1, 1, 1])
+WRAP_CHROM_LEN = 1_000_000
+
+
+def test_wraparound_pairs_every_close_junction_not_just_the_extreme_pair():
+    pairs_df = find_pairs(
+        WRAP_POS_L.copy(),
+        WRAP_POS_R.copy(),
+        WRAP_COUNT.copy(),
+        WRAP_COUNT.copy(),
+        WRAP_CHROM_LEN,
+        MAX_IS_DUP_LEN,
+        CHROM,
+    )
+
+    expected = pd.DataFrame(
+        {
+            "Position_l": [999995, 5, 1],
+            "Position_r": [3, 999990, 999998],
+            "Count_mapped_to_IS_l": [1, 1, 1],
+            "Count_mapped_to_IS_r": [1, 1, 1],
+            "Chrom": [CHROM] * 3,
+        }
+    )
+    pdt.assert_frame_equal(pairs_df, expected, check_dtype=False)
+
+
 def test_one_sided_exit_writes_an_orphan_the_way_the_main_path_does():
     """The two exits have to agree: an unpaired right junction looks the same
     whether or not the contig happened to carry left junctions elsewhere.

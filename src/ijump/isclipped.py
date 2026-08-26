@@ -773,6 +773,7 @@ class ISClipped:
                     self.match_lengths,
                     self.read_lengths,
                     self.n_reads_analyzed,
+                    self.blast_min,
                 )
 
                 # Convert coordinates from 0-base to 1-base

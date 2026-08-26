@@ -99,7 +99,7 @@ def test_report_average_matches_pinned_golden_output_for_single_hit_path():
             "Chromosome": ["tiny_contig", "tiny_contig"],
             "Start": [800, 841],
             "Stop": [840, 900],
-            "Frequency": [4.0, 4.0],
+            "Frequency": [4.0404, 4.0404],
             "Depth": [2, 2],
         },
         index=[0, 3],

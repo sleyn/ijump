@@ -86,6 +86,7 @@ def estimate_frequencies(
     match_lengths,
     read_lengths,
     n_reads_analyzed,
+    blast_min,
 ) -> pd.DataFrame:
     # Setup calculation of number of reads supporting each position count
     # for each IS element.
@@ -169,25 +170,42 @@ def estimate_frequencies(
         lambda x: cl_read_cov_overlap[x.Chrom].get(x.Position_r, 0), axis=1
     )
 
-    # Metrics for corrections and tests
-    min_match = min(match_lengths)
+    # Metrics for corrections and tests.
+    # 1st percentile rather than the bare minimum: match_lengths is a per-read
+    # statistic pooled across the whole run, and a single outlier read (a
+    # spuriously short matched segment) would otherwise set the correction
+    # applied to every junction's frequency (average-depth-zero-coverage 02).
+    min_match = np.percentile(match_lengths, 1)
     av_read_len = read_lengths / n_reads_analyzed
+
+    # Two independent corrections, mirroring region_summary.report_average's
+    # average-mode formula (which corrects for the same two biases on the same
+    # underlying clipped-read collection):
+    # - blast_min/av_read_len adds back reads whose clipped part was shorter
+    #   than the BLAST minimum (clipped_read_search.BLAST_MIN) and so never
+    #   entered the BLAST search at all -- this was missing here even though
+    #   N_cl/N_overlap come from that same BLAST-gated collection.
+    # - min_match/av_read_len adds back reads whose matched segment was too
+    #   short for the aligner to place, so they never appear as clipped reads
+    #   either.
+    blast_min_factor = 1 + blast_min / av_read_len
+    match_len_factor = 1 - min_match / av_read_len
 
     # Add corrections for clipped reads.
     pairs_df["N_clipped_l_correction"] = (
-        pairs_df["N_clipped_l"] / (1 - min_match / av_read_len) - pairs_df["N_clipped_l"]
+        pairs_df["N_clipped_l"] * blast_min_factor / match_len_factor - pairs_df["N_clipped_l"]
     )
 
     pairs_df["N_clipped_r_correction"] = (
-        pairs_df["N_clipped_r"] / (1 - min_match / av_read_len) - pairs_df["N_clipped_r"]
+        pairs_df["N_clipped_r"] * blast_min_factor / match_len_factor - pairs_df["N_clipped_r"]
     )
 
     pairs_df["N_overlap_l_correction"] = (
-        pairs_df["N_overlap_l"] / (1 - min_match / av_read_len) - pairs_df["N_overlap_l"]
+        pairs_df["N_overlap_l"] * blast_min_factor / match_len_factor - pairs_df["N_overlap_l"]
     )
 
     pairs_df["N_overlap_r_correction"] = (
-        pairs_df["N_overlap_r"] / (1 - min_match / av_read_len) - pairs_df["N_overlap_r"]
+        pairs_df["N_overlap_r"] * blast_min_factor / match_len_factor - pairs_df["N_overlap_r"]
     )
 
     pairs_df["N_clipped_l_corrected"] = pairs_df["N_clipped_l"] + pairs_df["N_clipped_l_correction"]
