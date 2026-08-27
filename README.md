@@ -117,12 +117,12 @@ comes from `apt-get install ncbi-blast+` and the `ijump` package itself is
 installed with [`uv`](https://docs.astral.sh/uv/):
 
 ```
-docker build --platform linux/amd64 -t ijump .
+docker build -t ijump .
 docker run --rm ijump --help
 ```
 
-(`--platform linux/amd64` is required when building on an Apple
-Silicon/arm64 host -- see the tradeoff note below for why.)
+No `--platform` flag needed -- the image builds natively on both amd64 and
+arm64 hosts (see the note below).
 
 `ijump`'s subcommands (`run`, `combine-results`, `isfinder-db-parse`,
 `migrate-is-table`, `isescan-convert`) are
@@ -149,46 +149,24 @@ expects, and `docker run --rm ijump run --help` for the full flag list
 `ijump_wd` under the current directory and should usually be mounted or
 redirected too if you want to keep it after the container exits).
 
-**Known tradeoff, verified end-to-end with a live `docker build
---platform linux/amd64 .` and `docker run` (`blastn -version`,
-`makeblastdb -version`, `import pysam, pysamstats`, and a full `ijump run`
-against `tests/fixtures/tiny.bam`/`.fna`/`.gff` mounted as volumes, all
-succeeded and produced the expected output files):** the image pins
-Python **3.8**, not `environment.yml`'s 3.11. Reason: `pysamstats` 1.1.2
-(see the [uv](#uv) section above for the full writeup) hard-pins
-`pysam<0.16`, and `pysam==0.15.4`'s last PyPI wheel lineage only goes up
-to `cp38` (`manylinux2010_{x86_64,i686}` plus a macOS Intel wheel; no
-arm64 wheel at any Python version) -- confirmed directly against PyPI's
-file listing for that release. Anything newer forces a from-source
-`pysam` build that's independently confirmed broken on current toolchains
-(see the `uv` section). Pinning the image to Python 3.8 (still satisfies
-`pyproject.toml`'s `requires-python = ">=3.7"`) is what makes
-`pysam==0.15.4` install from a prebuilt wheel instead of building from
-source, which in turn makes `pysamstats`' bundled precompiled `opt.c`
-buildable against matching pysam headers with just a C compiler and zlib
-headers (`build-essential` + `zlib1g-dev`, installed via apt in the
-image). No `uv.lock` is committed (same reason -- see the `uv` section),
-so the Dockerfile does not use `uv sync --frozen`; instead it runs `uv
-pip install --system` for the resolvable dependencies, then installs
-`pysam==0.15.4` and `pysamstats==1.1.2 --no-deps` as a deliberate
-two-step workaround for the metadata pin conflict, then installs `ijump`
-itself with `--no-deps` (every dependency it declares has already been
-installed explicitly).
-
-Because there's no arm64 wheel for `pysam==0.15.4`, `docker build .` on
-an Apple Silicon (or other arm64) host **must** pass `--platform
-linux/amd64`, or the build falls back to building `pysam` from source and
-fails (no cython, no precompiled `.c` in the sdist -- the same failure
-already documented in the `uv` section above). `import pysam,
-pysamstats` also prints a benign `PileupColumn size changed, may indicate
-binary incompatibility` `RuntimeWarning` at runtime (pysamstats' compiled
-`opt.c` was built against pysam 0.15.4's exact struct layout, which
-differs slightly from later ABI expectations at the Python-object level);
-it does not affect correctness -- confirmed by calling
-`pysamstats.load_coverage` directly against `tests/fixtures/tiny.bam` and
-getting real, correct coverage numbers back. Reconciling the apt-sourced
-BLAST+ version against `environment.yml`'s pin is left as follow-up work
-(explicitly out of scope for this ticket).
+**Base image and dependency install, verified end-to-end with a live
+`docker build .` (no `--platform` override) and `docker run`
+(`blastn -version`, `makeblastdb -version`, and a full `ijump run` against
+`tests/fixtures/tiny.bam`/`.fna`/`.gff` mounted as volumes, all succeeded and
+produced the expected output files):** the image is `python:3.11-slim`,
+matching `environment.yml`'s Python pin. `pysam`, `pandas`, `numpy` and
+`scikit-learn` all have prebuilt wheels for this Python/platform
+combination, so `uv sync --no-dev --no-editable` installs them directly --
+no C compiler, no `build-essential`/`zlib1g-dev`, no arch restriction. (An
+earlier version of this image pinned Python 3.8 and built `pysamstats`
+from source against `pysam==0.15.4`'s headers, because `pysamstats` 1.1.2
+hard-pins `pysam<0.16` and that old `pysam` release has no arm64 wheel at
+any Python version. `pysamstats` was dropped as a project dependency
+after that Dockerfile was written -- see the [uv](#uv) section above --
+which removed the reason for all of that scaffolding.) No `uv.lock` is
+committed, so the Dockerfile doesn't use `uv sync --frozen`; it resolves
+fresh on each build. Debian's `ncbi-blast+` package on this base image
+happens to be BLAST 2.16.0, matching `environment.yml`'s pin exactly.
 
 <a name="dev-setup"></a>
 ### Development setup
