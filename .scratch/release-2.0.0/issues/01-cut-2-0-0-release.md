@@ -37,17 +37,17 @@ design/readability improvement on working code, explicitly decided to land on
 
 **Status:** ready-for-human
 
-- [ ] `review-followups/08`'s full checklist passes — real conda/Docker verification
-      done 2026-08-26 and every locally-reachable box is ticked (env, full suite,
-      `conda build .`, Docker build+run, manual real-sample run, tracker cleanup).
-      The one box still open is CI-observed-green: `refactor` is 4 commits ahead of
-      `origin/refactor` locally, so CI hasn't run against the tip yet. That needs a
-      `git push`, which this agent left for a human per this repo's convention.
-- [ ] `circos-removal/01` is done
+- [x] `review-followups/08`'s full checklist passes — real conda/Docker verification
+      done 2026-08-26/27: env, full suite (194 passed), `conda build .`, Docker
+      build+run, manual real-sample run (the `e2e` golden tier against
+      `Test/Sample.bam`), tracker cleanup, and now CI-observed-green (`refactor`
+      pushed 2026-08-27; Lint run `33076602903` green against tip `d9327bf`).
+- [x] `circos-removal/01` is done — all 8 boxes ticked; `src/ijump/circos.py`
+      confirmed gone (no `circos*.py` anywhere in the tree).
 - [x] `average-depth-zero-coverage/02` is done
-- [ ] `CHANGELOG.md` reads `## 2.0.0` (not `## Unreleased`) with all breaking
-      changes listed, including Circos removal
-- [ ] `pyproject.toml`'s `version` is `2.0.0`
+- [x] `CHANGELOG.md` reads `## 2.0.0` (not `## Unreleased`) with all four breaking
+      changes listed, including Circos removal — already true as of this check.
+- [ ] `pyproject.toml`'s `version` is `2.0.0` — still reads `1.0.4`.
 - [ ] `refactor` merged into `master` (merge commit or equivalent, per the
       maintainer's preferred git workflow)
 - [ ] `master` tagged `v2.0.0`

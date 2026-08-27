@@ -101,12 +101,10 @@ use across packaging 01-07 but appear nowhere in
 - **02** — the corrected pytest baseline is what this ticket records. Doing it
   first would mean writing down the wrong numbers again.
 
-**Status:** done, partially — every box that a real conda/Docker machine can close is
-closed; CI-observed-green stays open because the verifying session's 4 newest
-commits aren't pushed yet (see Comments).
+**Status:** done
 
 - [x] `pre-commit run --all-files` passes with the hooks installed (carried from tickets 03 and 10).
-- [ ] CI observed green (carried from ticket 03) — blocked on pushing `refactor`'s tip; see Comments.
+- [x] CI observed green (carried from ticket 03) — `refactor` pushed 2026-08-27; Lint workflow run `33076602903` succeeded against `d9327bf`, the tip, matching `origin/refactor`.
 - [x] Conda environment created; numpy ≥ 2 confirmed resolved, not assumed.
 - [x] Full test suite run in that environment with all 14 files collected; real numbers recorded. (The repo now has 29 test files, not 14 — see Comments for the up-to-date count.)
 - [x] `conda build .` succeeds.
