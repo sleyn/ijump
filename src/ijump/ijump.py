@@ -70,13 +70,6 @@ def build_arg_parser():
         "-i", "--isel", type=str, action="store", help="File with IS elements coordinates"
     )
     parser.add_argument(
-        "-c",
-        "--circos",
-        action="store_true",
-        default=False,
-        help="Set flag to build input files for CIRCOS",
-    )
-    parser.add_argument(
         "-o", "--outdir", type=str, default=".", help="Output directory. Default: . (current)"
     )
     parser.add_argument(
@@ -211,10 +204,6 @@ def main():
     if not result.insertions_found:
         logging.info(result.message)
         sys.exit(0)
-
-    # Plot circular diagram of insertions
-    if args.circos is True and args.estimation_mode == EstimationMode.AVERAGE:
-        is_processing.write_circos_files()
 
 
 if __name__ == "__main__":

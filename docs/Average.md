@@ -121,15 +121,6 @@ Wide format of frequency estimation. Table shows raw counts of reads that suppor
 	 one column per [cluster](../README.md#clusters) — per mobile element, not per called
 	 locus — holding the raw count of reads supporting junctions of that element
 
-#### CIRCOS files
-
-iJump can create config files (*data* folder) for [CIRCOS](http://circos.ca/) circular diagrams that represent directions of mobile element jumps. Currently commented because of long processing (will be improved soon).
-
-To run CIRCOS you will need to type:
-```
-circos -config ./data/circos.conf
-```
-
 ## Simulation test
 
 To assess accuracy of iJump we simulated a defined populatin. Simulated data mimics several jumps of one of the copy of IS5 element (has several copies in the genome) in Escherichia coli BW25113 genome. The scripts and auxillary files can be found in the **simulation** folder.

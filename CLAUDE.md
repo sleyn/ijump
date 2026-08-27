@@ -78,8 +78,6 @@ work inline:
 - `junction_pairing.py` — pairs left/right junctions into IS element insertion positions (precise mode)
 - `frequency_estimation.py` — estimates population frequency from paired junctions and depth
 - `region_summary.py` — average mode's per-annotated-region report generation
-- `circos.py` — renders finished detection results into Circos input files (`-c/--circos` flag);
-  has no role in detection itself
 - `gff.py` — a custom GFF reader/parser scoped to PATRIC/PROKKA-style GFFs specifically (see the
   GFF format requirements in README's Input section — other GFF flavors need reformatting)
 

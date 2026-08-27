@@ -12,7 +12,6 @@ from sklearn.cluster import AgglomerativeClustering
 
 from ijump import (
     annotation_stamp,
-    circos,
     clipped_read_search,
     frequency_estimation,
     gff,
@@ -173,8 +172,8 @@ class ISClipped:
         self.is_table = None
         # Coordinate lookup derived from is_table. IS name => [chrom, start, stop],
         # always exactly those three fields as text. The annotation columns stay
-        # out of it deliberately -- callers index and unpack this positionally
-        # (see circos.write_circos_input), so its width is part of its contract.
+        # out of it deliberately -- callers index and unpack this positionally,
+        # so its width is part of its contract.
         self.is_coords = dict()
         # IS name => cluster, derived from is_table. What both modes group by:
         # precise mode pairs junctions per cluster, average mode reports one
@@ -218,9 +217,6 @@ class ISClipped:
         self.blast_min = clipped_read_search.BLAST_MIN
         # Maximum expected length of duplication created from the insertion event
         self.max_is_dup_len = 20
-
-        # Data folder for circos files
-        self.data_folder = "./ijump_data/"
 
     # Initialize a pairs table.
     # Used in a precise mode to collect information of insertion coordinates in reference.
@@ -796,9 +792,9 @@ class ISClipped:
 
     # Average depth of a region, cached.
     #
-    # Cached because a region's depth is asked for once per IS entry in the
-    # per-region report and again when Circos draws, and the answer cannot
-    # change within a run -- the alignment is open read-only.
+    # Cached because a region's depth can be asked for more than once per IS
+    # entry in the per-region report, and the answer cannot change within a
+    # run -- the alignment is open read-only.
     #
     # The cache is a plain dict on the instance rather than an `lru_cache` on the
     # method. An lru_cache lives on the *class* and keys on `self`, so a discarded
@@ -807,12 +803,6 @@ class ISClipped:
     # B019). A dict of coordinates to floats holds no reference back to self, so
     # it neither leaks nor forms a cycle for the collector to clean up later: the
     # pipeline dies when its last real reference does.
-    #
-    # Unbounded, where the lru_cache held 128 entries. One float per region is
-    # nothing beside the alignment already open, and 128 was in any case far too
-    # few to help: Circos measures every annotated region -- 7670 of them on the
-    # test genome -- so entries were evicted long before a second caller asked
-    # for them again.
     def average_depth(self, chrom, start, stop):
         region = (chrom, start, stop)
         if region not in self._depth_by_region:
@@ -849,20 +839,3 @@ class ISClipped:
         if n_covered == 0:
             return 0.0
         return float(depth[covered].sum() / n_covered)
-
-    # Write the Circos diagram files from this pipeline's own state.
-    # The caller (main()) only decides whether to call this; this method
-    # is the adapter that knows which pieces of pipeline state a Circos
-    # diagram needs.
-    def write_circos_files(self):
-        circos.write_files(
-            self.report_table,
-            self.sum_by_region,
-            self.is_coords,
-            self.is_clusters,
-            self.ref_len,
-            self.data_folder,
-            self.cutoff,
-            self.average_depth,
-            self.gff.ann_pos,
-        )

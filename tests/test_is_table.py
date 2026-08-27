@@ -143,8 +143,8 @@ def test_written_table_reads_back_unchanged(tmp_path):
 
 
 def test_iscollect_keeps_coordinates_to_three_fields_for_both_formats(tmp_path, fixtures_dir):
-    """``is_coords`` is a coordinate triple whatever the table's width -- Circos
-    unpacks it as one, so the annotation columns must not leak into it."""
+    """``is_coords`` is a coordinate triple whatever the table's width -- callers
+    unpack it as one, so the annotation columns must not leak into it."""
     headered = tmp_path / "ISTable_processing.txt"
     headered.write_text(
         "is_name\tcontig\tstart\tstop\tfamily\tgroup\tcluster\tpident\n"

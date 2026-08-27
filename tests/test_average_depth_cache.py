@@ -6,9 +6,9 @@ alignment handle, junction tables and depth dictionaries -- until its entries ag
 out of the 128 the cache held. Ruff's bugbear rule names this (``B019``); it was
 suppressed rather than fixed.
 
-The caching itself earns its keep — a region's depth is asked for once per IS
-entry in the per-region report, and again when Circos draws — so these tests pin
-both halves: it still caches, and it lets go.
+The caching itself earns its keep — a region's depth can be asked for more than
+once per IS entry in the per-region report — so these tests pin both halves: it
+still caches, and it lets go.
 """
 
 import gc

@@ -594,7 +594,6 @@ optional arguments:
   -g GFF, --gff GFF     Annotations in GFF format for reference genome.
                         Required for average mode.
   -i ISEL, --isel ISEL  File with IS elements coordinates
-  -c, --circos          Set flag to build input files for CIRCOS
   -o OUTDIR, --outdir OUTDIR
                         Output directory. Default: . (current)
   -w WD, --wd WD        Work directory. Default: ijump_wd (current)

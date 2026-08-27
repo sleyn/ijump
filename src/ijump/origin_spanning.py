@@ -10,9 +10,8 @@ element with the assembly's seam through the middle.
 Both rows are kept, and kept as they are. They are genuinely separate spans, the
 boundary search needs both, and joining them into a single ``start > stop`` row
 would break every consumer that assumes a row's start precedes its stop --
-``set_is_boundaries``, ``circos``'s span drawing, ``region_summary``'s overlap
-logic -- while claiming a 220 bp element where the truth is a 1039 bp one with a
-hole in the middle.
+``set_is_boundaries``, ``region_summary``'s overlap logic -- while claiming a
+220 bp element where the truth is a 1039 bp one with a hole in the middle.
 
 So this changes no coordinates and merges nothing. ``is_clustering`` already puts
 the two halves in one cluster by transitivity; what is missing is any sign in the

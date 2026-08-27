@@ -1,7 +1,7 @@
 r"""End-to-end characterization goldens (isfinder-annotation 01).
 
-Pins both estimation modes' report tables and the Circos input files produced
-from the sample alignment. The alignment is 840 MB, so it is not committed and
+Pins both estimation modes' report tables produced from the sample alignment.
+The alignment is 840 MB, so it is not committed and
 these tests **skip** -- cleanly, not fail -- wherever it is absent, which is
 every machine but the maintainer's and every CI run. The expected outputs are
 committed, in ``tests/goldens/e2e/``.

@@ -64,17 +64,13 @@ minutes per mode. Deselect the tier with `pytest -m "not e2e"`.
 ## What is pinned
 
 `e2e/average/` — `ijump_junctions.txt`, `ijump_sum_by_reg.txt`,
-`ijump_report_by_is_reg.txt`, and the five Circos inputs (`karyotype.txt`,
-`text.txt`, `links.txt`, `histogram.txt`, `depth.txt`).
+`ijump_report_by_is_reg.txt`.
 
 `e2e/precise/` — `ijump_junctions.txt` and `ijump_junction_pairs.txt`. Precise
-mode writes no per-region tables, and `ijump.py` gates `--circos` on average
-mode, so there are no Circos files to pin here.
+mode writes no per-region tables.
 
-Two files a run produces are deliberately left out: `reads.txt`, a ~900 KB dump
-of every clipped read rather than a report table, and `ijump_data/circos.conf`,
-which embeds the absolute path of the run directory and so differs on every run
-by construction.
+One file a run produces is deliberately left out: `reads.txt`, a ~900 KB dump
+of every clipped read rather than a report table.
 
 ## Re-pinning an intended change
 

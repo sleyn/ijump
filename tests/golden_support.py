@@ -102,22 +102,14 @@ E2E_GOLDEN_DIR = GOLDENS_DIR / "e2e"
 # path under the run directory>. ``reads.txt`` is deliberately not pinned: it is
 # a 900 KB dump of every clipped read, not a report table, and none of the
 # tickets in this series change it.
-#
-# ``ijump_data/circos.conf`` is also left out -- it embeds the absolute path of
-# the run directory, so it differs on every run by construction.
 E2E_GOLDEN_FILES = {
     "average": {
         "report/ijump_junctions.txt": "out/ijump_junctions.txt",
         "report/ijump_sum_by_reg.txt": "out/ijump_sum_by_reg.txt",
         "report/ijump_report_by_is_reg.txt": "out/ijump_report_by_is_reg.txt",
-        "circos/karyotype.txt": "ijump_data/karyotype.txt",
-        "circos/text.txt": "ijump_data/text.txt",
-        "circos/links.txt": "ijump_data/links.txt",
-        "circos/histogram.txt": "ijump_data/histogram.txt",
-        "circos/depth.txt": "ijump_data/depth.txt",
     },
-    # Precise mode writes no per-region tables and no Circos files (ijump.py
-    # gates --circos on average mode); its report table is the junction pairs.
+    # Precise mode writes no per-region tables; its report table is the
+    # junction pairs.
     "precise": {
         "report/ijump_junctions.txt": "out/ijump_junctions.txt",
         "report/ijump_junction_pairs.txt": "out/ijump_junction_pairs.txt",
@@ -176,9 +168,7 @@ def run_e2e_pipeline(mode, run_dir, is_table_path=None):
     The reference FASTA (and any BLAST database already built beside it) is
     copied into ``run_dir`` first, so a missing database is rebuilt there
     instead of in the shared input directory, and so nothing the run writes
-    lands outside ``run_dir``. Circos output goes to ``./ijump_data/``, a path
-    ``ISClipped`` hardcodes relative to the working directory -- hence
-    ``cwd=run_dir``.
+    lands outside ``run_dir``.
 
     Returns the CompletedProcess.
     """
@@ -209,7 +199,5 @@ def run_e2e_pipeline(mode, run_dir, is_table_path=None):
         "--estimation_mode",
         mode,
     ]
-    if mode == "average":
-        args.append("--circos")
 
     return subprocess.run(args, cwd=run_dir, capture_output=True, text=True)

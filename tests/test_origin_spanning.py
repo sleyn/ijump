@@ -167,7 +167,7 @@ def test_columns_flag_the_two_halves_and_leave_the_rest_negative():
 
 def test_columns_keep_both_coordinate_rows_untouched():
     """The two spans are never joined into one ``start > stop`` row: the
-    boundary search, Circos and the per-region overlap logic all assume a row's
+    boundary search and the per-region overlap logic both assume a row's
     start precedes its stop."""
     rows = table(
         [
