@@ -33,6 +33,25 @@ class NoInsertionsFound(Exception):
 
 
 @dataclass
+class Boundary:
+    """One area to search for clipped reads.
+
+    Replaces the bare ``[start, stop, edge, is_name, chrom]`` list every
+    caller used to build and unpack by position (review-followups 13). For
+    the backward (direction=0) search, ``edge`` and ``is_name`` carry no
+    per-element meaning and are always ``"-"`` -- see
+    ``ISClipped.set_is_boundaries`` (forward) and the ``backward_boundaries``
+    list comprehension in ``ISClipped.run`` (backward) for how each is built.
+    """
+
+    start: int
+    stop: int
+    edge: str
+    is_name: str
+    chrom: str
+
+
+@dataclass
 class SearchResult:
     clipped_reads: pd.DataFrame  # replaces self.clipped_reads / self.clipped_reads_bwrd
     blast_hits: pd.DataFrame  # replaces self.blastout_filtered
@@ -172,28 +191,34 @@ def _cl_read_cov_overlap(cl_read_cov_overlap, aln_pairs, chrom):
 # be not mirrored due to some short repeats (1+nt size) near junction positions.
 # direction: 1 => IS->Ref, 0 => Ref->IS (in precise pipeline)
 #
-# Moved from ISClipped._crtable_ungapped. `self._index`
-# becomes the `index` parameter/return value; `self.match_lengths` and
-# `self.cl_read_cov_overlap`/`clipped_reads_dict` become parameters mutated
-# in place; `self.read_lengths`/`self.n_reads_analyzed` become
+# Moved from ISClipped._crtable_ungapped. `self._index` becomes the `index`
+# parameter/return value; `self.read_lengths`/`self.n_reads_analyzed` become
 # parameters/return values (plain ints can't be mutated through a reference).
+# `chrom`/`start`/`stop`/`edge`/`is_name` were five positional parameters
+# until review-followups 13 folded them into a single `Boundary` (see its
+# docstring); their names live on as `boundary`'s field names, unchanged.
+#
+# `clipped_reads`, `cl_read_cov_overlap` and `match_lengths` used to be
+# parameters this function mutated in place (review-followups 14). They are
+# now built locally, scoped to this one boundary, and returned instead --
+# `search` (the only caller) merges each call's return into its own running
+# totals. `_cl_read_cov_overlap` below is unaffected: it still mutates the
+# dict it is handed, but that dict is now this function's own local, never a
+# reference `search` holds onto.
 def _crtable_ungapped(
     aln,
-    clipped_reads_dict,
-    cl_read_cov_overlap,
-    match_lengths,
     index,
     read_lengths,
     n_reads_analyzed,
-    chrom,
-    start,
-    stop,
-    edge,
-    is_name,
+    boundary,
     direction,
 ):  # generate clipped read table
+    clipped_reads = {}
+    cl_read_cov_overlap = {}
+    match_lengths = []
+
     # One is added to convert from 0-based to 1-based system
-    for read in aln.fetch(chrom, start + 1, stop + 1):
+    for read in aln.fetch(boundary.chrom, boundary.start + 1, boundary.stop + 1):
         # Add read length to collection of lengths.
         if direction:
             if read.infer_read_length():
@@ -219,16 +244,19 @@ def _crtable_ungapped(
         else:
             # If it is Ref->IS direction of search:
             # Add coverage from aligned positions of clipped reads that are not junctions.
+            # _cl_read_cov_overlap indexes straight into cl_read_cov_overlap[chrom],
+            # so that key must exist before the first read seen for a given chrom.
+            cl_read_cov_overlap.setdefault(read.reference_name, {})
             _cl_read_cov_overlap(cl_read_cov_overlap, read.aligned_pairs, read.reference_name)
 
         # Get clipped segments coordinates from the read
-        boundaries = _clboundaries(read)
-        for cl_seg in boundaries:
+        clipped_segments = _clboundaries(read)
+        for cl_seg in clipped_segments:
             # On the IS->Ref search check if read was collected on the correct side of
             # the IS element
             if direction and not (
-                (cl_seg[2] == "left" and edge == "start")
-                or (cl_seg[2] == "right" and edge == "stop")
+                (cl_seg[2] == "left" and boundary.edge == "start")
+                or (cl_seg[2] == "right" and boundary.edge == "stop")
             ):
                 continue
 
@@ -236,9 +264,9 @@ def _crtable_ungapped(
                 # Unique read ID
                 "ID": index,
                 # IS name
-                "IS name": is_name if direction else "-",
+                "IS name": boundary.is_name if direction else "-",
                 # Contig where IS element is located for IS->Ref search and clipped read of Ref->IS
-                "IS_chrom": chrom,
+                "IS_chrom": boundary.chrom,
                 "Read name": read.query_name,
                 # Coordinate of clipped segment start
                 "left pos": cl_seg[0],
@@ -259,11 +287,11 @@ def _crtable_ungapped(
             # It is faster than append segments-by-segments to the existing DataFrame.
             # As we don't know number of clipped segments we could not create and
             # empty DataFrame of required size.
-            clipped_reads_dict[index] = clip_temp
+            clipped_reads[index] = clip_temp
 
             index = index + 1
 
-    return index, read_lengths, n_reads_analyzed
+    return index, read_lengths, n_reads_analyzed, clipped_reads, cl_read_cov_overlap, match_lengths
 
 
 # Write clipped parts of reads to FASTA file. Use only parts >= min_len.
@@ -362,11 +390,11 @@ def _parseblast(blast_out_path, direction, cl_table):
 
 # Turn an alignment into a BLAST hit table of candidate junction positions.
 #
-# `boundaries` is a list of [start, stop, edge, is_name, chrom] entries --
-# the shape ISClipped.boundaries already has for the forward search
-# (ISClipped.set_is_boundaries). For the backward search, the caller
-# builds the same shape from the reference-regions table (what
-# ISClipped.crtable_bwds used to do internally with edge=is_name='-').
+# `boundaries` is a list of `Boundary` entries -- the shape ISClipped.boundaries
+# already has for the forward search (ISClipped.set_is_boundaries). For the
+# backward search, the caller builds the same shape from the reference-regions
+# table (what ISClipped.crtable_bwds used to do internally with
+# edge=is_name='-').
 #
 # Raises NoInsertionsFound (without ever calling `run_blast`) if no clipped
 # reads are collected -- same short-circuit today's ISClipped.run() gets
@@ -380,32 +408,41 @@ def search(aln, boundaries, ref_name, workdir, direction, run_blast=run_blast_su
     cl_read_cov_overlap = {ref: {} for ref in aln.references}
     index = 0
 
-    for b in boundaries:
-        logging.info("Collect clipped reads: " + " ".join(str(x) for x in b))
-
-        start_collection, stop_collection, edge_of_is, name_of_is, chrom = (
-            b[0],
-            b[1],
-            b[2],
-            b[3],
-            b[4],
+    for boundary in boundaries:
+        logging.info(
+            "Collect clipped reads: "
+            + " ".join(
+                str(x)
+                for x in (
+                    boundary.start,
+                    boundary.stop,
+                    boundary.edge,
+                    boundary.is_name,
+                    boundary.chrom,
+                )
+            )
         )
 
-        index, read_lengths, n_reads_analyzed = _crtable_ungapped(
-            aln,
-            clipped_reads_dict,
-            cl_read_cov_overlap,
-            match_lengths,
+        (
             index,
             read_lengths,
             n_reads_analyzed,
-            chrom,
-            start_collection,
-            stop_collection,
-            edge_of_is,
-            name_of_is,
-            direction,
-        )
+            boundary_clipped_reads,
+            boundary_cl_read_cov_overlap,
+            boundary_match_lengths,
+        ) = _crtable_ungapped(aln, index, read_lengths, n_reads_analyzed, boundary, direction)
+
+        # Merge this boundary's contribution into the running totals. Index
+        # ranges never overlap between boundaries (each call picks up where
+        # the previous left off), so clipped_reads_dict can just be updated;
+        # cl_read_cov_overlap positions can recur across boundaries and must
+        # be summed, not overwritten.
+        clipped_reads_dict.update(boundary_clipped_reads)
+        match_lengths.extend(boundary_match_lengths)
+        for chrom, positions in boundary_cl_read_cov_overlap.items():
+            chrom_cov = cl_read_cov_overlap.setdefault(chrom, {})
+            for pos, count in positions.items():
+                chrom_cov[pos] = chrom_cov.get(pos, 0) + count
 
     clipped_reads = pd.DataFrame.from_dict(clipped_reads_dict, "index")
 

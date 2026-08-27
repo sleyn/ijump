@@ -16,7 +16,7 @@ import pandas as pd
 import pytest
 from fake_alignment import FakeAlignment
 
-from ijump.clipped_read_search import _parseblast
+from ijump.clipped_read_search import Boundary, _parseblast
 from ijump.frequency_estimation import _read_count_mtx
 from ijump.isclipped import ISClipped, NoInsertionsFound
 
@@ -41,7 +41,7 @@ def test_all_blast_hits_below_identity_signal_no_insertions(tmp_path):
 
 def test_all_hits_inside_is_boundaries_signal_no_insertions():
     isc = ISClipped(FakeAlignment(), "ref", "unused.gff", "unused_wd")
-    isc.boundaries = [[0, 100, "start", "IS1", "contig_1"]]
+    isc.boundaries = [Boundary(0, 100, "start", "IS1", "contig_1")]
     isc.blastout_filtered = pd.DataFrame(
         {
             "sseqid": ["contig_1"],

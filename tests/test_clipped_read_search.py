@@ -34,7 +34,7 @@ import pytest
 from fake_clipped_read import FakeAlignmentFetch, FakeRead, ReferencePositions
 
 import ijump.clipped_read_search as clipped_read_search
-from ijump.clipped_read_search import NoInsertionsFound, SearchResult, search
+from ijump.clipped_read_search import Boundary, NoInsertionsFound, SearchResult, search
 
 # Reference positions for the fakes below, typed once: mixing None with real
 # coordinates is what pysam does, and the annotation is what lets the literal say
@@ -82,12 +82,12 @@ READ_LEFT_REVERSE = FakeRead(
 )
 
 FORWARD_BOUNDARIES = [
-    [400, 650, "start", "IS1", "contig_1"],
-    [650, 850, "stop", "IS1", "contig_2"],
+    Boundary(400, 650, "start", "IS1", "contig_1"),
+    Boundary(650, 850, "stop", "IS1", "contig_2"),
 ]
 BACKWARD_BOUNDARIES = [
-    [400, 650, "-", "-", "contig_1"],
-    [650, 850, "-", "-", "contig_2"],
+    Boundary(400, 650, "-", "-", "contig_1"),
+    Boundary(650, 850, "-", "-", "contig_2"),
 ]
 
 
@@ -135,6 +135,185 @@ def test_cl_read_cov_overlap_skips_short_pair_lists():
     clipped_read_search._cl_read_cov_overlap(cov, [(0, 100), (1, 101)], "contig_1")
 
     assert cov == {"contig_1": {}}
+
+
+# --- Pure pysam parsing: _crtable_ungapped (review-followups 12, 13, 14) ---
+#
+# Unlike the search()-level tests above (which exercise _crtable_ungapped only
+# through its caller, over both boundaries at once), these call it directly so
+# its own contract -- signature, the (index, read_lengths, n_reads_analyzed,
+# clipped_reads, cl_read_cov_overlap, match_lengths) return values it computes
+# fresh per call rather than mutating caller-owned containers (14), and the
+# `Boundary` it takes in place of five positional fields (13) -- is pinned.
+
+
+def test_crtable_ungapped_forward_direction_pinned_output():
+    (
+        index,
+        read_lengths,
+        n_reads_analyzed,
+        clipped_reads,
+        cl_read_cov_overlap,
+        match_lengths,
+    ) = clipped_read_search._crtable_ungapped(
+        _fake_aln(),
+        0,
+        0,
+        0,
+        Boundary(400, 650, "start", "IS1", "contig_1"),
+        1,
+    )
+
+    assert (index, read_lengths, n_reads_analyzed) == (2, 37, 4)
+    assert match_lengths == [7, 5]
+    # direction=1 never touches cl_read_cov_overlap.
+    assert cl_read_cov_overlap == {}
+    assert clipped_reads == {
+        0: {
+            "ID": 0,
+            "IS name": "IS1",
+            "IS_chrom": "contig_1",
+            "Read name": "read_left",
+            "left pos": 1,
+            "right pos": 3,
+            "clip_position": "left",
+            "junction_in_read": 510,
+            "reverse": False,
+            "sequence": "AAA",
+        },
+        1: {
+            "ID": 1,
+            "IS name": "IS1",
+            "IS_chrom": "contig_1",
+            "Read name": "read_left_reverse",
+            "left pos": 1,
+            "right pos": 2,
+            "clip_position": "left",
+            "junction_in_read": 330,
+            "reverse": True,
+            "sequence": "AA",
+        },
+    }
+
+
+def test_crtable_ungapped_backward_direction_pinned_output():
+    (
+        index,
+        read_lengths,
+        n_reads_analyzed,
+        clipped_reads,
+        cl_read_cov_overlap,
+        match_lengths,
+    ) = clipped_read_search._crtable_ungapped(
+        _fake_aln(),
+        0,
+        0,
+        0,
+        Boundary(400, 650, "-", "-", "contig_1"),
+        0,
+    )
+
+    # Backward direction is forward (direction=1)-only for read-length/match-length
+    # accounting, so both come back unchanged from what was passed in.
+    assert (index, read_lengths, n_reads_analyzed) == (2, 0, 0)
+    assert match_lengths == []
+    assert cl_read_cov_overlap == {
+        "contig_1": {511: 1, 512: 1, 513: 1, 514: 1, 515: 1, 331: 1, 332: 1, 333: 1}
+    }
+    assert clipped_reads == {
+        0: {
+            "ID": 0,
+            "IS name": "-",
+            "IS_chrom": "contig_1",
+            "Read name": "read_left",
+            "left pos": 1,
+            "right pos": 3,
+            "clip_position": "left",
+            "junction_in_read": 510,
+            "reverse": False,
+            "sequence": "AAA",
+        },
+        1: {
+            "ID": 1,
+            "IS name": "-",
+            "IS_chrom": "contig_1",
+            "Read name": "read_left_reverse",
+            "left pos": 1,
+            "right pos": 2,
+            "clip_position": "left",
+            "junction_in_read": 330,
+            "reverse": True,
+            "sequence": "AA",
+        },
+    }
+
+
+def test_crtable_ungapped_skips_unmapped_and_unclipped_reads():
+    _, _, _, clipped_reads, _, match_lengths = clipped_read_search._crtable_ungapped(
+        FakeAlignmentFetch({"contig_1": [READ_UNMAPPED, READ_NO_CLIP]}),
+        0,
+        0,
+        0,
+        Boundary(400, 650, "start", "IS1", "contig_1"),
+        1,
+    )
+
+    assert clipped_reads == {}
+    assert match_lengths == []
+
+
+def test_crtable_ungapped_still_counts_read_length_for_unmapped_reads_before_skipping():
+    # Documents current behaviour, not a spec: infer_read_length()/n_reads_analyzed
+    # are incremented before the is_unmapped check runs, so an unmapped read still
+    # contributes to both even though it is dropped from clipped_reads.
+    index, read_lengths, n_reads_analyzed, *_ = clipped_read_search._crtable_ungapped(
+        FakeAlignmentFetch({"contig_1": [READ_UNMAPPED]}),
+        0,
+        0,
+        0,
+        Boundary(400, 650, "start", "IS1", "contig_1"),
+        1,
+    )
+
+    assert (index, read_lengths, n_reads_analyzed) == (0, 10, 1)
+
+
+def test_crtable_ungapped_drops_segment_on_wrong_edge_forward():
+    # READ_RIGHT is right-clipped; requesting edge="start" (left-only) on the
+    # forward search excludes it from clipped_reads, but read-length
+    # accounting and match_lengths still ran -- the edge filter is per-segment,
+    # applied after both.
+    (
+        index,
+        read_lengths,
+        n_reads_analyzed,
+        clipped_reads,
+        _,
+        match_lengths,
+    ) = clipped_read_search._crtable_ungapped(
+        FakeAlignmentFetch({"contig_2": [READ_RIGHT]}),
+        0,
+        0,
+        0,
+        Boundary(650, 850, "start", "IS1", "contig_2"),
+        1,
+    )
+
+    assert clipped_reads == {}
+    assert match_lengths == [7]
+    assert (index, read_lengths, n_reads_analyzed) == (0, 10, 1)
+
+
+def test_crtable_ungapped_does_not_mutate_its_arguments():
+    # review-followups 14: no caller-owned container is passed in any more --
+    # the only mutable argument is `aln`, and this function never writes to
+    # it. Everything computed comes back through the return tuple.
+    aln = _fake_aln()
+    boundary = Boundary(400, 650, "start", "IS1", "contig_1")
+
+    clipped_read_search._crtable_ungapped(aln, 0, 0, 0, boundary, 1)
+
+    assert boundary == Boundary(400, 650, "start", "IS1", "contig_1")
 
 
 # --- Pure pysam parsing: _write_cl_fasta ---

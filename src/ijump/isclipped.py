@@ -368,53 +368,75 @@ class ISClipped:
             # Check for a start coordinate.
             if start - radius < 0:
                 self.boundaries.append(
-                    [
+                    clipped_read_search.Boundary(
                         self.ref_len[chrom] - radius + start,
                         self.ref_len[chrom],
                         "start",
                         is_name,
                         chrom,
-                    ]
+                    )
                 )
-                self.boundaries.append([0, start + radius, "start", is_name, chrom])
+                self.boundaries.append(
+                    clipped_read_search.Boundary(0, start + radius, "start", is_name, chrom)
+                )
             elif start + radius > self.ref_len[chrom]:
                 self.boundaries.append(
-                    [start - radius, self.ref_len[chrom], "start", is_name, chrom]
+                    clipped_read_search.Boundary(
+                        start - radius, self.ref_len[chrom], "start", is_name, chrom
+                    )
                 )
                 self.boundaries.append(
-                    [0, start + radius - self.ref_len[chrom], "start", is_name, chrom]
+                    clipped_read_search.Boundary(
+                        0, start + radius - self.ref_len[chrom], "start", is_name, chrom
+                    )
                 )
             else:
-                self.boundaries.append([start - radius, start + radius, "start", is_name, chrom])
+                self.boundaries.append(
+                    clipped_read_search.Boundary(
+                        start - radius, start + radius, "start", is_name, chrom
+                    )
+                )
 
             # Check for an end coordinate.
             if stop + radius > self.ref_len[chrom]:
-                self.boundaries.append([stop - radius, self.ref_len[chrom], "stop", is_name, chrom])
                 self.boundaries.append(
-                    [0, stop + radius - self.ref_len[chrom], "stop", is_name, chrom]
+                    clipped_read_search.Boundary(
+                        stop - radius, self.ref_len[chrom], "stop", is_name, chrom
+                    )
+                )
+                self.boundaries.append(
+                    clipped_read_search.Boundary(
+                        0, stop + radius - self.ref_len[chrom], "stop", is_name, chrom
+                    )
                 )
             elif stop - radius < 0:
                 self.boundaries.append(
-                    [
+                    clipped_read_search.Boundary(
                         self.ref_len[chrom] - radius + stop,
                         self.ref_len[chrom],
                         "stop",
                         is_name,
                         chrom,
-                    ]
+                    )
                 )
-                self.boundaries.append([0, stop + radius, "stop", is_name, chrom])
+                self.boundaries.append(
+                    clipped_read_search.Boundary(0, stop + radius, "stop", is_name, chrom)
+                )
             else:
-                self.boundaries.append([stop - radius, stop + radius, "stop", is_name, chrom])
+                self.boundaries.append(
+                    clipped_read_search.Boundary(
+                        stop - radius, stop + radius, "stop", is_name, chrom
+                    )
+                )
 
     # Check if position close to the IS element
     def _check_is_boundary_proximity(self, chrom, position):
-        for b in self.boundaries:
-            if b[4] == chrom:
+        for boundary in self.boundaries:
+            if boundary.chrom == chrom:
                 # if b[0] - boundary_width / 2 <= position <= b[1] + boundary_width / 2:
                 # use doubled boundaries
-                if b[0] <= position <= b[1]:
-                    return "IS element", b[3]
+                if boundary.start <= position <= boundary.stop:
+                    return "IS element", boundary.is_name
         return "-", "-"
 
     # Cluster positions together to form seed for backwards clipped read search.
@@ -702,7 +724,9 @@ class ISClipped:
                 # forward (IS->Reference) search, then search for their
                 # positions in the reference (Reference->IS direction).
                 backward_boundaries = [
-                    [row.Position_left, row.Position_right, "-", "-", row.Chrom]
+                    clipped_read_search.Boundary(
+                        row.Position_left, row.Position_right, "-", "-", row.Chrom
+                    )
                     for row in reference_regions.itertuples()
                 ]
                 result = clipped_read_search.search(
