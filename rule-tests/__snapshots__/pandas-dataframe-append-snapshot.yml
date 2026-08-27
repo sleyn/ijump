@@ -1,0 +1,14 @@
+id: pandas-dataframe-append
+snapshots:
+  df = df.append(row):
+    labels:
+    - source: df = df.append(row)
+      style: primary
+      start: 0
+      end: 19
+  self.sum_by_region = self.sum_by_region.append(temp, sort=True):
+    labels:
+    - source: self.sum_by_region = self.sum_by_region.append(temp, sort=True)
+      style: primary
+      start: 0
+      end: 63

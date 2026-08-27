@@ -46,10 +46,17 @@ The algorithm is following:
 
 #### ijump_junction_pairs.txt
 
-The main results output. File contains information about insertions. File contains following columns:
+The main results output. File contains information about insertions.
+
+The file begins with a line naming the IS table the run was annotated against
+(`# ijump-is-table: <digest>`); `ijump combine-results` reads it to check that the samples
+it is merging share one annotation.
+
+File contains following columns:
 
 * *Position_[l|r]*<br>
-	junction coordinate
+	junction coordinate. `0` means this side of the pair has no junction -- an orphan --
+	which is unambiguous because these coordinates are 1-based.
 
 * *Chrom*<br>
     	contig name where junction was found
@@ -58,7 +65,8 @@ The main results output. File contains information about insertions. File contai
     	number of reads that support junction to the IS elements
 
 * *IS_name*<br>
-    name of the IS element
+    the [cluster](../README.md#clusters) — the mobile element, not the individual locus it
+    was called at
   
 * *N_clipped_[l|r]*<br>
     number of clipped reads supporting junction
@@ -110,7 +118,9 @@ Contains information about junctions for each read. File contains following colu
 	 unique identifier
 
 * *IS name*  
-	 mobile element name
+	 the [locus](../CONTEXT.md) whose sequence the read's clipped part matched — an IS table
+	 row (`ISAba18_1`), not the cluster. The per-region report collapses these to the element;
+	 this file is one row per read, so it keeps the locus the match was against.
 
 * *IS pos*  
 	 what part of the read matches mobile element

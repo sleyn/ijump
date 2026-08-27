@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff
+        name: ruff check
+        args: [--fix]
+        # Ticket 06 established a clean ruff baseline for src/ijump/;
+        # ticket 03 (lint follow-up) cleared tests/ to the same standard
+        # and widened this hook to cover it. Other non-package
+        # directories (simulation/, rule-tests/, repo-root scripts) are
+        # still out of scope and unclean, so the pattern stops short of
+        # matching everything.
+        files: ^(src/ijump|tests)/
+      - id: ruff-format
+        name: ruff format
+        files: ^(src/ijump|tests)/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.1
+    hooks:
+      - id: mypy
+        name: mypy
+        # Ticket 03 widened this from src/ijump-only to include tests/:
+        # running `mypy src/ijump tests` (matching pyproject.toml's
+        # ignore_missing_imports = true) surfaced zero findings, so there
+        # was no baseline debt to justify leaving tests/ out.
+        args: [src/ijump, tests]
+        files: ^(src/ijump|tests)/
+        pass_filenames: false
+        additional_dependencies: []

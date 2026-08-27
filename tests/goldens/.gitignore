@@ -1,0 +1,5 @@
+# The root .gitignore lists bare output filenames (reads.txt, ijump_junctions.txt,
+# cl.fasta, cl_blast.out, ...) to keep stray pipeline runs out of the repo. Those
+# patterns match at any depth, so they would swallow the goldens that are the whole
+# point of this directory. Re-include everything under it.
+!*

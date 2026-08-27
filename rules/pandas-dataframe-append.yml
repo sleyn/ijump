@@ -1,0 +1,19 @@
+id: pandas-dataframe-append
+language: python
+severity: warning
+message: DataFrame.append was removed in pandas 2.0 — use pd.concat
+note: |
+  README.md no longer pins a pandas version (environment.yml/meta.yaml allow
+  pandas<3), so this is a live break: `DataFrame.append` was removed in
+  pandas 2.0, and any hit here crashes with `AttributeError` at runtime, not
+  just an upgrade-time concern.
+
+  The rewrite is not mechanical — pd.concat takes a list and its keyword
+  arguments differ — so this rule carries no `fix:`. Do it by hand.
+
+  The pattern matches self-reassignment (`$X = $X.append(...)`) rather than
+  the bare `$DF.append(...)`, because the bare form cannot distinguish a
+  DataFrame from a list: it returns 22 hits in this repo, 21 of them ordinary
+  list appends. The reassignment shape is the DataFrame idiom.
+rule:
+  pattern: $X = $X.append($$$ARGS)

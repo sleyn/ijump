@@ -1,0 +1,2 @@
+is_name	contig	start	stop	family	group	cluster	pident	wraps_origin	element_id
+IS1	tiny_contig	900	1000	IS3	IS51	IS1	100.0	no	

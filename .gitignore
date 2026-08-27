@@ -9,7 +9,13 @@ reads.txt
 .Rproj.user
 ijump_wd/
 program.prof
+.venv/
 .agents/
 .claude/
 skills-lock.json
-src/
+*.egg-info/
+build/
+dist/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

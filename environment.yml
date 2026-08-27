@@ -1,0 +1,11 @@
+name: ijump
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.11
+  - blast=2.16.0
+  - pysam
+  - pandas
+  - numpy
+  - scikit-learn

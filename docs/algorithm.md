@@ -4,6 +4,7 @@
 
 - [Overview](#overview)
 - [Inputs](#inputs)
+- [Annotation Stage](#annotation-stage--producing-the-is-table)
 - [Shared Steps](#shared-steps)
   - [Step 1 — IS Boundary Windows](#step-1--is-boundary-windows)
   - [Step 2 — Forward Clipped Read Collection (IS→Ref)](#step-2--forward-clipped-read-collection-isref)
@@ -36,7 +37,10 @@ iJump provides two workflows:
 - **Average mode** — estimates frequency at the gene/intergenic-region level; more sensitive, less precise.
 - **Precise mode** — localises each insertion to exact base-pair coordinates before frequency estimation; more accurate, more computationally intensive.
 
-Both workflows share the same initial steps for clipped read collection and BLAST alignment.
+Both workflows share the same initial steps for clipped read collection and BLAST alignment,
+and both report per **cluster** — the copies and fragments of one mobile element, grouped by
+sequence similarity in the annotation stage below, not by the names the loci were called
+with.
 
 ---
 
@@ -47,7 +51,53 @@ Both workflows share the same initial steps for clipped read collection and BLAS
 | BAM file | BAM/SAM | Short reads aligned to the reference genome |
 | Reference genome | FASTA | One record per contig |
 | Genome annotations | GFF3 | PATRIC/PROKKA-style, with `##sequence-region` headers |
-| IS element coordinates | TSV | `IS_name  contig  start  stop` |
+| IS table | TSV | Headered: `is_name  contig  start  stop  family  group  cluster  pident  wraps_origin  element_id`. Produced by the annotation stage below; `cluster` is required. |
+
+---
+
+## Annotation Stage — producing the IS table
+
+*Implemented in `is_annotation.py` and the three back-end modules*
+
+The pipeline below consumes an IS table; this stage produces one. It runs separately, once
+per reference, and its output is what `--isel` points at.
+
+A **back-end** reads some input and produces the four locus columns — `is_name`, `contig`,
+`start`, `stop`:
+
+| Back-end | Reads | Notes |
+|---|---|---|
+| `isfinder-db-parse` | an ISFinder BLAST outfmt-6 search of the genome | The only one whose input carries `group` and `pident`. Keeps non-overlapping hits at E ≤ 1e-30, where a hit overlapping an existing call by ≥75% of its length is dropped |
+| `migrate-is-table` | an IS table that already exists | Coordinates preserved exactly; family and group re-derived by searching each locus against the ISFinder database |
+| `isescan-convert` | ISEScan's `.tsv` results | iJump reads ISEScan output and never runs it. ISEScan's own `cluster` column is a different notion and is not used as one |
+
+Everything after those four columns is shared (`is_annotation.annotate_and_cluster`), so the
+back-ends cannot disagree about it:
+
+> **Two senses of "cluster".** In the IS table and everywhere downstream, a *cluster* is a
+> set of loci that are one mobile element — the sense used here and in `CONTEXT.md`. Precise
+> mode also clusters *junction positions* on a chromosome (Steps 5B and 8B); those are
+> called **position clusters** below to keep them apart.
+
+1. **Clustering** (`is_clustering.py`). Each locus is extracted from the reference and
+   aligned against every other with `blastn`. Two loci are linked when the alignment is
+   ≥95% identical over ≥80% of the **shorter** of the two, and clusters are the connected
+   components under **single** linkage. Coverage on the shorter locus is what lets a 76 bp
+   fragment join the full copy it is part of; single linkage is what lets two fragments that
+   do not overlap each other reach one another through a parent that overlaps both. The
+   price is chaining, so every internal pair that does not meet the threshold on its own is
+   logged by name for the operator to check.
+2. **Cluster naming.** A cluster takes the base IS name of its longest member, suffixed
+   `.a`/`.b` only where two clusters would otherwise collide.
+3. **Origin-spanning flags** (`origin_spanning.py`). Two loci in one cluster that sit at
+   opposite ends of one contig, within 20 bases of its boundaries, are one copy the
+   assembler cut in half. Both rows are kept — they are genuinely separate spans and the
+   boundary search needs both — and each carries `wraps_origin=yes` plus a shared
+   `element_id`.
+
+The `cluster` column is the grouping key for everything downstream: average mode reports one
+column per cluster, precise mode pairs junctions per cluster. A table without it stops a run
+before any work, naming `migrate-is-table` as the remedy.
 
 ---
 
@@ -114,7 +164,7 @@ Each filtered BLAST hit becomes one row in the **junction table** with fields:
 
 *Implemented in `isclipped.py` → `summary_junctions_by_region()`*
 
-Junctions flagged as within-IS artefacts are removed. For each remaining junction, the GFF annotation it falls within is looked up. Supporting read counts are accumulated in a wide-format summary table indexed by genomic region, with one column per IS element.
+Junctions flagged as within-IS artefacts are removed. For each remaining junction, the GFF annotation it falls within is looked up. Supporting read counts are accumulated in a wide-format summary table indexed by genomic region, with one column per **cluster** — one per mobile element, not one per called locus. A read clipped at one locus of an element cannot be told from one clipped at another, so a column per locus splits one insertion's evidence across as many columns as the assembly called fragments of that element.
 
 ### Step 6A — Frequency Estimation
 
@@ -152,7 +202,7 @@ The correction factors account for two systematic biases:
 
 *Implemented in `isclipped.py` → `make_gene_side_regions()`*
 
-BLAST hits from Step 3 that fall within IS element boundaries are removed. The remaining hit positions represent putative insertion sites in the genome. These positions are clustered independently per chromosome using **hierarchical agglomerative clustering** (single linkage, distance threshold = 30 bp). Each resulting cluster defines a compact **reference region** (min − 5 bp to max + 5 bp) likely to contain one or more IS insertions.
+BLAST hits from Step 3 that fall within IS element boundaries are removed. The remaining hit positions represent putative insertion sites in the genome. These positions are grouped into **position clusters** independently per chromosome using **hierarchical agglomerative clustering** (single linkage, distance threshold = 30 bp) — a grouping of coordinates, unrelated to the IS table's `cluster` column. Each one defines a compact **reference region** (min − 5 bp to max + 5 bp) likely to contain one or more IS insertions.
 
 ### Step 6B — Backward Clipped Read Collection (Ref→IS)
 
@@ -170,13 +220,13 @@ The same BLAST pipeline as Step 3 is applied to the backward reads. Here the uni
 
 *Implemented in `isclipped.py` → `search_insert_pos()` → `_find_pair()`*
 
-IS element copy suffixes (e.g. `IS1_1`, `IS1_2`) are stripped so all copies of the same IS family are grouped together. For each (IS element family, chromosome) group, left and right junction positions are paired to identify the two edges of a single insertion event:
+Junctions are grouped by the IS table's `cluster` column — the copies and fragments of one mobile element, computed by aligning the called loci against each other (see [Clusters](../README.md#clusters)). A read clipped at one copy cannot be told from one clipped at another, so the copies have to be collapsed before pairing. A table with no `cluster` column stops a precise run up front, naming `ijump migrate-is-table` as the remedy. For each (cluster, chromosome) group, left and right junction positions are paired to identify the two edges of a single insertion event:
 
 1. A **closeness matrix** $C$ is constructed where $C_{ij} = 1$ if left position $i$ and right position $j$ are within `max_is_dup_len` = 20 bp of each other (the expected target-site duplication length). Wrap-around proximity near contig ends is also checked.
-2. Positions are grouped into clusters based on overlapping proximity columns.
-3. Within each cluster, positions are sorted by supporting read count (descending).
-4. Positions are greedily paired: each left junction is matched to the closest-count right junction from the same cluster (penalising cross-cluster matches by 10 000).
-5. Left or right junctions with no partner become **orphan** observations with the missing coordinate set to 0.
+2. Positions are grouped into **position clusters** based on overlapping proximity columns — again coordinates, not the IS table's `cluster`.
+3. Within each position cluster, positions are sorted by supporting read count (descending).
+4. Positions are greedily paired: each left junction is matched to the closest-count right junction from the same position cluster (penalising matches across them by 10 000).
+5. Left or right junctions with no partner become **orphan** observations, with the missing side set to `NO_JUNCTION`. Positions here are 0-based, so 0 is the first base of a contig and cannot double as "absent" — a junction there is a real one. The written file is 1-based, where 0 *is* unambiguously absent, and that is what `convert_zero_one_base` spells it as.
 
 ### Step 9B — Depth Counting at Junction Positions
 
@@ -323,8 +373,8 @@ pandas is the universal data layer. Every internal table (clipped reads, junctio
 | `.groupby().aggregate(['min','max'])` | `make_gene_side_regions:588` | Extract region boundaries (min/max position) from clustered junction points |
 | `.groupby().transform(_hclust)` | `make_gene_side_regions:583` | Apply hierarchical clustering independently per chromosome |
 | `.groupby().count().reset_index()` | `search_insert_pos:829` | Count reads per unique (position, IS, orientation) combination |
-| `pd.melt(id_vars=..., var_name=..., value_name=...)` | `report_average:1200` | Pivot the wide sum-by-region table (IS elements as columns) to long format for frequency calculation |
-| `.groupby().agg('sum')` | `combine_results.py:349` | Collapse IS element copies (IS1_1 + IS1_2 → IS1) by summing frequencies |
+| `pd.melt(id_vars=..., var_name=..., value_name=...)` | `report_average:1200` | Pivot the wide sum-by-region table (clusters as columns) to long format for frequency calculation |
+| `combine_results.py` | Sum the per-region rows of one element across samples. The report names clusters, so the element is the name -- there is no copy suffix left to strip (isfinder-annotation 07) |
 | `reduce(lambda df1, df2: pd.merge(..., how='outer'), dfs)` | `combine_results.py:107` | Iterative outer-join of all per-sample report DataFrames into one wide comparative table |
 
 #### Row-wise computation

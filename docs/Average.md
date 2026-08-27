@@ -39,7 +39,9 @@ Contains information about junctions for each read. File contains following colu
 	 unique identifier
 
 * *IS name*  
-	 mobile element name
+	 the [locus](../CONTEXT.md) whose sequence the read's clipped part matched — an IS table
+	 row (`ISAba18_1`), not the cluster. The per-region report collapses these to the element;
+	 this file is one row per read, so it keeps the locus the match was against.
 
 * *IS pos*  
 	 what part of the read matches mobile element
@@ -72,9 +74,14 @@ Contains information about junctions for each read. File contains following colu
 
 Long format of frequency estimation. **NOTE: If you have aligner (like BWA-mem) that produses both soft- and hard-clipped reads you should multiply frequency assessments by 2.**
 
+The file begins with a line naming the IS table the run was annotated against
+(`# ijump-is-table: <digest>`); `ijump combine-results` reads it to check that the samples
+it is merging share one annotation.
+
 File contains following columns:
 * *IS Name*  
-	 mobile element name
+	 the [cluster](../README.md#clusters) — the mobile element, not the individual locus it
+	 was called at. Several loci of one element report under one name.
 
 * *Annotation*  
 	 locus tag of the affected gene; in the case of intergenic region two locus tags will be shown with us_ or ds_ prefixes that indicate upstream or downstream position of the region relative to the genes.
@@ -110,17 +117,9 @@ Wide format of frequency estimation. Table shows raw counts of reads that suppor
 * *stop*  
 	 end coordinate of affected region
 
-* *mobile element names*  
-	 raw reads that support junctions
-
-#### CIRCOS files
-
-iJump can create config files (*data* folder) for [CIRCOS](http://circos.ca/) circular diagrams that represent directions of mobile element jumps. Currently commented because of long processing (will be improved soon).
-
-To run CIRCOS you will need to type:
-```
-circos -config ./data/circos.conf
-```
+* *cluster names*  
+	 one column per [cluster](../README.md#clusters) — per mobile element, not per called
+	 locus — holding the raw count of reads supporting junctions of that element
 
 ## Simulation test
 
@@ -142,7 +141,9 @@ Alignment was made with [bwa-mem](http://bio-bwa.sourceforge.net/)
 
 BAM file manipulations were performed with [samtools](http://samtools.sourceforge.net/)
 
-Results are following:
+Results are following. **This run predates cluster reporting**, so it shows one row per
+called locus — `IS5_1`, `IS5_4`, `IS5_9`, `IS5_10` and the rest are copies of one element,
+and each carries only its own share of the evidence:
 
 | IS Name | Annotation   | Chromosome | Start   | Stop    | Frequency | Depth       |
 |---------|--------------|------------|---------|---------|-----------|-------------|
@@ -161,7 +162,11 @@ Results are following:
 | IS5_10  | BW25113_3671 | CP009273.1 | 3844456 | 3846145 | 4.35%     | 966         |
 
 We see that some reads were aligned to other copies of IS5 element. However majority of reads were aligned correctly.
-If we summarize all frequences for each affected gene we will get results close to the expected:
+
+Splitting one element's evidence across its copies like that is what the `cluster` column
+now prevents: a current run puts these rows under a single `IS5` entry per region, so the
+per-gene summation below is no longer something you do by hand — it is what the report
+already contains. The comparison against the simulated truth still stands:
 
 | Gene         | Start   | Stop    | Observed | Expected |
 |--------------|---------|---------|----------|----------|

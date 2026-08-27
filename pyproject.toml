@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ijump"
+version = "2.0.0"
+description = "Search for Insertion Sequence (IS) rearrangements in evolved population sequencing data."
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "pandas",
+    "pysam",
+    "numpy",
+    "scikit-learn",
+]
+
+[project.optional-dependencies]
+lint = ["ruff==0.16.3", "mypy==2.3.1"]
+
+[project.scripts]
+ijump = "ijump.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py37"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+
+[tool.mypy]
+files = ["src/ijump", "tests"]
+ignore_missing_imports = true

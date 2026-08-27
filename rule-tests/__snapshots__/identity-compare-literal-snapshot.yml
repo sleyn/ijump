@@ -1,0 +1,14 @@
+id: identity-compare-literal
+snapshots:
+  direction is '+':
+    labels:
+    - source: direction is '+'
+      style: primary
+      start: 0
+      end: 16
+  n is 5:
+    labels:
+    - source: n is 5
+      style: primary
+      start: 0
+      end: 6
