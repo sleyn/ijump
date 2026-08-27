@@ -12,13 +12,8 @@ from ijump import annotation_stamp, gff
 
 
 # The element each row belongs to, as the lab format's collapse groups on.
-#
-# This used to strip a numeric copy suffix off a per-locus name -- ISAba12_1 to
-# ISAba12 -- so that the copies of one element summed into one row. Clustering
-# does that collapsing now (isfinder-annotation 07) and the report names the
-# element directly, so there is nothing left to derive. Left in place, the same
-# regex ate the element's own digits instead: ISAba1, ISAba11, ISAba12 and
-# ISAba18 all became "ISAba", silently summing four unrelated elements.
+# "IS Name" already names the element -- clustering has collapsed per-locus
+# names into it -- so there is nothing left to derive here.
 def add_element_column(summary_table):
     table = summary_table.copy()
     table["Mutation"] = table["IS Name"]
@@ -39,9 +34,7 @@ def _check_one_annotation(reports):
     annotation_stamp.check_one_annotation(fingerprint_by_report)
 
 
-# Read and ijump report tables
 def collect_reports(report_path, a_samples_path, clonal_workflow=False):
-    # Collect junctions from unevolved samples
     a_sample_files = []
 
     if clonal_workflow:
@@ -50,17 +43,14 @@ def collect_reports(report_path, a_samples_path, clonal_workflow=False):
         else:
             a_sample_files = glob.glob(path.join(a_samples_path, "*.txt"))
 
-    # Collect paths to report tables for samples.
     report_files = glob.glob(path.join(report_path, "ijump_*"))
 
-    # Test if there are iJump report files in the directory
     if not report_files:
         print(
             'No iJump report files were found. Report files are required to have "ijump_" prefix.'
         )
         exit(1)
 
-    # List of samples from reports
     sample_list = [
         re.search(r"ijump_(.+)\.txt", report).group(1)
         for report in [path.basename(file) for file in report_files]
@@ -69,7 +59,6 @@ def collect_reports(report_path, a_samples_path, clonal_workflow=False):
 
     a_sample_list = []
 
-    # List of unevolved samples
     if clonal_workflow:
         a_sample_list = [re.search(r"(\dA)\.txt", report).group(1) for report in a_sample_files]
 
@@ -77,14 +66,13 @@ def collect_reports(report_path, a_samples_path, clonal_workflow=False):
 
 
 def read_reports(report_files, a_sample_files, clonal_workflow, mode):
-    # Read all variants
     report_dfs = []
 
     # Every report is joined to the others on IS identity below, and IS names are
     # cluster names -- derived from whichever IS table annotated that run, not
     # fixed labels. Samples annotated against different tables would be lined up
     # on names that mean different elements, so that is refused here, before any
-    # of them is read as data (isfinder-annotation 07).
+    # of them is read as data.
     _check_one_annotation(list(report_files) + list(a_sample_files if clonal_workflow else []))
 
     for report in report_files:
@@ -115,7 +103,6 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
                 )
             )
 
-    # Read unevolved samples if provided (only for clonal data)
     if clonal_workflow:
         for a_sample in a_sample_files:
             sample_name = re.search(r"(\dA)\.txt", path.basename(a_sample)).group(1)
@@ -145,7 +132,6 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
                     )
                 )
 
-    # Merge all data frames to one comparative table
     if mode == "average":
         id_columns = ["IS Name", "Annotation", "Chromosome", "Start", "Stop"]
     elif mode == "precise":
@@ -158,10 +144,8 @@ def read_reports(report_files, a_sample_files, clonal_workflow, mode):
     return summary_table
 
 
-# Make dense summary table
 def make_dense_table(summary_table):
     summary_table_result = summary_table.copy()
-    # Take observations with both junctions defined
     complete_juctions = summary_table_result[["Start", "Stop", "Chromosome", "IS Name"]].query(
         "Start > 0 & Stop > 0"
     )
@@ -201,7 +185,6 @@ def make_dense_table(summary_table):
     return summary_table_result
 
 
-# Annotate junctions
 def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
     annotation_fields = {"Locus Tag": 0, "Gene": 1, "ID": 2, "Annotation": 3}
 
@@ -224,9 +207,7 @@ def annotate_feild(gff_file, chrom, pos_1, pos_2, field, mode):
             return f"{l_ann} ; {r_ann}"
 
 
-# Add GFF annotations.
 def add_gff_annotations(summary_table, gff_file_path, mode):
-    # If no gff file was provided just put '-' in all annotation fields.
     if gff_file_path == "-":
         n_variants = len(summary_table)
         summary_table["Locus Tag"] = ["-"] * n_variants
@@ -234,11 +215,9 @@ def add_gff_annotations(summary_table, gff_file_path, mode):
         summary_table["ID"] = ["-"] * n_variants
         summary_table["Annotation"] = ["-"] * n_variants
     else:
-        # Read GFF file.
         gff_file = gff.gff(gff_file_path)
         gff_file.readgff()
 
-        # Add annotations.
         for field in ["Locus Tag", "Gene", "ID", "Annotation"]:
             summary_table[field] = summary_table.apply(
                 lambda x, field=field: annotate_feild(
@@ -309,30 +288,22 @@ def main():
     args = parser.parse_args()
     a_pop_samples = []
 
-    # Check if correct mode was given.
     if args.ijump_mode not in ["average", "precise"]:
         print('Wrong iJump mode. Choose "average" or "precise".')
         exit(0)
 
-    # Folder with ijump report files
     report_dir = args.dir_report
-    # Path to output table
     out_file = args.output
 
-    # Collect report files for evolved and unevolved samples.
     report_files, a_sample_files, sample_list, a_sample_list = collect_reports(
         report_dir, args.a_samples, args.clonal
     )
-    # Read all reports and combine them to the summary table
     summary_table = read_reports(report_files, a_sample_files, args.clonal, args.ijump_mode)
-    # On precise dense mode summarize reports
     if args.ijump_mode == "precise":
         summary_table = make_dense_table(summary_table)
-    # Add annotations from GFF file
     summary_table = add_gff_annotations(summary_table, args.gff, args.ijump_mode)
 
     if args.gff != "-":
-        # Add maximum observed frequency.
         summary_table["MAX"] = summary_table[sample_list].apply(max, axis=1)
         summary_table = summary_table.query("MAX > 0").copy()
         if summary_table.shape[0] == 0:
@@ -351,7 +322,6 @@ def main():
             )
             exit(0)
 
-        # Initiate list for column names.
         if args.ijump_mode == "precise":
             cols = ["Start", "Stop"]
         else:
@@ -362,13 +332,11 @@ def main():
             cols.extend(sample_list)
             cols.extend(["MAX", "Annotation", "Locus Tag", "Chromosome"])
         else:
-            # Generate short format names.
             sample_list_rename = [re.search("_([^_]+)$", sample).group(1) for sample in sample_list]
             cols.extend(sample_list_rename)
             cols.extend(["MAX", "Annotation", "Category", "Effect", "Locus Tag", "Chromosome"])
 
             if args.clonal:
-                # Calculate maximum in unevolved population samples if they are provided
                 if args.a_samples != "-":
                     summary_table["A_MAX"] = summary_table[a_sample_list].apply(max, axis=1)
                     summary_table["Category"] = [
@@ -380,9 +348,7 @@ def main():
                 summary_table["Effect"] = "IS_insertion"
                 summary_table["Mutation"] = summary_table["IS Name"]
             else:
-                # Process population unevolved samples
                 a_pop_samples = [a_sample for a_sample in sample_list if a_sample[-1] == "A"]
-                # If unevolved population samples are provided calculate max frequency in unevolved
                 if len(a_pop_samples) > 0:
                     summary_table["A_MAX"] = summary_table[a_pop_samples].apply(max, axis=1)
                     summary_table["Category"] = [
@@ -395,7 +361,6 @@ def main():
                 summary_table["Effect"] = "IS_insertion"
                 summary_table["Mutation"] = summary_table["IS Name"]
 
-            # Rename samples to short format
             summary_table = summary_table.rename(columns=dict(zip(sample_list, sample_list_rename)))
 
             if args.clonal and args.a_samples != "-":
@@ -405,12 +370,10 @@ def main():
                 summary_table = summary_table.rename(
                     columns=dict(zip(a_sample_list, a_sample_list_rename))
                 )
-                # Add columns for A-samples to the final table
                 cols.extend(a_sample_list)
 
             cols.extend(["A_MAX"])
 
-            # Sum IS elements with the same name
             summary_table_collapsed = summary_table.copy()
             if args.ijump_mode == "average":
                 summary_table_collapsed = add_element_column(summary_table_collapsed)
@@ -433,8 +396,6 @@ def main():
 
                 summary_table_collapsed = summary_table_collapsed[cols]
 
-                # Write collapsed table. All ISname_"[digit]" frequences will be sum to
-                # one ISname field frequency.
                 out_file_collapsed = "_".join(
                     [part for part in [args.prefix, "collapsed", path.basename(out_file)] if part]
                 )
@@ -442,14 +403,12 @@ def main():
                     path.join(path.dirname(out_file), out_file_collapsed), sep="\t", index=False
                 )
 
-            # Write selected (Frequency >= 1%) IS insertions variant table to file.
             summary_table_collapsed[cols].query("MAX >= 0.01").to_csv(
                 path.join(path.dirname(out_file), make_selected_outfile(args.prefix, out_file)),
                 sep="\t",
                 index=False,
             )
 
-        # Write full IS insertions variant table to file.
         summary_table[cols].to_csv(
             path.join(path.dirname(out_file), make_full_outfile(args.prefix, out_file)),
             sep="\t",

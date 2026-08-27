@@ -13,20 +13,18 @@ import pysam
 from ijump import is_table
 from ijump.isclipped import EstimationMode, ISClipped
 
-# Define a path to output directory that will be available to all functions.
-# Required to be global as it will be used to generate output in case of preliminary exit
+# Global so it's available to generate output in case of a preliminary exit.
 output_dir = "."
 
 
-# Build the makeblastdb command as an argv list, kept separate from execution
-# so the construction can be unit-tested without invoking BLAST+.
+# Kept separate from execution so the construction can be unit-tested without
+# invoking BLAST+.
 def makeblastdb_command(ref_name, ref_file):
     return ["makeblastdb", "-in", ref_file, "-dbtype", "nucl", "-out", ref_name]
 
 
-# Check if BLAST database file exists for reference genome. If not -create it.
 def check_blast_ref(ref_name, ref_file):
-    if os.path.isfile(ref_name + ".nsq"):  # if blast database exists pass or make it for reference
+    if os.path.isfile(ref_name + ".nsq"):
         pass
     else:
         try:
@@ -49,7 +47,6 @@ def check_blast_ref(ref_name, ref_file):
 
 
 def build_arg_parser():
-    # Command line arguments
     parser = argparse.ArgumentParser(
         description=(
             "iJump searches for small frequency IS elements rearrangements in evolved populations"
@@ -126,11 +123,9 @@ def main():
     global output_dir
     output_dir = args.outdir
 
-    # Make output directory if not exists.
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Initialize logger.
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter("%(levelname)s: %(asctime)s - %(message)s")
@@ -143,7 +138,6 @@ def main():
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
 
-    # Print iJump version.
     version = "2.0.0"
     logging.info(f"iJump v.{version}\n")
     logging.info("author: Semion Leyn")
@@ -152,48 +146,36 @@ def main():
     logging.info(f"Mode: {args.estimation_mode}")
     logging.info(f"Alignment file: {args.aln}\n")
 
-    # Collect required file information from arguments.
     alignment_file = args.aln
     gff = args.gff
     is_file = args.isel
     reference_filename = re.match(r"(.+)\.", args.ref)
     reference = reference_filename.group(1)
 
-    # Check exisitance of  BLAST database.
     check_blast_ref(reference, args.ref)
 
-    # Check alignment file type (SAM/BAM).
     if alignment_file[-3:] == "sam":
         a_type = ""
     elif alignment_file[-3:] == "bam":
         a_type = "b"
 
-    # Make work directory if not exists
     if not os.path.exists(args.wd):
         os.makedirs(args.wd)
     else:
         if len(os.listdir(args.wd)) != 0:
             logging.warning("The work directory is not empty. Will be cleanned.")
-            # Clean work directory
             for file in glob.glob(os.path.join(args.wd, "*")):
                 os.remove(file)
 
-    # Open read alignment file (SAM or BAM)
     alignment = pysam.AlignmentFile(alignment_file, "r" + a_type)
 
-    # Process alignment to estimate IS elements frequencies.
-    # Initialize new instance of ISClipped class object.
     is_processing = ISClipped(
         alignment, reference, gff, args.wd, os.path.join(output_dir, "ijump_junction_pairs.txt")
     )
 
-    # Collect IS coordinates from IS file.
     is_processing.iscollect(is_file)
-
-    # Set area to search for clipped reads.
     is_processing.set_is_boundaries(args.radius)
 
-    # Run the average/precise pipeline and write its output files.
     # A table precise mode cannot group on is a setup problem with a known
     # remedy, so it is reported as that rather than as a traceback.
     try:

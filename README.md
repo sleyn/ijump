@@ -9,27 +9,8 @@ Software for search of Insertion Sequences (IS) rearrangements in evolved popula
 
 **NOTE:** Working with short-read-only assembled genomes is difficult with iJump. The reason is that usually IS elements are repetitive regions which are difficult to resolve for assemblers. This often result in shreading IS elements to several/many sometimes overlapped short contigs. This introduces difficulty either for boundaries determination and for mapping algorithms.
 
-**Unreleased:** Dropped the `pysamstats` dependency; `average_depth`'s coverage
-calculation is now pure `pysam` (a per-read CIGAR/span accumulator, no pileup),
-verified to reproduce `pysamstats`' true (unrounded) coverage mean exactly across
-supplementary reads, internal deletions/ref-skips, and zero-coverage windows. This
-also fixes a pre-existing bug: `average_depth` previously called `statistics.mean()`
-on a `numpy.int32` coverage array, which truncated every fractional mean down to an
-integer. Coverage means (and, in `--estimation_mode average`, the `Depth` column and
-everything derived from it) are now the correct, unrounded float — if you compare a
-new run's `Depth`/`Frequency` values against one from an earlier version, expect
-`Depth` to gain a fractional part it previously lost, and `Frequency` (which divides
-by `Depth`) to shift slightly *downward* as a result, since the old truncated,
-smaller `Depth` inflated it.
-
-**v1.0.4:** Fixed a bug (`--estimation_mode precise` was compared against the misspelled
-`'presice'`) where the `IS pos` column of `ijump_junctions.txt` in precise mode was left
-0-based while `Position` on the same row was already 1-based. `IS pos` is now converted to
-1-based too, so if you compare a new run's `ijump_junctions.txt` against one produced by an
-earlier version, `IS pos` will be shifted by 1.
-
-Upgrading from an earlier version? `CHANGELOG.md` lists the two breaking changes in this
-release and the one-command remedy for each.
+Upgrading from an earlier version? `CHANGELOG.md` lists breaking changes and fixes release
+by release, with a one-command remedy for each breaking change.
 
 ## Content
 
@@ -149,24 +130,13 @@ expects, and `docker run --rm ijump run --help` for the full flag list
 `ijump_wd` under the current directory and should usually be mounted or
 redirected too if you want to keep it after the container exits).
 
-**Base image and dependency install, verified end-to-end with a live
-`docker build .` (no `--platform` override) and `docker run`
-(`blastn -version`, `makeblastdb -version`, and a full `ijump run` against
-`tests/fixtures/tiny.bam`/`.fna`/`.gff` mounted as volumes, all succeeded and
-produced the expected output files):** the image is `python:3.11-slim`,
-matching `environment.yml`'s Python pin. `pysam`, `pandas`, `numpy` and
-`scikit-learn` all have prebuilt wheels for this Python/platform
-combination, so `uv sync --no-dev --no-editable` installs them directly --
-no C compiler, no `build-essential`/`zlib1g-dev`, no arch restriction. (An
-earlier version of this image pinned Python 3.8 and built `pysamstats`
-from source against `pysam==0.15.4`'s headers, because `pysamstats` 1.1.2
-hard-pins `pysam<0.16` and that old `pysam` release has no arm64 wheel at
-any Python version. `pysamstats` was dropped as a project dependency
-after that Dockerfile was written -- see the [uv](#uv) section above --
-which removed the reason for all of that scaffolding.) No `uv.lock` is
-committed, so the Dockerfile doesn't use `uv sync --frozen`; it resolves
-fresh on each build. Debian's `ncbi-blast+` package on this base image
-happens to be BLAST 2.16.0, matching `environment.yml`'s pin exactly.
+The image is `python:3.11-slim`, matching `environment.yml`'s Python pin. `pysam`,
+`pandas`, `numpy` and `scikit-learn` all have prebuilt wheels for this Python/platform
+combination, so `uv sync --no-dev --no-editable` installs them directly -- no C compiler,
+no `build-essential`/`zlib1g-dev`, no arch restriction. No `uv.lock` is committed, so the
+Dockerfile doesn't use `uv sync --frozen`; it resolves fresh on each build. Debian's
+`ncbi-blast+` package on this base image happens to be BLAST 2.16.0, matching
+`environment.yml`'s pin exactly.
 
 <a name="dev-setup"></a>
 ### Development setup
@@ -185,11 +155,7 @@ from anywhere without any manual `PYTHONPATH`/`sys.path` fiddling, and is
 what `pytest` (run from the repo root) relies on to import the package
 under test. The tests additionally require `pysam`, which has prebuilt
 wheels for current Python/platform combinations and installs fine via
-plain `pip`/`uv` (unlike the now-removed `pysamstats`, which pinned
-`pysam<0.16` and forced a conda install — see the `uv` section below,
-whose documented `pysam`/`pysamstats` build failure predates that
-removal and describes a conflict that no longer exists for a plain
-`pysam` install).
+plain `pip`/`uv`.
 
 <a name="uv"></a>
 #### uv
@@ -199,10 +165,13 @@ removal and describes a conflict that no longer exists for a plain
 package:
 
 ```
-uv sync                 # create .venv/ and install project + dependencies
-uv run pytest           # run the test suite inside that venv (replaces bare `pytest`)
-uv run ijump --help     # run the console script from a checkout (replaces an installed `ijump`)
+uv sync                       # create .venv/ and install project + dependencies
+uv run --with pytest pytest   # run the test suite inside that venv
+uv run ijump --help           # run the console script from a checkout (replaces an installed `ijump`)
 ```
+
+`pytest` itself isn't a declared project dependency, so `--with pytest` is
+what pulls it into the run without adding it to `pyproject.toml`.
 
 #### Lint / pre-commit
 
@@ -216,65 +185,16 @@ issues are caught before they're committed rather than only in CI:
 uv run pre-commit install
 ```
 
-(if `uv sync` isn't usable yet on your machine because of the
-`pysam`/`pysamstats` limitation above, `pip install pre-commit &&
-pre-commit install` works the same way — `pre-commit` itself has no
-dependency on the project's runtime deps.) After that, `git commit` runs
-`ruff check --fix`, `ruff format`, and `mypy src/ijump` automatically; run
-them over the whole repo at any time with:
+After that, `git commit` runs `ruff check --fix`, `ruff format`, and
+`mypy src/ijump` automatically; run them over the whole repo at any time
+with:
 
 ```
 pre-commit run --all-files
 ```
 
-**Known limitation, verified on this machine (macOS/arm64, Python 3.13,
-`uv 0.11.8`): `uv sync` / `uv lock` (and therefore `uv run` against a
-project venv) currently fail outright, before installing anything, and
-this is not a `uv`-specific bug.** The chain of causes:
-
-1. `pysamstats` 1.1.2 — the newest release on PyPI, last published in
-   2018 — hard-pins `pysam<0.16` in its own `install_requires`, so any
-   resolver (`uv`, or plain `pip`) is forced onto `pysam==0.15.4`
-   regardless of what `ijump`'s own `pyproject.toml` asks for.
-2. `pysam==0.15.4` has no prebuilt wheels for modern Python/platform
-   combinations, so it has to build from its sdist. That build fails in a
-   PEP 517 isolated environment with a plain `ModuleNotFoundError: No
-   module named 'pkg_resources'` (its bundled build script assumes
-   `pkg_resources` is present).
-3. Supplying `pkg_resources`/an older `setuptools` gets one step further,
-   then hits a second, deeper failure: `pysam`'s sdist has no
-   precompiled `.c` sources checked in for this Cython/Python
-   combination, so it needs `cython` installed too — and even with
-   `cython` and `setuptools<81` pre-installed and `--no-build-isolation`,
-   the native build still fails during `setup.py egg_info`/build (this
-   was verified directly with plain `pip install --no-build-isolation
-   pysam==0.15.4`, independent of `uv` entirely, to confirm this isn't a
-   `uv`-only problem).
-
-In short: `pysamstats` 1.1.2 is an unmaintained package pinned to an
-equally old, no-longer-buildable `pysam` release, and no combination of
-`uv`/`pip` flags gets a plain PyPI source resolve working for it on a
-current Python. Because of this, `uv.lock` cannot honestly be generated
-for this project's real dependency set right now, and none is committed —
-generating one by loosening/removing the `pysam`/`pysamstats`
-requirement would just hide the problem rather than fix it. This is
-exactly the gap ticket 04 (conda packaging) exists to close: conda
-provides prebuilt `pysam`/`pysamstats` binaries and sidesteps the source
-build entirely.
-
-What *does* work with `uv` today, verified on this machine:
-
-* `uv build` — produces a wheel and sdist without touching runtime
-  dependency resolution at all (the `setuptools.build_meta` backend from
-  ticket 01 needs no changes; it works as-is under `uv build`).
-* Anything that doesn't require `uv` to sync a project venv first.
-
-Until `pysam`/`pysamstats` are available as installable wheels (or ticket
-04's conda environment is the one providing them), keep using the
-existing conda-based install above for actually running/testing iJump
-locally (`conda install ...` + `pip install -e .`); treat `uv sync`/`uv
-run pytest`/`uv run ijump` as the target workflow this project is moving
-towards, not yet as something that works end-to-end from a clean clone.
+No `uv.lock` is committed, so `uv sync` resolves fresh each time rather
+than using `--frozen`.
 
 <a name="releasing"></a>
 #### Releasing to PyPI
@@ -289,14 +209,10 @@ uv publish --token <PyPI API token>        # uploads dist/* to PyPI
 ```
 
 `uv build` only needs the `[build-system]` section of `pyproject.toml`
-(currently `setuptools.build_meta`, unchanged) and does not require
-`pysam`/`pysamstats` to resolve or install — it was verified to succeed
-on this machine even while `uv sync`/`uv lock` cannot (see above). The
-`ijump` name was confirmed available on PyPI (`pypi.org/pypi/ijump/json`
-returned 404) as of ticket 03's grilling session; re-check before
-actually publishing in case it's been claimed since. `uv publish` needs a
-PyPI API token (`--token` or the `UV_PUBLISH_TOKEN` env var) — no token
-was used and nothing was published as part of this work.
+(`setuptools.build_meta`). Check the `ijump` name is still available on
+PyPI (`pypi.org/pypi/ijump/json` should return 404) before publishing.
+`uv publish` needs a PyPI API token (`--token` or the `UV_PUBLISH_TOKEN`
+env var).
 
 <a name="usage"></a>
 ## Usage
@@ -588,20 +504,20 @@ optional arguments:
 <a name="reports"></a>
 ### Reports name elements, not called loci
 
-**Breaking change.** The per-region report and the region summary carry one entry per
-[cluster](#clusters) — one per mobile element — where they used to carry one per row of the
-IS table. On the reference genome the three entries `IS17_1`, `IS17_2` and `ISAba12_1`
-become the single entry `ISAba12`: they are one copy and two of its own fragments, and
-splitting one insertion's evidence across three entries both understated every frequency
-and could hide an insertion under the reporting cutoff entirely.
+The per-region report and the region summary carry one entry per [cluster](#clusters) — one
+per mobile element — not one per row of the IS table. On the reference genome the three
+rows `IS17_1`, `IS17_2` and `ISAba12_1` become the single entry `ISAba12`: they are one copy
+and two of its own fragments, and splitting one insertion's evidence across three entries
+would both understate every frequency and could hide an insertion under the reporting
+cutoff entirely.
 
 Anyone reading `ijump_report_by_is_reg.txt` or `ijump_sum_by_reg.txt` by IS name — a script
-selecting `IS17_1`, or a column index into the region summary — is broken by this and needs
-updating to the cluster names. `ijump combine-results` handles it for you.
+selecting `IS17_1`, or a column index into the region summary — needs to use the cluster
+names instead. `ijump combine-results` handles it for you.
 
-`ijump_report_by_is_reg.txt` -- and precise mode's `ijump_junction_pairs.txt` -- now begin
-with a line naming the IS table the run was annotated against. These are the files
-`ijump combine-results` merges; `ijump_sum_by_reg.txt` is not merged and is not stamped:
+`ijump_report_by_is_reg.txt` and precise mode's `ijump_junction_pairs.txt` — the two files
+`ijump combine-results` merges — begin with a line naming the IS table the run was
+annotated against. `ijump_sum_by_reg.txt` is not merged and is not stamped:
 
 ```
 # ijump-is-table: c5775ee72813f8c2
@@ -610,9 +526,8 @@ with a line naming the IS table the run was annotated against. These are the fil
 Cluster names are derived from the loci rather than fixed labels, so the same name can mean
 different elements in two runs annotated against different tables. `ijump combine-results`
 joins samples on those names, so it reads this line and **refuses to merge samples whose
-annotations disagree** rather than lining up names that mean different things. A report
-written before this change carries no such line and is refused with a message saying to
-rerun the sample.
+annotations disagree** rather than lining up names that mean different things. A report with
+no such line is refused with a message saying to rerun the sample.
 
 <a name="compare"></a>
 ### Compare samples

@@ -6,7 +6,7 @@
 #
 # direction: 1 => IS->Ref forward search, 0 => Ref->IS backward search
 # (precise mode only). Kept as a single flag rather than split into two
-# functions -- see ticket 10 ("Out of scope").
+# functions since the two searches share almost all of their logic.
 #
 # NoInsertionsFound lives here (not in isclipped.py) so this module has no
 # import-time dependency on isclipped -- isclipped.py imports it from here
@@ -21,10 +21,10 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 # Minimum length of a clipped segment to write into the BLAST query FASTA.
-# Was ISClipped.blast_min; never overridden by a caller.
+# Never overridden by a caller.
 BLAST_MIN = 10
 # Minimum percent identity of a clipped-read BLAST hit to accept it.
-# Was ISClipped.blast_min_ident; never overridden by a caller.
+# Never overridden by a caller.
 BLAST_MIN_IDENT = 75
 
 
@@ -36,9 +36,7 @@ class NoInsertionsFound(Exception):
 class Boundary:
     """One area to search for clipped reads.
 
-    Replaces the bare ``[start, stop, edge, is_name, chrom]`` list every
-    caller used to build and unpack by position (review-followups 13). For
-    the backward (direction=0) search, ``edge`` and ``is_name`` carry no
+    For the backward (direction=0) search, ``edge`` and ``is_name`` carry no
     per-element meaning and are always ``"-"`` -- see
     ``ISClipped.set_is_boundaries`` (forward) and the ``backward_boundaries``
     list comprehension in ``ISClipped.run`` (backward) for how each is built.
@@ -53,8 +51,8 @@ class Boundary:
 
 @dataclass
 class SearchResult:
-    clipped_reads: pd.DataFrame  # replaces self.clipped_reads / self.clipped_reads_bwrd
-    blast_hits: pd.DataFrame  # replaces self.blastout_filtered
+    clipped_reads: pd.DataFrame
+    blast_hits: pd.DataFrame
     match_lengths: list = field(default_factory=list)  # forward (direction=1) only; [] on backward
     read_lengths: int = 0  # forward only; 0 on backward
     n_reads_analyzed: int = 0  # forward only; 0 on backward
@@ -63,10 +61,9 @@ class SearchResult:
     )  # backward (direction=0) only; {} on forward
 
 
-# Run blastn on a FASTA of clipped-read segments against the reference.
-# Writes out_file as a side effect, same as today's ISClipped.runblast
-# -- the one seam `search` lets tests substitute a
-# fake for, so the real blastn subprocess is never invoked by a test.
+# Writes out_file as a side effect. This is the one seam `search` lets tests
+# substitute a fake for, so the real blastn subprocess is never invoked by a
+# test.
 def run_blast_subprocess(query_file, ref_name, out_file):
     logging.info("Run BLAST for clipped parts of the reads")
     try:
@@ -100,26 +97,19 @@ def run_blast_subprocess(query_file, ref_name, out_file):
 
 # For a clipped segment return left, right positions, junction side, coordinate of
 # adjacent non-clipped nucleotide.
-# Moved verbatim from ISClipped._clboundaries.
 def _clboundaries(read):
     positions = read.get_reference_positions(full_length=True)
     clipped_segments = list()
-    # Start of clipped segments
     start_clipped_segment = 0
-    # Is previous position clipped?
     is_cl_prev = False
-    # Is this clipped segment left or right?
-    # The segment is "left" if unmapped part of the read is not aligned at current position.
+    # The segment is "left" if the unmapped part of the read is not aligned at
+    # the current position.
     is_left = None
-    # Which part of the read is clipped?
     clipped_part = ""
-    # Position of a junction in an aligned part of a read
     junction_pos = 0
 
-    # Collect all clipped segments in a read.
-    # Sometimes there are more than one clipped segment (e.g. CIGAR: 30S90M30S).
+    # A read can carry more than one clipped segment (e.g. CIGAR: 30S90M30S).
     for pos_index in range(len(positions)):
-        # Check if the position is a start pf a clipped part
         if positions[pos_index] is None and is_cl_prev is False:
             if pos_index == 0:
                 is_left = True
@@ -135,7 +125,6 @@ def _clboundaries(read):
         elif (
             isinstance(positions[pos_index], int) or (pos_index + 1) == len(positions)
         ) and is_cl_prev is True:
-            # End of a clipped segment
             end_clipped_segment = pos_index
             if (pos_index + 1) == len(positions):
                 end_clipped_segment = pos_index + 1
@@ -151,19 +140,12 @@ def _clboundaries(read):
 
 
 # return clipped portion of a read
-# Moved verbatim from ISClipped._clipped_seq. Not one
-# of the eight functions ticket 10 names explicitly, but _crtable_ungapped
-# depends on it, so it moves along with its caller.
 def _clipped_seq(read, left, right):
     return read.query_sequence[(left - 1) : right]
 
 
 # Collect information about coverage that comes from clipped reads outside junction position.
-# Moved from ISClipped._cl_read_cov_overlap: the
-# `self.cl_read_cov_overlap[chrom]` mutation becomes a `cl_read_cov_overlap`
-# parameter mutated in place (dicts are mutable, so no return value is
-# needed -- same pattern as the original, which also discarded its `return 0`
-# early-exit's value).
+# Mutates cl_read_cov_overlap[chrom] in place rather than returning a value.
 def _cl_read_cov_overlap(cl_read_cov_overlap, aln_pairs, chrom):
     if len(aln_pairs) < 3:
         return
@@ -172,11 +154,10 @@ def _cl_read_cov_overlap(cl_read_cov_overlap, aln_pairs, chrom):
     ref_pos = [a_pair[1] for a_pair in aln_pairs]
 
     for i in read_pos[1:-1]:
-        # If nucleotide is not aligned - skip it
         if i is None:
             continue
         else:
-            # If the position is junction - skip it
+            # Skip a position that is itself a junction.
             if ref_pos[i - 1] is None or ref_pos[i + 1] is None:
                 continue
             else:
@@ -191,20 +172,12 @@ def _cl_read_cov_overlap(cl_read_cov_overlap, aln_pairs, chrom):
 # be not mirrored due to some short repeats (1+nt size) near junction positions.
 # direction: 1 => IS->Ref, 0 => Ref->IS (in precise pipeline)
 #
-# Moved from ISClipped._crtable_ungapped. `self._index` becomes the `index`
-# parameter/return value; `self.read_lengths`/`self.n_reads_analyzed` become
-# parameters/return values (plain ints can't be mutated through a reference).
-# `chrom`/`start`/`stop`/`edge`/`is_name` were five positional parameters
-# until review-followups 13 folded them into a single `Boundary` (see its
-# docstring); their names live on as `boundary`'s field names, unchanged.
-#
-# `clipped_reads`, `cl_read_cov_overlap` and `match_lengths` used to be
-# parameters this function mutated in place (review-followups 14). They are
-# now built locally, scoped to this one boundary, and returned instead --
-# `search` (the only caller) merges each call's return into its own running
-# totals. `_cl_read_cov_overlap` below is unaffected: it still mutates the
-# dict it is handed, but that dict is now this function's own local, never a
-# reference `search` holds onto.
+# clipped_reads, cl_read_cov_overlap and match_lengths are built locally,
+# scoped to this one boundary, and returned rather than mutated on a shared
+# object -- `search` (the only caller) merges each call's return into its own
+# running totals. `_cl_read_cov_overlap` still mutates the dict it is handed,
+# but that dict is this function's own local, never a reference `search`
+# holds onto.
 def _crtable_ungapped(
     aln,
     index,
@@ -212,44 +185,36 @@ def _crtable_ungapped(
     n_reads_analyzed,
     boundary,
     direction,
-):  # generate clipped read table
+):
     clipped_reads = {}
     cl_read_cov_overlap = {}
     match_lengths = []
 
     # One is added to convert from 0-based to 1-based system
     for read in aln.fetch(boundary.chrom, boundary.start + 1, boundary.stop + 1):
-        # Add read length to collection of lengths.
         if direction:
             if read.infer_read_length():
                 read_lengths += read.infer_read_length()
                 n_reads_analyzed += 1
 
-        # Skip unmapped read
         if read.is_unmapped:
             continue
 
-        # Skip if the read is not clipped
         if "S" not in read.cigarstring:
             continue
 
         if direction:
-            # Collect lengths of read segments that match reference to calculate
-            # correction coefficient.
+            # Longest matched segment, used to calculate the correction
+            # coefficient in region_summary/frequency_estimation.
             m_len = [int(x) for x in re.findall(r"(\d+)M", read.cigarstring)]
-            # Leave only the longest match from read.
             m_len = max(m_len)
-            # Add lengths to collection.
             match_lengths.append(m_len)
         else:
-            # If it is Ref->IS direction of search:
-            # Add coverage from aligned positions of clipped reads that are not junctions.
             # _cl_read_cov_overlap indexes straight into cl_read_cov_overlap[chrom],
             # so that key must exist before the first read seen for a given chrom.
             cl_read_cov_overlap.setdefault(read.reference_name, {})
             _cl_read_cov_overlap(cl_read_cov_overlap, read.aligned_pairs, read.reference_name)
 
-        # Get clipped segments coordinates from the read
         clipped_segments = _clboundaries(read)
         for cl_seg in clipped_segments:
             # On the IS->Ref search check if read was collected on the correct side of
@@ -261,32 +226,24 @@ def _crtable_ungapped(
                 continue
 
             clip_temp = {
-                # Unique read ID
                 "ID": index,
-                # IS name
                 "IS name": boundary.is_name if direction else "-",
                 # Contig where IS element is located for IS->Ref search and clipped read of Ref->IS
                 "IS_chrom": boundary.chrom,
                 "Read name": read.query_name,
-                # Coordinate of clipped segment start
                 "left pos": cl_seg[0],
-                # Coordinate of clipped segment end
                 "right pos": cl_seg[1],
-                # IS clipped segment on "left" from alignment or on "right"
                 "clip_position": cl_seg[2],
                 # Coordinate of junction nucleotide on contig.
                 # At IS side for IS->Ref search and for contig for Ref->IS search
                 "junction_in_read": cl_seg[3],
-                # Is read forward or reverse
                 "reverse": True if read.is_reverse else False,
-                # Sequence of clipped segment
                 "sequence": _clipped_seq(read, cl_seg[0], cl_seg[1]),
             }
 
-            # Add clipped read information to dictionary to build DataFrame.
-            # It is faster than append segments-by-segments to the existing DataFrame.
-            # As we don't know number of clipped segments we could not create and
-            # empty DataFrame of required size.
+            # Built as a dict-of-dicts and turned into a DataFrame once at the
+            # end (in `search`), since the number of clipped segments isn't
+            # known up front and appending row-by-row is far slower.
             clipped_reads[index] = clip_temp
 
             index = index + 1
@@ -295,9 +252,6 @@ def _crtable_ungapped(
 
 
 # Write clipped parts of reads to FASTA file. Use only parts >= min_len.
-# Moved from ISClipped._write_cl_fasta. The
-# direction-based table selection moves to the call site in `search`, since
-# each `search` call already only ever has one table in scope.
 def _write_cl_fasta(cl_table, cl_fasta_name, min_len):
     with open(cl_fasta_name, "w") as fasta_file:
         cl_table.index = cl_table["ID"]
@@ -309,7 +263,6 @@ def _write_cl_fasta(cl_table, cl_fasta_name, min_len):
 
 
 # Choose left or right coordinate as a clipped junction and orientation relative to junction.
-# Moved verbatim from ISClipped._choosecoord.
 def _choosecoord(qleft, qright, lr):
     qcoord = [qleft, qright]
     qorientation = ["left", "right"]
@@ -321,15 +274,8 @@ def _choosecoord(qleft, qright, lr):
 # Parse BLAST output.
 # direction: 1=>IS->Ref, 0=>Ref->IS. For Ref->IS we don't need to remove duplicates,
 # we need only one of them
-#
-# Moved from ISClipped.parseblast. `self.blastout_filtered`
-# assignment becomes a return value; `self.clipped_reads`/`self.clipped_reads_bwrd`
-# become the `cl_table` parameter (chosen at the call site, same as
-# _write_cl_fasta above); `self.blast_min_ident` becomes the BLAST_MIN_IDENT
-# module constant (see its definition above).
 def _parseblast(blast_out_path, direction, cl_table):
     logging.info("Collect information from BLAST")
-    # Check if Blast is not empty
     if os.path.isfile(blast_out_path) and os.path.getsize(blast_out_path) > 0:
         blast_out = pd.read_csv(blast_out_path, sep="\t")
     else:
@@ -355,17 +301,16 @@ def _parseblast(blast_out_path, direction, cl_table):
     blast_out = blast_out[blast_out["pident"] >= BLAST_MIN_IDENT]
 
     idx_max = blast_out.groupby("qseqid")["bitscore"].transform(max) == blast_out["bitscore"]
-    # Temporary dataframe for filtering with only best hits by bitscore.
     temp = blast_out[idx_max].copy()
 
     if direction:
+        # A read with more than one equally-best hit is ambiguous and dropped.
         temp["count"] = temp.groupby("qseqid")["qseqid"].transform("count")
-        # Leave only hits with one best hit.
         temp = temp[temp["count"] == 1]
         temp = temp.drop(columns=["count"])
     else:
+        # Ties are fine here -- just pick one deterministically.
         temp["rank"] = temp.groupby("qseqid")["bitscore"].rank(method="first", ascending=True)
-        # Leave only first best hit.
         temp = temp[temp["rank"] == 1]
         temp = temp.drop(columns=["rank"])
 
@@ -378,7 +323,6 @@ def _parseblast(blast_out_path, direction, cl_table):
         temp.at[index, "pos_in_ref"] = pos
         temp.at[index, "orientation"] = orient
 
-    # Check if temp has any entries.
     if temp.size:
         temp["pos_in_ref"] = temp["pos_in_ref"].astype(int)
     else:
@@ -390,16 +334,13 @@ def _parseblast(blast_out_path, direction, cl_table):
 
 # Turn an alignment into a BLAST hit table of candidate junction positions.
 #
-# `boundaries` is a list of `Boundary` entries -- the shape ISClipped.boundaries
-# already has for the forward search (ISClipped.set_is_boundaries). For the
-# backward search, the caller builds the same shape from the reference-regions
-# table (what ISClipped.crtable_bwds used to do internally with
-# edge=is_name='-').
+# `boundaries` is a list of `Boundary` entries -- the shape
+# ISClipped.set_is_boundaries builds for the forward search. For the backward
+# search, the caller builds the same shape from the reference-regions table,
+# with edge=is_name='-'.
 #
 # Raises NoInsertionsFound (without ever calling `run_blast`) if no clipped
-# reads are collected -- same short-circuit today's ISClipped.run() gets
-# from calling check_data_presence_in_df between collect_clipped_reads()/
-# crtable_bwds() and runblast().
+# reads are collected.
 def search(aln, boundaries, ref_name, workdir, direction, run_blast=run_blast_subprocess):
     clipped_reads_dict = {}
     match_lengths = []

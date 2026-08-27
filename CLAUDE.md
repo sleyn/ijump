@@ -4,25 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Development uses `uv`, but `uv sync`/`uv run` currently cannot resolve this project's runtime deps
-from PyPI alone (`pysamstats` hard-pins an unbuildable `pysam==0.15.4` — see README's "uv" section
-for the full chain). Until ticket 04's conda packaging lands, use conda for anything that needs the
-runtime deps installed, and `uv`/plain `pip` only for lint, tests, and build:
+`uv` is the intended tool for local dev, tests, and build:
 
 ```
-conda env create -f environment.yml && conda activate ijump
-pip install -e . --no-deps        # editable install, resolves via conda's pysam/pysamstats
+uv sync                       # create .venv/ and install project + dependencies
+uv run --with pytest pytest   # run the test suite (pytest isn't a declared dependency)
+uv run ijump --help
 ```
 
-- Run all tests: `pytest` (from repo root; `pytest.ini` sets `testpaths = tests`)
-- Run a single test file/case: `pytest tests/test_isclipped.py::test_name`
+Conda (`environment.yml`) also works as an alternative — see README's "Conda" section.
+
+- Run all tests: `uv run --with pytest pytest` (from repo root; `pytest.ini` sets `testpaths = tests`)
+- Run a single test file/case: `uv run --with pytest pytest tests/test_isclipped.py::test_name`
 - Characterization goldens live in `tests/goldens/` (see its README). The end-to-end tier is
   marked `e2e`, needs the large inputs in `Test/` (or `$IJUMP_E2E_DATA`), and skips without
   them; deselect it with `pytest -m "not e2e"`. Re-pin an intended change with
   `python tests/regenerate_goldens.py` and review the resulting diff.
 - Lint/format: `ruff check src/ijump tests` / `ruff format src/ijump tests` (mypy: `mypy src/ijump tests`)
 - Install the pre-commit hook once per clone: `pre-commit install` (runs ruff --fix, ruff format, mypy on `git commit`); run over everything with `pre-commit run --all-files`
-- `uv build` works standalone (doesn't need the runtime deps to resolve) for producing a wheel/sdist
+- `uv build` produces a wheel/sdist
 - Structural search/codemods: `ast-grep scan .` runs this repo's own rules in `rules/`; `ast-grep test` checks them; see `docs/agents/ast-grep.md` for repo-specific recipes (state-coupling matrix, outline usage) before reaching for grep on a Python identifier
 
 Lint/mypy in CI (`.github/workflows/lint.yml`) only cover `src/ijump/` and `tests/` — other

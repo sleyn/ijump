@@ -59,8 +59,7 @@ class MissingClusterColumn(Exception):
 
     Raised rather than filled in: the cluster is the answer to which loci a
     clipped read cannot tell apart, and nothing in the table's other columns
-    answers that. Guessing it from the IS name is exactly what
-    isfinder-annotation 06 removed.
+    answers that. It is not guessed from the IS name.
     """
 
 
@@ -182,8 +181,7 @@ def fingerprint(table: pd.DataFrame) -> str:
     Cluster names are *derived* from the loci, not fixed labels, so the same name
     can mean different elements in two runs annotated against different tables or
     different references. Reports carry this digest so a multi-sample merge can
-    tell that its samples share one vocabulary before it joins them on it
-    (isfinder-annotation 07).
+    tell that its samples share one vocabulary before it joins them on it.
 
     Taken over the canonical columns only, so that reading a legacy table into
     the wider shape -- which fills the annotation columns with empty strings --

@@ -5,9 +5,8 @@ several of them into one comparative table, joining the samples on IS identity.
 That join is only sound when every sample was annotated against the same IS
 table: cluster names are *derived* from the loci rather than fixed labels, so
 ``ISAba12`` in one run and ``ISAba12`` in another are the same element only if
-both runs saw the same table. Merging across annotations would line up names
-that mean different things -- silently, and worse than the per-locus names the
-clusters replaced, which at least did not move (isfinder-annotation 07).
+both runs saw the same table. Merging across annotations would silently line up
+names that mean different things.
 
 Nothing in a report's own columns answers "which table produced this", so the
 writer stamps the answer on and the reader checks it. The stamp is a leading

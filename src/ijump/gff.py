@@ -10,15 +10,12 @@ class gff:
         )  # positions for every annotation. Keys are chrom/ids => [ann, contig, start, stop]
         self.capitalize = False
 
-    # read GFF file
     def readgff(self):
         print("Read GFF file " + self.gff_name)
         gff_file = open(self.gff_name, "r")
         gff_content = gff_file.read().split("\n##FASTA")  # remove FASTA section
         gff_content = gff_content[0]
-        contig_prop_strings = re.findall(
-            r"##sequence-region\s+(\S+)\s+(\d+)\s+(\d+)", gff_content
-        )  # seqrch for contig properties
+        contig_prop_strings = re.findall(r"##sequence-region\s+(\S+)\s+(\d+)\s+(\d+)", gff_content)
         gff_content_sorted = list()
 
         # sort gff content so headers are grouped with annotations
@@ -43,17 +40,17 @@ class gff:
             self.gff_pos[chrom] = list()
             print("Contig: " + chrom)
 
-            for _pos in range(clen + 1):  # populate all positions with the empty lists
+            for _pos in range(clen + 1):
                 self.gff_pos[chrom].append(list())
 
             items = contig.split("\n")
 
-            if len(items) == 1:  # if contig do not have items - fill it with ''
+            if len(items) == 1:
                 for i in range(clen + 1):
                     self.gff_pos[chrom][i] = ["", "", "", ""]
                 continue
 
-            items = [x for x in items if x != ""]  # remove blank lines in gff file elements
+            items = [x for x in items if x != ""]
 
             # for intergenic space annotations
             prev_pos = 0
@@ -68,30 +65,29 @@ class gff:
             first_orient = "+"
             last_orient = "+"
 
-            for j in range(1, len(items)):  # process each annotation
+            for j in range(1, len(items)):
                 fields = items[j].split("\t")
 
-                id = "-"  # get id
+                id = "-"
                 id_match = re.search("ID=([^;]+)(;|$)", fields[8])
                 if id_match is not None:
                     id = id_match.group(1)
 
-                lt = "-"  # get locus tag
+                lt = "-"
                 lt_match = re.search("locus_tag=([^;]+)(;|$)", fields[8])
                 if lt_match is not None:
                     lt = lt_match.group(1)
 
-                name = "-"  # get trivial name
+                name = "-"
                 name_match = re.search("gene=([^;]+)(;|$)", fields[8])
                 if name_match is not None:
                     name = name_match.group(1)
 
-                product = "-"  # get product
+                product = "-"
                 product_match = re.search("product=([^;]+)(;|$)", fields[8])
                 if product_match is not None:
                     product = product_match.group(1)
 
-                # fill positions with information
                 for k in range(int(fields[3]), int(fields[4]) + 1):
                     if self.gff_pos[chrom][k]:
                         self.gff_pos[chrom][k][0] += ";" + lt
@@ -217,9 +213,10 @@ class gff:
         ann_id = 0
         for contig in self.gff_pos.keys():
             prev_ann = ""
-            self.gff_pos[contig].append(["-", "-"])  # add one position to the end for
+            # Sentinel row so the loop below always has a next position to compare
+            # the current one against, even at the last real position.
+            self.gff_pos[contig].append(["-", "-"])
             self.ann_pos[contig] = dict()
-            # porpose of an algorithm
             for pos in range(len(self.gff_pos[contig]) - 1):
                 if prev_ann != self.gff_pos[contig][pos][0]:
                     prev_ann = self.gff_pos[contig][pos][0]

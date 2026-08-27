@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """Top-level ``ijump`` console-script dispatcher.
 
-Before this module existed, iJump shipped as several independent scripts
-that users invoked directly (``python3 ijump.py ...``, ``python3
-combine_results.py ...``, and so on). This module wires those same
-entry points up as subcommands of a single installed ``ijump`` command,
-mirroring conventions like ``git`` or ``uv``:
+Wires each target module up as a subcommand of one installed ``ijump``
+command, mirroring conventions like ``git`` or ``uv``:
 
     ijump run                 -> ijump.ijump:main()
     ijump combine-results     -> ijump.combine_results:main()

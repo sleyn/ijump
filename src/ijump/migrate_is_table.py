@@ -14,7 +14,7 @@ after that is ``is_annotation.annotate_and_cluster``, shared with the primary
 back-end so the two cannot drift apart on what a cluster is.
 
 This is the remedy that ``ijump run`` names when it meets a table with no
-cluster column (isfinder-annotation 06/08).
+cluster column.
 """
 
 import argparse

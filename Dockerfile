@@ -1,15 +1,10 @@
-# iJump image: builds the package from this repo checkout (no dependency on
-# a prior PyPI publish), with BLAST+ from apt and the Python dependency
-# install driven by uv.
+# Builds the package from this repo checkout, so `docker build .` works from
+# any branch without a PyPI publish first. BLAST+ comes from apt; uv drives
+# the Python dependency install.
 #
-# Base Python version: 3.11, matching environment.yml.
-#
-# `pysamstats` -- the reason a prior version of this image pinned Python 3.8
-# and pysam==0.15.4, and built pysamstats from source against apt-installed
-# build-essential/zlib1g-dev -- was dropped as a project dependency
-# (isclipped-refactor ticket 16 round 2). pysam, pandas, numpy and
-# scikit-learn all have prebuilt wheels for this Python/platform combination,
-# so `uv sync` resolves and installs them without a C compiler.
+# Python 3.11 matches environment.yml. pysam, pandas, numpy and scikit-learn
+# all have prebuilt wheels for this Python/platform combination, so `uv sync`
+# resolves and installs them without a C compiler.
 FROM python:3.11-slim
 
 # ncbi-blast+ provides both `blastn` and `makeblastdb`, which
@@ -27,9 +22,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-# Copy the repo checkout in (respecting .dockerignore) and install from it,
-# so `docker build .` works from any branch/checkout without a
-# publish-then-pull round trip through PyPI.
+# Respects .dockerignore.
 COPY . .
 
 # No uv.lock is committed -- this project doesn't pin one -- so `uv sync

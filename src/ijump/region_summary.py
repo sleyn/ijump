@@ -14,8 +14,7 @@ import pandas as pd
 # element is indistinguishable from one clipped at another, so a column per locus
 # splits one insertion's evidence across as many columns as the assembly happened
 # to call fragments of that element -- three, on the reference genome, where
-# IS17_1, IS17_2 and ISAba12_1 are one copy and two of its own fragments
-# (isfinder-annotation 07).
+# IS17_1, IS17_2 and ISAba12_1 are one copy and two of its own fragments.
 #
 # `clusters` maps each IS name to its cluster (is_table.cluster_by_name). Column
 # order follows the IS table's row order, deduplicated.
@@ -43,7 +42,7 @@ def summarize_by_region(junctions, clusters, gff_ann_pos) -> pd.DataFrame:
         pos = junc_temp.iloc[i]["Position"]
         chrom = junc_temp.iloc[i]["Chrom"]
         cluster = clusters[junc_temp.iloc[i]["IS name"]]
-        for ann_id, item in gff_ann_pos[chrom].items():  #
+        for ann_id, item in gff_ann_pos[chrom].items():
             if item[2] <= pos <= item[3]:
                 if ann_id not in sum_by_region.index:
                     temp = sum_by_reg_tbl_init(clusters)
@@ -77,9 +76,9 @@ def report_average(
     # 1st percentile rather than the bare minimum: match_lengths is a per-read
     # statistic pooled across the whole run, and a single outlier read (a
     # spuriously short matched segment) would otherwise set the correction
-    # applied to every region's frequency (average-depth-zero-coverage 02).
+    # applied to every region's frequency.
     min_match = np.percentile(match_lengths, 1)
-    av_read_len = read_lengths / n_reads_analyzed  # find average read length
+    av_read_len = read_lengths / n_reads_analyzed
     # "IS Name" carries the cluster -- the element that jumped. The column keeps
     # its name because it is the join key combine_results merges samples on and
     # the header of a documented output; what changed is that one name no longer
@@ -100,7 +99,6 @@ def report_average(
     report_table.sort_values(by=["start", "stop"], inplace=True)
     report_table = report_table[report_table["count"] > 0]
 
-    # Add depth.
     report_table["Depth"] = report_table.apply(
         lambda x: average_depth(x["chrom"], x["start"], x["stop"]), axis=1
     )
@@ -121,9 +119,8 @@ def report_average(
     # ratio's expansion through the linear term in blast_min/av_read_len and
     # min_match/av_read_len) rather than the exact form -- accurate as long as
     # blast_min and min_match stay small relative to av_read_len, true for
-    # short-read data. Audited in average-depth-zero-coverage 02; the
-    # Depth==0 guard above already keeps this correction from ever running
-    # against a zero denominator.
+    # short-read data. The Depth==0 guard above already keeps this correction
+    # from ever running against a zero denominator.
     report_table["Frequency"] = report_table.apply(
         lambda x: (
             np.nan

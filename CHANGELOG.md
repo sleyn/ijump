@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+Dropped the `pysamstats` dependency; `average_depth`'s coverage calculation is now pure
+`pysam` (a per-read CIGAR/span accumulator, no pileup), verified to reproduce `pysamstats`'
+true (unrounded) coverage mean exactly across supplementary reads, internal
+deletions/ref-skips, and zero-coverage windows.
+
+**Fixed.** `average_depth` previously called `statistics.mean()` on a `numpy.int32` coverage
+array, which truncated every fractional mean down to an integer. Coverage means (and, in
+`--estimation_mode average`, the `Depth` column and everything derived from it) are now the
+correct, unrounded float — if you compare a new run's `Depth`/`Frequency` values against one
+from an earlier version, expect `Depth` to gain a fractional part it previously lost, and
+`Frequency` (which divides by `Depth`) to shift slightly *downward* as a result, since the
+old truncated, smaller `Depth` inflated it.
+
 ## 2.0.0
 
 The IS table gained sequence-derived annotation, and both estimation modes now report by
@@ -93,3 +108,13 @@ the flag and, if you relied on the generated Circos files, render them from
 
 - The ISFinder HTML parser, whose upstream web site went down. Use the BLAST workflow
   (`ijump isfinder-db-parse`) instead.
+
+## 1.0.4
+
+### Fixed
+
+- `--estimation_mode precise` was compared against the misspelled `'presice'`, so the `IS
+  pos` column of `ijump_junctions.txt` in precise mode was left 0-based while `Position` on
+  the same row was already 1-based. `IS pos` is now converted to 1-based too, so if you
+  compare a new run's `ijump_junctions.txt` against one produced by an earlier version, `IS
+  pos` will be shifted by 1.
