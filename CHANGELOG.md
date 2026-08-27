@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
 
 The IS table gained sequence-derived annotation, and both estimation modes now report by
-**element** rather than by called locus. Three changes break existing setups; each has a
+**element** rather than by called locus. Four changes break existing setups; each has a
 one-line remedy.
 
 ### Breaking: a run refuses a table with no `cluster` column
@@ -50,6 +50,14 @@ the annotation the run used. `ijump_sum_by_reg.txt` is not merged and is not sta
 samples annotated against different IS tables**, which would otherwise line up cluster names
 that mean different elements. Reports written before this change carry no such line and are
 refused; rerun those samples.
+
+### Breaking: Circos output is gone
+
+`-c/--circos` and `circos.py` are removed. Circos rendering had no role in detection itself —
+it only turned finished detection results into Circos input files — and saw little practical
+use. An invocation passing `-c/--circos` now fails with an unrecognized-argument error; drop
+the flag and, if you relied on the generated Circos files, render them from
+`ijump_report_by_is_reg.txt`/`ijump_junction_pairs.txt` with your own tooling instead.
 
 ### Added
 
