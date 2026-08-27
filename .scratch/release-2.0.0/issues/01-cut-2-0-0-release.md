@@ -47,7 +47,10 @@ design/readability improvement on working code, explicitly decided to land on
 - [x] `average-depth-zero-coverage/02` is done
 - [x] `CHANGELOG.md` reads `## 2.0.0` (not `## Unreleased`) with all four breaking
       changes listed, including Circos removal — already true as of this check.
-- [ ] `pyproject.toml`'s `version` is `2.0.0` — still reads `1.0.4`.
+- [x] `pyproject.toml`'s `version` is `2.0.0` — also bumped `meta.yaml`'s
+      `{% set version %}` and the hardcoded `version = "1.0.4"` literal in
+      `src/ijump/ijump.py` (printed at the top of every run's log), both of
+      which would otherwise have kept reporting `1.0.4` after the tag.
 - [ ] `refactor` merged into `master` (merge commit or equivalent, per the
       maintainer's preferred git workflow)
 - [ ] `master` tagged `v2.0.0`
