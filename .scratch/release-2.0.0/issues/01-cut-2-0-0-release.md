@@ -35,7 +35,7 @@ refactor and mutation removal split off from ticket 09) — that's a
 design/readability improvement on working code, explicitly decided to land on
 `master` after the tag rather than gate it.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] `review-followups/08`'s full checklist passes — real conda/Docker verification
       done 2026-08-26/27: env, full suite (194 passed), `conda build .`, Docker
@@ -51,10 +51,31 @@ design/readability improvement on working code, explicitly decided to land on
       `{% set version %}` and the hardcoded `version = "1.0.4"` literal in
       `src/ijump/ijump.py` (printed at the top of every run's log), both of
       which would otherwise have kept reporting `1.0.4` after the tag.
-- [ ] `refactor` merged into `master` (merge commit or equivalent, per the
-      maintainer's preferred git workflow)
-- [ ] `master` tagged `v2.0.0`
-- [ ] `ijump --help` and a manual real-sample run both work from a fresh
-      checkout of the tag
+- [x] `refactor` merged into `master` (merge commit `d285a81`, `--no-ff`, per
+      the maintainer's choice). One real conflict: `.gitignore` — `master`'s
+      side still ignored `src/` from before the src-layout package existed;
+      resolved by taking `refactor`'s block (which already covers
+      `.agents/`/`.claude/`/`skills-lock.json` plus newer build-cache
+      entries) and dropping the stale `src/` ignore. `docs/Precise.md`
+      auto-merged clean.
+- [x] `master` tagged `v2.0.0` (annotated tag, pushed to origin, pointing at
+      `d285a81`).
+- [x] `ijump --help` and a manual real-sample run both work from a fresh
+      checkout of the tag. Verified 2026-08-27: `git clone --branch v2.0.0`
+      into a scratch directory, fresh `conda env create -f environment.yml`,
+      `pip install -e . --no-deps`. `ijump --help` prints the expected
+      subcommand list. `ijump run` against the real `Test/Sample.bam` +
+      `A_baumannii_assembly.fna` + ATCC17978 GFF +
+      `tests/goldens/isfinder_db_parse/ISTable_processing.txt` exits 0 and
+      writes `ijump_junctions.txt`/`ijump_report_by_is_reg.txt`/
+      `ijump_sum_by_reg.txt`/`ijump.log`/`reads.txt` — the log's banner line
+      correctly reads `iJump v.2.0.0`.
 
 ## Comments
+
+**Released 2026-08-27.** `v2.0.0` tags `d285a81` on `master`
+(https://github.com/sleyn/ijump — merge commit of `refactor`, 96 commits
+ahead of the pre-merge `master`). CI green on both `refactor`'s tip before
+the merge and `master`'s merge commit after. GitHub Release notes were not
+created as part of this ticket (not in its Scope); worth a follow-up if the
+maintainer wants one pointing at `CHANGELOG.md`'s `## 2.0.0` section.
