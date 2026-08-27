@@ -153,4 +153,16 @@ ticket 03.
   usage should be updated to `np.intp` (or similar) so `numpy<2` can be
   dropped too, matching the pandas modernization done here.
 
+**Process deviation on record (2026-08-26, review-followups/08):** commit
+`b6aca82` fixed a genuine pandas bug in `region_summary.py` (`.at[]` used for
+a multi-column assignment pandas never actually supported for that shape,
+raising `InvalidIndexError` under a modern pandas) under this ticket, whose
+Scope listed only `environment.yml`, `meta.yaml`, and README. Ticket 06's own
+convention is *"if something looks like a genuine bug … flag it in Comments
+rather than silently fixing it inline"* -- and this same ticket's own
+Comments apply that convention to a different finding in the same session,
+then skip it for this one. The fix itself is correct and is now covered by
+`tests/test_region_summary.py`; nothing here needs reverting. This comment
+only makes the deviation part of the record, per review-followups/08's ask.
+
 **Correction (2026-08-17, review-followups ticket 02):** The `test_read_count_mtx_rejects_invalid_orientation` failure noted above was *not* pre-existing. It was introduced by isclipped-refactor ticket 09's extraction of the read-count-matrix helper to module level in `frequency_estimation.py`, which left no delegating alias on `ISClipped`; on `master` the helper is still an `ISClipped` static method and the test passes there. It is fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.

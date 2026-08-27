@@ -37,7 +37,12 @@ design/readability improvement on working code, explicitly decided to land on
 
 **Status:** ready-for-human
 
-- [ ] `review-followups/08`'s full checklist passes
+- [ ] `review-followups/08`'s full checklist passes — real conda/Docker verification
+      done 2026-08-26 and every locally-reachable box is ticked (env, full suite,
+      `conda build .`, Docker build+run, manual real-sample run, tracker cleanup).
+      The one box still open is CI-observed-green: `refactor` is 4 commits ahead of
+      `origin/refactor` locally, so CI hasn't run against the tip yet. That needs a
+      `git push`, which this agent left for a human per this repo's convention.
 - [ ] `circos-removal/01` is done
 - [x] `average-depth-zero-coverage/02` is done
 - [ ] `CHANGELOG.md` reads `## 2.0.0` (not `## Unreleased`) with all breaking

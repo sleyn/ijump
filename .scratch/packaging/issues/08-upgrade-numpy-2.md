@@ -58,14 +58,14 @@ repo-wide grep for `np.int0`/`np.float_`/`np.bool8`/`np.object0`/
 **Blocked by:** None — can start immediately (tickets 04 and 06 are
 already merged into `refactor`).
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `np.int0` replaced with `np.intp` in `junction_pairing.py`.
 - [x] `numpy<2` pin removed from `environment.yml` and `meta.yaml`.
 - [x] `pyproject.toml`'s unpinned `numpy` dependency checked and confirmed still correct (no silently-diverging pin left behind).
-- [x] `pytest` passes with no `np.int0` deprecation warning.
-- [ ] Manual real-sample run verified inside a conda env actually resolving numpy ≥ 2.
-- [ ] `conda build .` still succeeds.
+- [x] `pytest` passes with no `np.int0` deprecation warning -- corrected 2026-08-26 (see Comments): the original tick was true only of a 21/45-test ad hoc venv subset; a real conda env now runs the full suite.
+- [x] Manual real-sample run verified inside a conda env actually resolving numpy ≥ 2. Done 2026-08-26 via the `e2e` golden tier (`pytest -m e2e`) against `Test/Sample.bam`, in the real conda env below.
+- [x] `conda build .` still succeeds. Done 2026-08-26 (see Comments).
 - [x] `ruff`/`mypy` still pass clean.
 
 ## Comments
@@ -129,6 +129,33 @@ already merged into `refactor`).
   actual conda env with numpy ≥ 2, run the full 45-passed pytest suite
   there, run the manual real-sample `ijump run`, and run `conda build .`
   — none of that was possible in this sandbox.
+
+**Re-verified 2026-08-26 (review-followups/08), real conda + Docker available this
+session -- closes the "Still needs doing before merge" list above:**
+- `conda env create -f environment.yml` resolves cleanly; `numpy.__version__`
+  is `2.5.2` (via `conda run`) / `2.4.6` (via the env's own `bin/python`
+  directly -- both confirm the solver actually picked numpy ≥ 2, not just an
+  unpinned line that happens to resolve to 1.x).
+- Full suite in that env: `pytest -m "not e2e"` -> **194 passed, 4 skipped,
+  8 deselected**, all 29 test files collected (`198/206 collected`) -- the
+  repo has grown past the 14-file count this ticket's original tick assumed;
+  none of the 6 previously-uncollectable files (blocked on the ad hoc venv's
+  missing `pysamstats`) are missing now, since `pysamstats` is no longer a
+  dependency (isclipped-refactor ticket 16 round 2, `80f4235`).
+- `pytest -m e2e` (the real-sample tier, `Test/Sample.bam` + assembly + GFF +
+  IS table) -> **8 passed**, both estimation modes, exit 0, byte-identical to
+  the committed goldens. This is the "manual real-sample run" checkbox: it
+  runs the actual `ijump run` CLI as a subprocess and diffs its output files,
+  which is a stronger check than an ad hoc manual invocation would be.
+- `conda build .` -> succeeds, produces
+  `ijump-1.0.4-py_0.conda`, and its own embedded `ijump --help` test passes.
+- `pre-commit run --all-files` -> `ruff check`/`ruff format`/`mypy` all pass
+  (needed a Python ≥ 3.10 venv for the `pre-commit`/`mirrors-mypy` hook env;
+  the repo's own `mypy src/ijump tests` already passed clean before this).
+
+Status corrected from `ready-for-agent` to `done` -- every box above is now
+genuinely ticked, not just the ones this ticket's original author could reach
+without conda/Docker.
 
 **Correction (2026-08-17, review-followups ticket 02):** The `test_read_count_mtx_rejects_invalid_orientation` failure noted above was *not* pre-existing. It was introduced by isclipped-refactor ticket 09's extraction of the read-count-matrix helper to module level in `frequency_estimation.py`, which left no delegating alias on `ISClipped`; on `master` the helper is still an `ISClipped` static method and the test passes there. It is fixed by review-followups ticket 02 (`.scratch/review-followups/issues/02-fix-read-count-mtx-test-and-baseline.md`), which repoints the test at `frequency_estimation._read_count_mtx`.
 

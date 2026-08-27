@@ -101,18 +101,83 @@ use across packaging 01-07 but appear nowhere in
 - **02** — the corrected pytest baseline is what this ticket records. Doing it
   first would mean writing down the wrong numbers again.
 
-**Status:** ready-for-human
+**Status:** done, partially — every box that a real conda/Docker machine can close is
+closed; CI-observed-green stays open because the verifying session's 4 newest
+commits aren't pushed yet (see Comments).
 
-- [ ] `pre-commit run --all-files` passes with the hooks installed (carried from tickets 03 and 10).
-- [ ] CI observed green (carried from ticket 03).
-- [ ] Conda environment created; numpy ≥ 2 confirmed resolved, not assumed.
-- [ ] Full test suite run in that environment with all 14 files collected; real numbers recorded.
-- [ ] `conda build .` succeeds.
-- [ ] Docker image builds and runs a real sample.
-- [ ] Manual real-sample `ijump run` verified in the conda environment.
-- [ ] packaging/08's overstated `pytest` tick corrected.
-- [ ] `Status:` corrected on packaging/05 and packaging/08.
-- [ ] Label vocabulary reconciled between the tracker and `triage-labels.md`.
-- [ ] packaging/04 carries a Comment recording the out-of-scope bug fix.
+- [x] `pre-commit run --all-files` passes with the hooks installed (carried from tickets 03 and 10).
+- [ ] CI observed green (carried from ticket 03) — blocked on pushing `refactor`'s tip; see Comments.
+- [x] Conda environment created; numpy ≥ 2 confirmed resolved, not assumed.
+- [x] Full test suite run in that environment with all 14 files collected; real numbers recorded. (The repo now has 29 test files, not 14 — see Comments for the up-to-date count.)
+- [x] `conda build .` succeeds.
+- [x] Docker image builds and runs a real sample.
+- [x] Manual real-sample `ijump run` verified in the conda environment.
+- [x] packaging/08's overstated `pytest` tick corrected.
+- [x] `Status:` corrected on packaging/05 and packaging/08.
+- [x] Label vocabulary reconciled between the tracker and `triage-labels.md`.
+- [x] packaging/04 carries a Comment recording the out-of-scope bug fix.
 
 ## Comments
+
+**Closed out 2026-08-26, real conda + Docker available this session** (unlike
+every prior agent session on this batch, which correctly reported no working
+conda/Docker in their sandboxes — this one had both, so the "needs a human"
+gate was actually reachable by an agent this time):
+
+- `conda env create -f environment.yml` resolves; `numpy` lands at 2.x
+  (`2.5.2` via `conda run`, `2.4.6` via the env's own interpreter directly —
+  both ≥ 2, confirming the solver actually picked a numpy 2 release rather
+  than an unpinned line happening to land on 1.x).
+- Full suite (`pytest -m "not e2e"`) in that env: **194 passed, 4 skipped, 8
+  deselected**, all 29 `tests/test_*.py` files collected (`198/206
+  collected`). The repo has grown since this ticket was filed — it's 29 test
+  files now, not 14 — but the point (every file collectable, none silently
+  skipped by a broken import) holds and is stronger than before: the 6 files
+  that couldn't be collected in prior ad hoc venvs needed `pysamstats`, which
+  is no longer a dependency at all (isclipped-refactor ticket 16 round 2,
+  `80f4235`).
+- `pytest -m e2e` — the real-sample tier, `Test/Sample.bam` (840 MB) +
+  `A_baumannii_assembly.fna` + GFF + IS table — **8 passed**, both estimation
+  modes, byte-identical to committed goldens. This is what closes both the
+  "manual real-sample `ijump run`" and (together with the plain-suite run
+  above) the "full test suite" boxes: `golden_support.run_e2e_pipeline`
+  actually shells out to the `ijump` CLI and asserts `returncode == 0`, so
+  this is a real CLI invocation, not just library-level testing.
+- `conda build .` succeeds against `meta.yaml`, producing
+  `ijump-1.0.4-py_0.conda`; the recipe's own `ijump --help` test step passes.
+- `docker build --platform linux/amd64 -t ijump:release-verify .` succeeds
+  from the current tree; `docker run` against `tests/fixtures/` (mounted
+  read-only, output mounted read-write) exits 0 and writes the expected
+  output set.
+- `pre-commit run --all-files` passes (`ruff check`, `ruff format`, `mypy`
+  all green). Needed a throwaway Python 3.10+ venv for the
+  `mirrors-mypy`/`ruff-pre-commit` hook environments — the machine's default
+  `python3` is 3.9, and `mypy==2.3.1` (the pin in `.pre-commit-config.yaml`)
+  requires ≥ 3.10. `python3.12` was available via Homebrew; installing
+  `pre-commit` into a venv built on that and pointing it at the repo (rather
+  than at the system Python) is what made the hook environments installable.
+  This is a one-time local machine-setup detail, not a repo change.
+- packaging/08's overstated `pytest` tick, packaging/05 and packaging/08's
+  stale `Status: ready-for-agent`, the label-vocabulary table, and
+  packaging/04's missing process-deviation comment are all corrected in
+  those tickets directly (see their own files).
+
+**Genuine finding surfaced during Docker re-verification, not fixed inline:**
+`Dockerfile`'s run-dependency install (`biopython==1.79`, `"numpy<2"`,
+`pysam==0.15.4`, plus the `build-essential`/`zlib1g-dev` apt packages) is
+stale relative to current `src/ijump` — `pysamstats` (the reason for the
+`pysam==0.15.4`/Python-3.8/apt-toolchain machinery) and the biopython BLAST
+wrapper (the reason for pinning biopython) were both dropped from the
+codebase after packaging/05 was written. The image still builds and runs
+correctly, since carrying unused pinned packages isn't itself broken, but the
+whole scaffolding is now removable complexity. Recorded in packaging/05's
+Comments; left as a separate future ticket rather than fixed here, since this
+ticket's own scope is verification, not re-architecture.
+
+**Still open: CI observed green.** `git status` shows the `refactor` branch 4
+commits ahead of `origin/refactor` at session start (`59d55eb` is the local
+tip; `8b6063e`, the last pushed commit, is what CI last ran against — green).
+Pushing those 4 commits and confirming CI on the actual tip is a `git push`,
+which this session left for a human per this repo's convention of not taking
+actions with effects beyond the local checkout without asking first. That's
+the one box release-2.0.0/01 should still treat as open before tagging.

@@ -86,7 +86,7 @@ Grilled directly with the user across two rounds:
 **Blocked by:** 01 (src-layout package), 03 (`uv.lock`). Soft-depends on 02
 (CLI dispatch) for the `ENTRYPOINT`.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `Dockerfile` + `.dockerignore` added.
 - [x] Image builds from a clean clone with no prior PyPI publish required.
@@ -164,3 +164,27 @@ and README.
 **Out of scope, not attempted:** registry publishing, multi-stage build
 size optimization, reconciling apt's BLAST+ 2.12.0 against
 `environment.yml`'s `blast=2.16.0` pin.
+
+**Re-verified 2026-08-26 (review-followups/08), Docker daemon available:**
+`docker build --platform linux/amd64 -t ijump:release-verify .` from the current
+`refactor` tip (`59d55eb`) succeeds end to end, and `docker run` against
+`tests/fixtures/` (mounted read-only, `-o`/`-w` on a writable mount) exits 0 and
+writes the same expected output set described above. Status corrected from
+`ready-for-agent` to `done` -- this ticket has been implemented and merged since
+2026-08-17; the stale label would have handed an agent already-finished work.
+
+**Dockerfile is stale relative to current `src/ijump`, flagged not fixed:**
+`pysamstats` was dropped as a runtime dependency after this ticket
+(`80f4235`, isclipped-refactor ticket 16 round 2 -- reversing the "NOT
+dropped" finding recorded above, which was correct as of ticket 16's first
+round but not the final outcome), and the biopython BLAST wrapper was
+removed separately (`f84850d`). Neither the Dockerfile's `RUN uv pip
+install --system` line (still pins `biopython==1.79`, `"numpy<2"`, and
+`pysam==0.15.4`) nor its header comment's `build-essential`/`zlib1g-dev`
+justification (both exist solely to compile `pysamstats` against `pysam`'s
+headers) have been updated to reflect that. The image still builds and runs
+correctly today because none of those packages being present but unused is
+actually broken -- but the whole Python-3.8/`pysam==0.15.4`/apt-toolchain
+scaffolding is now unnecessary complexity that a currently-supported Python
+and a modern `pysam` wheel could replace. Left for a separate ticket rather
+than fixed inline here.
