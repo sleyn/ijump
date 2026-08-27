@@ -105,6 +105,25 @@ def report_average(
         lambda x: average_depth(x["chrom"], x["start"], x["stop"]), axis=1
     )
 
+    # Two corrections on top of the raw count/depth ratio, both approximating
+    # a read's true clip position (uniform over the read) getting truncated to
+    # the [blast_min, read_len - min_match] window before it can ever be
+    # observed as a clipped-read hit -- so an observed count undercounts by
+    # roughly a factor of (read_len - blast_min - min_match) / read_len:
+    # - (1 + blast_min/av_read_len) adds back reads whose clipped segment
+    #   was shorter than BLAST_MIN and so never got written to the query
+    #   FASTA at all (clipped_read_search._write_cl_fasta's min_len gate).
+    # - dividing by (1 - min_match/av_read_len) adds back reads whose
+    #   matched segment was too short for the aligner to place reliably, so
+    #   they never appear as clipped reads either.
+    # The two multiplicative factors are a first-order approximation of that
+    # single combined truncation (their product's expansion matches the exact
+    # ratio's expansion through the linear term in blast_min/av_read_len and
+    # min_match/av_read_len) rather than the exact form -- accurate as long as
+    # blast_min and min_match stay small relative to av_read_len, true for
+    # short-read data. Audited in average-depth-zero-coverage 02; the
+    # Depth==0 guard above already keeps this correction from ever running
+    # against a zero denominator.
     report_table["Frequency"] = report_table.apply(
         lambda x: (
             np.nan
